@@ -1,0 +1,68 @@
+:root,
+[data-theme='light'] {
+  --color-bg: #f5f3f0;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-text: #1c1917;
+  --color-text-muted: #78716c;
+  --color-accent: #ea580c;
+  --color-accent-hover: #c2410c;
+  --color-accent-muted: rgba(234, 88, 12, 0.12);
+  --color-border: #e7e5e4;
+  --color-border-strong: #d6d3d1;
+  --color-input-bg: #ffffff;
+  --color-success: #047857;
+  --color-success-bg: rgba(4, 120, 87, 0.1);
+  --color-error: #b91c1c;
+  --color-error-bg: rgba(185, 28, 28, 0.1);
+  --color-nav-active-bg: rgba(234, 88, 12, 0.14);
+  --shadow-card: 0 1px 3px rgba(28, 25, 23, 0.06), 0 4px 12px rgba(28, 25, 23, 0.04);
+  --shadow-card-hover: 0 4px 16px rgba(28, 25, 23, 0.1);
+  --shadow-header: 0 1px 0 var(--color-border);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --focus-ring: 0 0 0 3px rgba(234, 88, 12, 0.35);
+
+  --badge-amrap-bg: rgba(234, 88, 12, 0.15);
+  --badge-amrap-text: #c2410c;
+  --badge-fortime-bg: rgba(37, 99, 235, 0.15);
+  --badge-fortime-text: #1d4ed8;
+  --badge-tabata-bg: rgba(220, 38, 38, 0.15);
+  --badge-tabata-text: #b91c1c;
+  --badge-emom-bg: rgba(5, 150, 105, 0.15);
+  --badge-emom-text: #047857;
+}
+
+[data-theme='dark'] {
+  --color-bg: #0f1115;
+  --color-surface: #1a1d24;
+  --color-surface-elevated: #22262f;
+  --color-text: #f5f5f4;
+  --color-text-muted: #a8a29e;
+  --color-accent: #f97316;
+  --color-accent-hover: #fb923c;
+  --color-accent-muted: rgba(249, 115, 22, 0.18);
+  --color-border: #2d323d;
+  --color-border-strong: #3d4451;
+  --color-input-bg: #14171d;
+  --color-success: #34d399;
+  --color-success-bg: rgba(52, 211, 153, 0.12);
+  --color-error: #f87171;
+  --color-error-bg: rgba(248, 113, 113, 0.12);
+  --color-nav-active-bg: rgba(249, 115, 22, 0.2);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.45);
+  --shadow-header: 0 1px 0 var(--color-border);
+  --focus-ring: 0 0 0 3px rgba(249, 115, 22, 0.4);
+
+  --badge-amrap-bg: rgba(249, 115, 22, 0.2);
+  --badge-amrap-text: #fb923c;
+  --badge-fortime-bg: rgba(96, 165, 250, 0.2);
+  --badge-fortime-text: #93c5fd;
+  --badge-tabata-bg: rgba(248, 113, 113, 0.2);
+  --badge-tabata-text: #fca5a5;
+  --badge-emom-bg: rgba(52, 211, 153, 0.2);
+  --badge-emom-text: #6ee7b7;
+}
