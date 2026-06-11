@@ -3,16 +3,28 @@
 DATABASE_URL ?= postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable
 
 migrate-up:
-	psql "$(DATABASE_URL)" -f db/migrations/000001_create_wods.up.sql
+	@for f in $$(ls db/migrations/*.up.sql | sort); do \
+		echo "applying $$f"; \
+		psql "$(DATABASE_URL)" -f $$f || exit 1; \
+	done
 
 migrate-down:
-	psql "$(DATABASE_URL)" -f db/migrations/000001_create_wods.down.sql
+	@for f in $$(ls db/migrations/*.down.sql | sort -r); do \
+		echo "reverting $$f"; \
+		psql "$(DATABASE_URL)" -f $$f || exit 1; \
+	done
 
 migrate-up-docker:
-	docker compose exec -T postgres psql -U rxwod -d rxwod -f /dev/stdin < db/migrations/000001_create_wods.up.sql
+	@for f in $$(ls db/migrations/*.up.sql | sort); do \
+		echo "applying $$f"; \
+		docker compose exec -T postgres psql -U rxwod -d rxwod -f /dev/stdin < $$f || exit 1; \
+	done
 
 migrate-down-docker:
-	docker compose exec -T postgres psql -U rxwod -d rxwod -f /dev/stdin < db/migrations/000001_create_wods.down.sql
+	@for f in $$(ls db/migrations/*.down.sql | sort -r); do \
+		echo "reverting $$f"; \
+		docker compose exec -T postgres psql -U rxwod -d rxwod -f /dev/stdin < $$f || exit 1; \
+	done
 
 backend-test:
 	cd backend && go test ./...

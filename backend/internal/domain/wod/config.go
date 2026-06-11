@@ -16,10 +16,10 @@ func NewAMRAPConfig(timeCap TimeCapSeconds) (AMRAPConfig, error) {
 	return cfg, cfg.Validate()
 }
 
-func (AMRAPConfig) wodConfig() {}
-func (c AMRAPConfig) Type() WODType { return WODTypeAMRAP }
+func (AMRAPConfig) wodConfig()                 {}
+func (c AMRAPConfig) Type() WODType            { return WODTypeAMRAP }
 func (c AMRAPConfig) ScoringKind() ScoringKind { return ScoringRoundsReps }
-func (c AMRAPConfig) TimeCap() TimeCapSeconds { return c.timeCap }
+func (c AMRAPConfig) TimeCap() TimeCapSeconds  { return c.timeCap }
 
 func (c AMRAPConfig) Validate() error {
 	if c.timeCap <= 0 {
@@ -38,10 +38,10 @@ func NewForTimeConfig(rounds RoundCount, timeCap *TimeCapSeconds) (ForTimeConfig
 	return cfg, cfg.Validate()
 }
 
-func (ForTimeConfig) wodConfig() {}
-func (c ForTimeConfig) Type() WODType { return WODTypeForTime }
+func (ForTimeConfig) wodConfig()                 {}
+func (c ForTimeConfig) Type() WODType            { return WODTypeForTime }
 func (c ForTimeConfig) ScoringKind() ScoringKind { return ScoringTimeToComplete }
-func (c ForTimeConfig) Rounds() RoundCount { return c.rounds }
+func (c ForTimeConfig) Rounds() RoundCount       { return c.rounds }
 func (c ForTimeConfig) TimeCap() *TimeCapSeconds {
 	if c.timeCap == nil {
 		return nil
@@ -77,13 +77,13 @@ func NewTabataConfig(workSeconds WorkSeconds, restSeconds RestSeconds, rounds Ro
 	return cfg, cfg.Validate()
 }
 
-func (TabataConfig) wodConfig() {}
-func (c TabataConfig) Type() WODType { return WODTypeTabata }
+func (TabataConfig) wodConfig()                 {}
+func (c TabataConfig) Type() WODType            { return WODTypeTabata }
 func (c TabataConfig) ScoringKind() ScoringKind { return ScoringTotalReps }
 func (c TabataConfig) WorkSeconds() WorkSeconds { return c.workSeconds }
 func (c TabataConfig) RestSeconds() RestSeconds { return c.restSeconds }
-func (c TabataConfig) Rounds() RoundCount { return c.rounds }
-func (c TabataConfig) Cycles() CycleCount { return c.cycles }
+func (c TabataConfig) Rounds() RoundCount       { return c.rounds }
+func (c TabataConfig) Cycles() CycleCount       { return c.cycles }
 
 func (c TabataConfig) Validate() error {
 	if c.workSeconds <= 0 {
@@ -111,11 +111,11 @@ func NewEMOMConfig(intervalSeconds IntervalSeconds, rounds RoundCount) (EMOMConf
 	return cfg, cfg.Validate()
 }
 
-func (EMOMConfig) wodConfig() {}
-func (c EMOMConfig) Type() WODType { return WODTypeEMOM }
-func (c EMOMConfig) ScoringKind() ScoringKind { return ScoringRoundsReps }
+func (EMOMConfig) wodConfig()                         {}
+func (c EMOMConfig) Type() WODType                    { return WODTypeEMOM }
+func (c EMOMConfig) ScoringKind() ScoringKind         { return ScoringRoundsReps }
 func (c EMOMConfig) IntervalSeconds() IntervalSeconds { return c.intervalSeconds }
-func (c EMOMConfig) Rounds() RoundCount { return c.rounds }
+func (c EMOMConfig) Rounds() RoundCount               { return c.rounds }
 
 func (c EMOMConfig) Validate() error {
 	if c.intervalSeconds <= 0 {

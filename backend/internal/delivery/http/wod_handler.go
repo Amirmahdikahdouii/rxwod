@@ -2,7 +2,6 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -64,80 +63,45 @@ func (h *WODHandler) GetByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, toDetailResponse(item))
 }
 
-func toCreateCommand(req CreateWODRequest) (appwod.CreateCommand, error) {
-	movements := make([]appwod.MovementInput, 0, len(req.Movements))
-	for _, movement := range req.Movements {
-		movements = append(movements, appwod.MovementInput{
-			Position:  movement.Position,
-			Name:      movement.Name,
-			Reps:      movement.Reps,
-			LoadValue: movement.LoadValue,
-			LoadUnit:  movement.LoadUnit,
-			Notes:     movement.Notes,
+func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
+	if len(req.Stages) == 0 {
+		return appwod.CreateWODCommand{}, domainwod.ErrStageRequired
+	}
+
+	stages := make([]appwod.StageInput, 0, len(req.Stages))
+	for _, stage := range req.Stages {
+		movements := make([]appwod.MovementInput, 0, len(stage.Movements))
+		for _, movement := range stage.Movements {
+			movements = append(movements, appwod.MovementInput{
+				Position:  movement.Position,
+				Name:      movement.Name,
+				Reps:      movement.Reps,
+				LoadValue: movement.LoadValue,
+				LoadUnit:  movement.LoadUnit,
+				Notes:     movement.Notes,
+			})
+		}
+
+		stages = append(stages, appwod.StageInput{
+			Kind: domainwod.StageKind(stage.Kind),
+			Config: appwod.StageConfigInput{
+				Type:            domainwod.WODType(stage.Type),
+				TimeCapSeconds:  stage.Config.TimeCapSeconds,
+				Rounds:          stage.Config.Rounds,
+				WorkSeconds:     stage.Config.WorkSeconds,
+				RestSeconds:     stage.Config.RestSeconds,
+				Cycles:          stage.Config.Cycles,
+				IntervalSeconds: stage.Config.IntervalSeconds,
+			},
+			Movements: movements,
 		})
 	}
 
-	switch domainwod.WODType(req.Type) {
-	case domainwod.WODTypeAMRAP:
-		if req.Config.TimeCapSeconds == nil {
-			return appwod.CreateCommand{}, fmt.Errorf("timeCapSeconds is required for AMRAP")
-		}
-		return appwod.CreateCommand{
-			Type: domainwod.WODTypeAMRAP,
-			AMRAP: &appwod.CreateAMRAPCommand{
-				Name:        req.Name,
-				Description: req.Description,
-				TimeCap:     *req.Config.TimeCapSeconds,
-				Movements:   movements,
-			},
-		}, nil
-	case domainwod.WODTypeForTime:
-		if req.Config.Rounds == nil {
-			return appwod.CreateCommand{}, fmt.Errorf("rounds is required for FORTIME")
-		}
-		return appwod.CreateCommand{
-			Type: domainwod.WODTypeForTime,
-			ForTime: &appwod.CreateForTimeCommand{
-				Name:        req.Name,
-				Description: req.Description,
-				Rounds:      *req.Config.Rounds,
-				TimeCap:     req.Config.TimeCapSeconds,
-				Movements:   movements,
-			},
-		}, nil
-	case domainwod.WODTypeTabata:
-		if req.Config.WorkSeconds == nil || req.Config.RestSeconds == nil || req.Config.Rounds == nil || req.Config.Cycles == nil {
-			return appwod.CreateCommand{}, fmt.Errorf("workSeconds, restSeconds, rounds, and cycles are required for TABATA")
-		}
-		return appwod.CreateCommand{
-			Type: domainwod.WODTypeTabata,
-			Tabata: &appwod.CreateTabataCommand{
-				Name:        req.Name,
-				Description: req.Description,
-				WorkSeconds: *req.Config.WorkSeconds,
-				RestSeconds: *req.Config.RestSeconds,
-				Rounds:      *req.Config.Rounds,
-				Cycles:      *req.Config.Cycles,
-				Movements:   movements,
-			},
-		}, nil
-	case domainwod.WODTypeEMOM:
-		if req.Config.IntervalSeconds == nil || req.Config.Rounds == nil {
-			return appwod.CreateCommand{}, fmt.Errorf("intervalSeconds and rounds are required for EMOM")
-		}
-		return appwod.CreateCommand{
-			Type: domainwod.WODTypeEMOM,
-			EMOM: &appwod.CreateEMOMCommand{
-				Name:            req.Name,
-				Description:     req.Description,
-				IntervalSeconds: *req.Config.IntervalSeconds,
-				Rounds:          *req.Config.Rounds,
-				Movements:       movements,
-			},
-		}, nil
-	default:
-		return appwod.CreateCommand{}, domainwod.ErrUnknownWODType
-	}
+	return appwod.CreateWODCommand{
+		Name:        req.Name,
+		Description: req.Description,
+		Stages:      stages,
+	}, nil
 }
 
 func mapError(c echo.Context, err error) error {
@@ -154,7 +118,12 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidLoadUnit),
 		errors.Is(err, domainwod.ErrInvalidReps),
 		errors.Is(err, domainwod.ErrInvalidPosition),
-		errors.Is(err, domainwod.ErrUnknownWODType):
+		errors.Is(err, domainwod.ErrUnknownWODType),
+		errors.Is(err, domainwod.ErrStageRequired),
+		errors.Is(err, domainwod.ErrInvalidStageKind),
+		errors.Is(err, domainwod.ErrInvalidStagePosition),
+		errors.Is(err, domainwod.ErrNilConfig),
+		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "wod not found"})

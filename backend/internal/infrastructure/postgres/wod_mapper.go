@@ -9,21 +9,27 @@ import (
 )
 
 type wodRecord struct {
-	ID            string
-	Name          string
-	WODType       string
-	Status        string
-	Description   string
-	Config        []byte
-	ScoringKind   string
-	ScoringConfig []byte
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID          string
+	Name        string
+	Status      string
+	Description string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+type stageRecord struct {
+	ID          string
+	WODID       string
+	Position    int
+	StageKind   string
+	WODType     string
+	Config      []byte
+	ScoringKind string
 }
 
 type movementRecord struct {
 	ID        string
-	WODID     string
+	StageID   string
 	Position  int
 	Name      string
 	Reps      *int
@@ -53,95 +59,44 @@ type emomConfigPayload struct {
 	Rounds          int `json:"rounds"`
 }
 
-func variantToRecord(variant domainwod.Variant) (wodRecord, []movementRecord, error) {
-	switch v := variant.(type) {
-	case domainwod.SavedAMRAP:
-		return amrapToRecord(v)
-	case domainwod.SavedForTime:
-		return forTimeToRecord(v)
-	case domainwod.SavedTabata:
-		return tabataToRecord(v)
-	case domainwod.SavedEMOM:
-		return emomToRecord(v)
-	default:
-		return wodRecord{}, nil, domainwod.ErrUnknownWODType
+func wodToRecords(w domainwod.WOD) (wodRecord, []stageRecord, []movementRecord, error) {
+	record := wodRecord{
+		ID:          w.ID().String(),
+		Name:        string(w.Name()),
+		Status:      string(w.Status()),
+		Description: string(w.Description()),
+		CreatedAt:   w.CreatedAt(),
+		UpdatedAt:   w.UpdatedAt(),
 	}
+
+	var stages []stageRecord
+	var movements []movementRecord
+	for _, stage := range w.Stages() {
+		config, err := configToJSON(stage.Config())
+		if err != nil {
+			return wodRecord{}, nil, nil, err
+		}
+		stages = append(stages, stageRecord{
+			ID:          stage.ID().String(),
+			WODID:       w.ID().String(),
+			Position:    stage.Position(),
+			StageKind:   string(stage.Kind()),
+			WODType:     string(stage.Type()),
+			Config:      config,
+			ScoringKind: string(stage.ScoringKind()),
+		})
+		movements = append(movements, movementsToRecords(stage)...)
+	}
+
+	return record, stages, movements, nil
 }
 
-func amrapToRecord(saved domainwod.SavedAMRAP) (wodRecord, []movementRecord, error) {
-	w := saved.WOD()
-	payload, err := json.Marshal(amrapConfigPayload{TimeCapSeconds: int(w.Config().TimeCap())})
-	if err != nil {
-		return wodRecord{}, nil, fmt.Errorf("marshal amrap config: %w", err)
-	}
-	record := baseRecord(w, payload)
-	return record, movementsToRecords(w), nil
-}
-
-func forTimeToRecord(saved domainwod.SavedForTime) (wodRecord, []movementRecord, error) {
-	w := saved.WOD()
-	payloadStruct := forTimeConfigPayload{Rounds: int(w.Config().Rounds())}
-	if capValue := w.Config().TimeCap(); capValue != nil {
-		value := int(*capValue)
-		payloadStruct.TimeCapSeconds = &value
-	}
-	payload, err := json.Marshal(payloadStruct)
-	if err != nil {
-		return wodRecord{}, nil, fmt.Errorf("marshal fortime config: %w", err)
-	}
-	record := baseRecord(w, payload)
-	return record, movementsToRecords(w), nil
-}
-
-func tabataToRecord(saved domainwod.SavedTabata) (wodRecord, []movementRecord, error) {
-	w := saved.WOD()
-	payload, err := json.Marshal(tabataConfigPayload{
-		WorkSeconds: int(w.Config().WorkSeconds()),
-		RestSeconds: int(w.Config().RestSeconds()),
-		Rounds:      int(w.Config().Rounds()),
-		Cycles:      int(w.Config().Cycles()),
-	})
-	if err != nil {
-		return wodRecord{}, nil, fmt.Errorf("marshal tabata config: %w", err)
-	}
-	record := baseRecord(w, payload)
-	return record, movementsToRecords(w), nil
-}
-
-func emomToRecord(saved domainwod.SavedEMOM) (wodRecord, []movementRecord, error) {
-	w := saved.WOD()
-	payload, err := json.Marshal(emomConfigPayload{
-		IntervalSeconds: int(w.Config().IntervalSeconds()),
-		Rounds:          int(w.Config().Rounds()),
-	})
-	if err != nil {
-		return wodRecord{}, nil, fmt.Errorf("marshal emom config: %w", err)
-	}
-	record := baseRecord(w, payload)
-	return record, movementsToRecords(w), nil
-}
-
-func baseRecord[C domainwod.Config](w domainwod.WOD[C], config []byte) wodRecord {
-	return wodRecord{
-		ID:            w.ID().String(),
-		Name:          string(w.Name()),
-		WODType:       string(w.Config().Type()),
-		Status:        string(w.Status()),
-		Description:   string(w.Description()),
-		Config:        config,
-		ScoringKind:   string(w.Scoring().Kind()),
-		ScoringConfig: []byte("{}"),
-		CreatedAt:     w.CreatedAt(),
-		UpdatedAt:     w.UpdatedAt(),
-	}
-}
-
-func movementsToRecords[C domainwod.Config](w domainwod.WOD[C]) []movementRecord {
-	records := make([]movementRecord, 0, len(w.Movements()))
-	for _, movement := range w.Movements() {
+func movementsToRecords(stage domainwod.Stage) []movementRecord {
+	records := make([]movementRecord, 0, len(stage.Movements()))
+	for _, movement := range stage.Movements() {
 		record := movementRecord{
 			ID:       movement.ID().String(),
-			WODID:    w.ID().String(),
+			StageID:  stage.ID().String(),
 			Position: movement.Position(),
 			Name:     movement.Name(),
 			Notes:    movement.Notes(),
@@ -163,138 +118,108 @@ func movementsToRecords[C domainwod.Config](w domainwod.WOD[C]) []movementRecord
 	return records
 }
 
-func recordToVariant(record wodRecord, movements []movementRecord) (domainwod.Variant, error) {
-	domainMovements, err := recordsToMovements(movements)
-	if err != nil {
-		return nil, err
-	}
-
-	switch domainwod.WODType(record.WODType) {
-	case domainwod.WODTypeAMRAP:
-		return amrapFromRecord(record, domainMovements)
-	case domainwod.WODTypeForTime:
-		return forTimeFromRecord(record, domainMovements)
-	case domainwod.WODTypeTabata:
-		return tabataFromRecord(record, domainMovements)
-	case domainwod.WODTypeEMOM:
-		return emomFromRecord(record, domainMovements)
+func configToJSON(cfg domainwod.Config) ([]byte, error) {
+	switch c := cfg.(type) {
+	case domainwod.AMRAPConfig:
+		return json.Marshal(amrapConfigPayload{TimeCapSeconds: int(c.TimeCap())})
+	case domainwod.ForTimeConfig:
+		payload := forTimeConfigPayload{Rounds: int(c.Rounds())}
+		if capValue := c.TimeCap(); capValue != nil {
+			value := int(*capValue)
+			payload.TimeCapSeconds = &value
+		}
+		return json.Marshal(payload)
+	case domainwod.TabataConfig:
+		return json.Marshal(tabataConfigPayload{
+			WorkSeconds: int(c.WorkSeconds()),
+			RestSeconds: int(c.RestSeconds()),
+			Rounds:      int(c.Rounds()),
+			Cycles:      int(c.Cycles()),
+		})
+	case domainwod.EMOMConfig:
+		return json.Marshal(emomConfigPayload{
+			IntervalSeconds: int(c.IntervalSeconds()),
+			Rounds:          int(c.Rounds()),
+		})
 	default:
 		return nil, domainwod.ErrUnknownWODType
 	}
 }
 
-func amrapFromRecord(record wodRecord, movements []domainwod.Movement) (domainwod.Variant, error) {
-	var payload amrapConfigPayload
-	if err := json.Unmarshal(record.Config, &payload); err != nil {
-		return nil, fmt.Errorf("unmarshal amrap config: %w", err)
+func configFromJSON(wodType string, data []byte) (domainwod.Config, error) {
+	switch domainwod.WODType(wodType) {
+	case domainwod.WODTypeAMRAP:
+		var payload amrapConfigPayload
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return nil, fmt.Errorf("unmarshal amrap config: %w", err)
+		}
+		return domainwod.NewAMRAPConfig(domainwod.TimeCapSeconds(payload.TimeCapSeconds))
+	case domainwod.WODTypeForTime:
+		var payload forTimeConfigPayload
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return nil, fmt.Errorf("unmarshal fortime config: %w", err)
+		}
+		var timeCap *domainwod.TimeCapSeconds
+		if payload.TimeCapSeconds != nil {
+			value := domainwod.TimeCapSeconds(*payload.TimeCapSeconds)
+			timeCap = &value
+		}
+		return domainwod.NewForTimeConfig(domainwod.RoundCount(payload.Rounds), timeCap)
+	case domainwod.WODTypeTabata:
+		var payload tabataConfigPayload
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return nil, fmt.Errorf("unmarshal tabata config: %w", err)
+		}
+		return domainwod.NewTabataConfig(
+			domainwod.WorkSeconds(payload.WorkSeconds),
+			domainwod.RestSeconds(payload.RestSeconds),
+			domainwod.RoundCount(payload.Rounds),
+			domainwod.CycleCount(payload.Cycles),
+		)
+	case domainwod.WODTypeEMOM:
+		var payload emomConfigPayload
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return nil, fmt.Errorf("unmarshal emom config: %w", err)
+		}
+		return domainwod.NewEMOMConfig(domainwod.IntervalSeconds(payload.IntervalSeconds), domainwod.RoundCount(payload.Rounds))
+	default:
+		return nil, domainwod.ErrUnknownWODType
 	}
-	cfg, err := domainwod.NewAMRAPConfig(domainwod.TimeCapSeconds(payload.TimeCapSeconds))
-	if err != nil {
-		return nil, err
-	}
-	w, err := domainwod.ReconstructWOD(
-		domainwod.WODID(record.ID),
-		domainwod.WODName(record.Name),
-		domainwod.WODDescription(record.Description),
-		cfg,
-		movements,
-		domainwod.WODStatus(record.Status),
-		domainwod.NewScoringConfig(domainwod.ScoringKind(record.ScoringKind)),
-		record.CreatedAt,
-		record.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return domainwod.NewSavedAMRAP(w), nil
 }
 
-func forTimeFromRecord(record wodRecord, movements []domainwod.Movement) (domainwod.Variant, error) {
-	var payload forTimeConfigPayload
-	if err := json.Unmarshal(record.Config, &payload); err != nil {
-		return nil, fmt.Errorf("unmarshal fortime config: %w", err)
+func recordsToWOD(record wodRecord, stages []stageRecord, movementsByStage map[string][]movementRecord) (domainwod.WOD, error) {
+	domainStages := make([]domainwod.Stage, 0, len(stages))
+	for _, stage := range stages {
+		cfg, err := configFromJSON(stage.WODType, stage.Config)
+		if err != nil {
+			return domainwod.WOD{}, err
+		}
+		movements, err := recordsToMovements(movementsByStage[stage.ID])
+		if err != nil {
+			return domainwod.WOD{}, err
+		}
+		domainStage, err := domainwod.NewStage(
+			domainwod.StageID(stage.ID),
+			domainwod.StageKind(stage.StageKind),
+			stage.Position,
+			cfg,
+			movements,
+		)
+		if err != nil {
+			return domainwod.WOD{}, err
+		}
+		domainStages = append(domainStages, domainStage)
 	}
-	var timeCap *domainwod.TimeCapSeconds
-	if payload.TimeCapSeconds != nil {
-		value := domainwod.TimeCapSeconds(*payload.TimeCapSeconds)
-		timeCap = &value
-	}
-	cfg, err := domainwod.NewForTimeConfig(domainwod.RoundCount(payload.Rounds), timeCap)
-	if err != nil {
-		return nil, err
-	}
-	w, err := domainwod.ReconstructWOD(
-		domainwod.WODID(record.ID),
-		domainwod.WODName(record.Name),
-		domainwod.WODDescription(record.Description),
-		cfg,
-		movements,
-		domainwod.WODStatus(record.Status),
-		domainwod.NewScoringConfig(domainwod.ScoringKind(record.ScoringKind)),
-		record.CreatedAt,
-		record.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return domainwod.NewSavedForTime(w), nil
-}
 
-func tabataFromRecord(record wodRecord, movements []domainwod.Movement) (domainwod.Variant, error) {
-	var payload tabataConfigPayload
-	if err := json.Unmarshal(record.Config, &payload); err != nil {
-		return nil, fmt.Errorf("unmarshal tabata config: %w", err)
-	}
-	cfg, err := domainwod.NewTabataConfig(
-		domainwod.WorkSeconds(payload.WorkSeconds),
-		domainwod.RestSeconds(payload.RestSeconds),
-		domainwod.RoundCount(payload.Rounds),
-		domainwod.CycleCount(payload.Cycles),
-	)
-	if err != nil {
-		return nil, err
-	}
-	w, err := domainwod.ReconstructWOD(
+	return domainwod.ReconstructWOD(
 		domainwod.WODID(record.ID),
 		domainwod.WODName(record.Name),
 		domainwod.WODDescription(record.Description),
-		cfg,
-		movements,
+		domainStages,
 		domainwod.WODStatus(record.Status),
-		domainwod.NewScoringConfig(domainwod.ScoringKind(record.ScoringKind)),
 		record.CreatedAt,
 		record.UpdatedAt,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return domainwod.NewSavedTabata(w), nil
-}
-
-func emomFromRecord(record wodRecord, movements []domainwod.Movement) (domainwod.Variant, error) {
-	var payload emomConfigPayload
-	if err := json.Unmarshal(record.Config, &payload); err != nil {
-		return nil, fmt.Errorf("unmarshal emom config: %w", err)
-	}
-	cfg, err := domainwod.NewEMOMConfig(domainwod.IntervalSeconds(payload.IntervalSeconds), domainwod.RoundCount(payload.Rounds))
-	if err != nil {
-		return nil, err
-	}
-	w, err := domainwod.ReconstructWOD(
-		domainwod.WODID(record.ID),
-		domainwod.WODName(record.Name),
-		domainwod.WODDescription(record.Description),
-		cfg,
-		movements,
-		domainwod.WODStatus(record.Status),
-		domainwod.NewScoringConfig(domainwod.ScoringKind(record.ScoringKind)),
-		record.CreatedAt,
-		record.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return domainwod.NewSavedEMOM(w), nil
 }
 
 func recordsToMovements(records []movementRecord) ([]domainwod.Movement, error) {

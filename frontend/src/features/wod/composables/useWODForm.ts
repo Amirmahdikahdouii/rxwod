@@ -1,49 +1,110 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { createWOD } from '@/features/wod/api/wodApi'
-import { configToPayload, defaultConfigForType } from '@/features/wod/model/wodSchemas'
-import type { CreateWODResponse, MovementInput, WODFormConfig, WODType } from '@/features/wod/model/wodTypes'
+import { defaultConfigForType, defaultStage, stageToPayload } from '@/features/wod/model/wodSchemas'
+import type {
+  CreateWODResponse,
+  MovementInput,
+  StageFormState,
+  StageKind,
+  WODType,
+} from '@/features/wod/model/wodTypes'
 
-export function useWODForm(initialType: WODType = 'AMRAP') {
+export function useWODForm() {
   const name = ref('')
   const description = ref('')
-  const type = ref<WODType>(initialType)
-  const config = ref<WODFormConfig>(defaultConfigForType(initialType))
-  const movements = ref<MovementInput[]>([
-    { position: 1, name: '', reps: 10 },
-  ])
+  const stages = ref<StageFormState[]>([defaultStage()])
   const loading = ref(false)
   const error = ref<string | null>(null)
   const result = ref<CreateWODResponse | null>(null)
 
-  watch(type, (nextType) => {
-    config.value = defaultConfigForType(nextType)
-  })
-
   const payload = computed(() => ({
     name: name.value.trim(),
-    type: type.value,
     description: description.value.trim(),
-    config: configToPayload(config.value),
-    movements: movements.value.map((movement, index) => ({
-      ...movement,
-      position: index + 1,
-      name: movement.name.trim(),
-    })),
+    stages: stages.value.map(stageToPayload),
   }))
 
-  function addMovement() {
-    movements.value.push({ position: movements.value.length + 1, name: '', reps: 10 })
+  function addStage() {
+    stages.value.push(defaultStage('METCON', 'AMRAP'))
   }
 
-  function removeMovement(index: number) {
-    if (movements.value.length === 1) {
+  function removeStage(index: number) {
+    if (stages.value.length === 1) {
       return
     }
-    movements.value.splice(index, 1)
+    stages.value.splice(index, 1)
   }
 
-  function updateConfigField(key: string, value: number | undefined) {
-    config.value = { ...config.value, [key]: value } as WODFormConfig
+  function moveStageUp(index: number) {
+    if (index === 0) {
+      return
+    }
+    const next = [...stages.value]
+    const current = next[index]
+    next[index] = next[index - 1]
+    next[index - 1] = current
+    stages.value = next
+  }
+
+  function moveStageDown(index: number) {
+    if (index >= stages.value.length - 1) {
+      return
+    }
+    const next = [...stages.value]
+    const current = next[index]
+    next[index] = next[index + 1]
+    next[index + 1] = current
+    stages.value = next
+  }
+
+  function updateStageKind(index: number, kind: StageKind) {
+    const next = [...stages.value]
+    next[index] = { ...next[index], kind }
+    stages.value = next
+  }
+
+  function updateStageType(index: number, type: WODType) {
+    const next = [...stages.value]
+    next[index] = { ...next[index], type, config: defaultConfigForType(type) }
+    stages.value = next
+  }
+
+  function updateStageConfigField(index: number, key: string, value: number | undefined) {
+    const next = [...stages.value]
+    next[index] = {
+      ...next[index],
+      config: { ...next[index].config, [key]: value } as StageFormState['config'],
+    }
+    stages.value = next
+  }
+
+  function addMovement(stageIndex: number) {
+    const next = [...stages.value]
+    const stage = next[stageIndex]
+    stage.movements.push({ position: stage.movements.length + 1, name: '', reps: 10 })
+    stages.value = next
+  }
+
+  function removeMovement(stageIndex: number, movementIndex: number) {
+    const next = [...stages.value]
+    const stage = next[stageIndex]
+    if (stage.movements.length === 1) {
+      return
+    }
+    stage.movements.splice(movementIndex, 1)
+    stages.value = next
+  }
+
+  function updateMovement(
+    stageIndex: number,
+    movementIndex: number,
+    field: keyof MovementInput,
+    value: string | number | undefined,
+  ) {
+    const next = [...stages.value]
+    const movements = [...next[stageIndex].movements]
+    movements[movementIndex] = { ...movements[movementIndex], [field]: value }
+    next[stageIndex] = { ...next[stageIndex], movements }
+    stages.value = next
   }
 
   async function submit() {
@@ -65,16 +126,21 @@ export function useWODForm(initialType: WODType = 'AMRAP') {
   return {
     name,
     description,
-    type,
-    config,
-    movements,
+    stages,
     loading,
     error,
     result,
     payload,
+    addStage,
+    removeStage,
+    moveStageUp,
+    moveStageDown,
+    updateStageKind,
+    updateStageType,
+    updateStageConfigField,
     addMovement,
     removeMovement,
-    updateConfigField,
+    updateMovement,
     submit,
   }
 }

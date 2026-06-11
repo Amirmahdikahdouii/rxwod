@@ -16,77 +16,108 @@ import (
 )
 
 type handlerMemoryRepo struct {
-	items map[domainwod.WODID]domainwod.Variant
+	items map[domainwod.WODID]domainwod.WOD
 }
 
 func newHandlerMemoryRepo() *handlerMemoryRepo {
-	return &handlerMemoryRepo{items: make(map[domainwod.WODID]domainwod.Variant)}
+	return &handlerMemoryRepo{items: make(map[domainwod.WODID]domainwod.WOD)}
 }
 
-func (m *handlerMemoryRepo) Save(_ context.Context, variant domainwod.Variant) error {
-	m.items[variant.ID()] = variant
+func (m *handlerMemoryRepo) Save(_ context.Context, aggregate domainwod.WOD) error {
+	m.items[aggregate.ID()] = aggregate
 	return nil
 }
 
-func (m *handlerMemoryRepo) FindByID(_ context.Context, id domainwod.WODID) (domainwod.Variant, error) {
-	variant, ok := m.items[id]
+func (m *handlerMemoryRepo) FindByID(_ context.Context, id domainwod.WODID) (domainwod.WOD, error) {
+	aggregate, ok := m.items[id]
 	if !ok {
-		return nil, errors.New("not found")
+		return domainwod.WOD{}, errors.New("not found")
 	}
-	return variant, nil
+	return aggregate, nil
 }
 
-func (m *handlerMemoryRepo) List(_ context.Context) ([]domainwod.Variant, error) {
-	items := make([]domainwod.Variant, 0, len(m.items))
-	for _, variant := range m.items {
-		items = append(items, variant)
+func (m *handlerMemoryRepo) List(_ context.Context) ([]domainwod.WOD, error) {
+	items := make([]domainwod.WOD, 0, len(m.items))
+	for _, aggregate := range m.items {
+		items = append(items, aggregate)
 	}
 	return items, nil
 }
 
-func TestCreateWODHandler(t *testing.T) {
+func newTestRouter() *echo.Echo {
 	repo := newHandlerMemoryRepo()
 	service := appwod.NewService(repo, clock.System{}, idgen.UUIDGenerator{})
-	router := NewRouter(service)
+	return NewRouter(service)
+}
 
-	body := `{
-		"name": "Test AMRAP",
-		"type": "AMRAP",
-		"description": "desc",
-		"config": { "timeCapSeconds": 900 },
-		"movements": [{ "position": 1, "name": "Burpee", "reps": 21 }]
-	}`
-
+func postWOD(t *testing.T, router *echo.Echo, body string) *httptest.ResponseRecorder {
+	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/wods", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
-
 	router.ServeHTTP(rec, req)
+	return rec
+}
 
+func TestCreateMultiStageWODHandler(t *testing.T) {
+	router := newTestRouter()
+
+	body := `{
+		"name": "Monday Session",
+		"description": "Full class plan",
+		"stages": [
+			{ "kind": "WARMUP", "type": "FORTIME", "config": { "rounds": 2 }, "movements": [{ "position": 1, "name": "Jumping Jacks", "reps": 20 }] },
+			{ "kind": "METCON", "type": "AMRAP", "config": { "timeCapSeconds": 900 }, "movements": [{ "position": 1, "name": "Burpee", "reps": 21 }] },
+			{ "kind": "COOLDOWN", "type": "TABATA", "config": { "workSeconds": 20, "restSeconds": 10, "rounds": 8, "cycles": 1 }, "movements": [{ "position": 1, "name": "Plank", "reps": 1 }] }
+		]
+	}`
+
+	rec := postWOD(t, router, body)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 
-func TestCreateWODValidation(t *testing.T) {
-	repo := newHandlerMemoryRepo()
-	service := appwod.NewService(repo, clock.System{}, idgen.UUIDGenerator{})
-	router := NewRouter(service)
+func TestCreateWODEmptyStages(t *testing.T) {
+	router := newTestRouter()
+
+	body := `{ "name": "Empty Program", "description": "", "stages": [] }`
+
+	rec := postWOD(t, router, body)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestCreateWODInvalidStageKind(t *testing.T) {
+	router := newTestRouter()
+
+	body := `{
+		"name": "Bad Kind",
+		"description": "",
+		"stages": [
+			{ "kind": "INVALID", "type": "AMRAP", "config": { "timeCapSeconds": 900 }, "movements": [{ "position": 1, "name": "Burpee", "reps": 21 }] }
+		]
+	}`
+
+	rec := postWOD(t, router, body)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestCreateWODInvalidName(t *testing.T) {
+	router := newTestRouter()
 
 	body := `{
 		"name": "ab",
-		"type": "AMRAP",
-		"description": "desc",
-		"config": { "timeCapSeconds": 900 },
-		"movements": [{ "position": 1, "name": "Burpee", "reps": 21 }]
+		"description": "",
+		"stages": [
+			{ "kind": "METCON", "type": "AMRAP", "config": { "timeCapSeconds": 900 }, "movements": [{ "position": 1, "name": "Burpee", "reps": 21 }] }
+		]
 	}`
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/wods", strings.NewReader(body))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-
-	router.ServeHTTP(rec, req)
-
+	rec := postWOD(t, router, body)
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}

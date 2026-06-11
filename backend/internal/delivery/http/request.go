@@ -1,14 +1,19 @@
 package http
 
 type CreateWODRequest struct {
-	Name        string                 `json:"name"`
-	Type        string                 `json:"type"`
-	Description string                 `json:"description"`
-	Config      CreateWODConfigRequest `json:"config"`
-	Movements   []MovementRequest      `json:"movements"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Stages      []StageRequest `json:"stages"`
 }
 
-type CreateWODConfigRequest struct {
+type StageRequest struct {
+	Kind      string             `json:"kind"`
+	Type      string             `json:"type"`
+	Config    StageConfigRequest `json:"config"`
+	Movements []MovementRequest  `json:"movements"`
+}
+
+type StageConfigRequest struct {
 	TimeCapSeconds  *int `json:"timeCapSeconds,omitempty"`
 	Rounds          *int `json:"rounds,omitempty"`
 	WorkSeconds     *int `json:"workSeconds,omitempty"`

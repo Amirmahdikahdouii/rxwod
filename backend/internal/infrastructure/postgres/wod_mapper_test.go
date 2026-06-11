@@ -7,36 +7,78 @@ import (
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 )
 
-func TestVariantToRecordRoundTripAMRAP(t *testing.T) {
+func buildStage(t *testing.T, id string, kind domainwod.StageKind, position int, cfg domainwod.Config) domainwod.Stage {
+	t.Helper()
 	reps := domainwod.RepCount(21)
-	movement, err := domainwod.NewMovement(domainwod.MovementID("mov-1"), 1, "Burpee", &reps, nil, nil, "")
+	movement, err := domainwod.NewMovement(domainwod.MovementID(id+"-mov-1"), 1, "Burpee", &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}
+	stage, err := domainwod.NewStage(domainwod.StageID(id), kind, position, cfg, []domainwod.Movement{movement})
+	if err != nil {
+		t.Fatalf("stage error: %v", err)
+	}
+	return stage
+}
 
-	cfg, err := domainwod.NewAMRAPConfig(domainwod.TimeCapSeconds(900))
+func TestWODRecordsRoundTripMultiStage(t *testing.T) {
+	amrap, err := domainwod.NewAMRAPConfig(domainwod.TimeCapSeconds(900))
+	if err != nil {
+		t.Fatalf("config error: %v", err)
+	}
+	forTime, err := domainwod.NewForTimeConfig(domainwod.RoundCount(2), nil)
+	if err != nil {
+		t.Fatalf("config error: %v", err)
+	}
+	tabata, err := domainwod.NewTabataConfig(domainwod.WorkSeconds(20), domainwod.RestSeconds(10), domainwod.RoundCount(8), domainwod.CycleCount(1))
 	if err != nil {
 		t.Fatalf("config error: %v", err)
 	}
 
+	stages := []domainwod.Stage{
+		buildStage(t, "stage-1", domainwod.StageWarmup, 1, forTime),
+		buildStage(t, "stage-2", domainwod.StageMetcon, 2, amrap),
+		buildStage(t, "stage-3", domainwod.StageCooldown, 3, tabata),
+	}
+
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	wod, err := domainwod.NewWOD(domainwod.WODID("wod-1"), domainwod.WODName("Test"), domainwod.WODDescription("desc"), cfg, []domainwod.Movement{movement}, now)
+	wod, err := domainwod.NewWOD(domainwod.WODID("wod-1"), domainwod.WODName("Monday Session"), domainwod.WODDescription("desc"), stages, now)
 	if err != nil {
 		t.Fatalf("wod error: %v", err)
 	}
 
-	variant := domainwod.NewSavedAMRAP(wod)
-	record, movements, err := variantToRecord(variant)
+	record, stageRecords, movementRecords, err := wodToRecords(wod)
 	if err != nil {
-		t.Fatalf("to record error: %v", err)
+		t.Fatalf("to records error: %v", err)
+	}
+	if len(stageRecords) != 3 {
+		t.Fatalf("expected 3 stage records, got %d", len(stageRecords))
+	}
+	if len(movementRecords) != 3 {
+		t.Fatalf("expected 3 movement records, got %d", len(movementRecords))
 	}
 
-	restored, err := recordToVariant(record, movements)
-	if err != nil {
-		t.Fatalf("from record error: %v", err)
+	movementsByStage := make(map[string][]movementRecord)
+	for _, m := range movementRecords {
+		movementsByStage[m.StageID] = append(movementsByStage[m.StageID], m)
 	}
 
-	if restored.Type() != domainwod.WODTypeAMRAP {
-		t.Fatalf("expected AMRAP type")
+	restored, err := recordsToWOD(record, stageRecords, movementsByStage)
+	if err != nil {
+		t.Fatalf("from records error: %v", err)
+	}
+
+	restoredStages := restored.Stages()
+	if len(restoredStages) != 3 {
+		t.Fatalf("expected 3 restored stages, got %d", len(restoredStages))
+	}
+	if restoredStages[0].Kind() != domainwod.StageWarmup || restoredStages[0].Type() != domainwod.WODTypeForTime {
+		t.Fatalf("unexpected warmup stage: %+v", restoredStages[0])
+	}
+	if restoredStages[1].Type() != domainwod.WODTypeAMRAP {
+		t.Fatalf("expected metcon AMRAP, got %s", restoredStages[1].Type())
+	}
+	if restoredStages[2].Type() != domainwod.WODTypeTabata {
+		t.Fatalf("expected cooldown Tabata, got %s", restoredStages[2].Type())
 	}
 }

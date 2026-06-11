@@ -6,6 +6,7 @@ import (
 )
 
 type WODID string
+type StageID string
 type MovementID string
 type WODName string
 type WODDescription string
@@ -38,17 +39,40 @@ const (
 type LoadUnit string
 
 const (
-	LoadUnitKG          LoadUnit = "kg"
-	LoadUnitLB          LoadUnit = "lb"
-	LoadUnitBodyweight  LoadUnit = "bodyweight"
+	LoadUnitKG         LoadUnit = "kg"
+	LoadUnitLB         LoadUnit = "lb"
+	LoadUnitBodyweight LoadUnit = "bodyweight"
+)
+
+type StageKind string
+
+const (
+	StageWarmup   StageKind = "WARMUP"
+	StageStrength StageKind = "STRENGTH"
+	StageCore     StageKind = "CORE"
+	StageMetcon   StageKind = "METCON"
+	StageCooldown StageKind = "COOLDOWN"
 )
 
 func (id WODID) String() string {
 	return string(id)
 }
 
+func (id StageID) String() string {
+	return string(id)
+}
+
 func (id MovementID) String() string {
 	return string(id)
+}
+
+func validateStageKind(kind StageKind) error {
+	switch kind {
+	case StageWarmup, StageStrength, StageCore, StageMetcon, StageCooldown:
+		return nil
+	default:
+		return ErrInvalidStageKind
+	}
 }
 
 func validateName(name WODName) error {

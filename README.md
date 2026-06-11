@@ -50,9 +50,27 @@ Copy [`.env.example`](.env.example) and adjust values as needed.
 
 ## API Endpoints
 
-- `POST /api/v1/wods` — create a WOD
-- `GET /api/v1/wods` — list WODs
-- `GET /api/v1/wods/:id` — fetch WOD detail
+A WOD is a multi-stage program: one create request builds an ordered list of stages, each
+with a stage kind (`WARMUP`, `STRENGTH`, `CORE`, `METCON`, `COOLDOWN`), its own workout type
+(`AMRAP`, `FORTIME`, `TABATA`, `EMOM`) config, and its own movements.
+
+- `POST /api/v1/wods` — create a multi-stage WOD program
+- `GET /api/v1/wods` — list WOD programs (with stage summaries)
+- `GET /api/v1/wods/:id` — fetch a program with full nested stages
+
+Example create payload:
+
+```json
+{
+  "name": "Monday Session",
+  "description": "Full class plan",
+  "stages": [
+    { "kind": "WARMUP",   "type": "FORTIME", "config": { "rounds": 2 },           "movements": [{ "position": 1, "name": "Jumping Jacks", "reps": 20 }] },
+    { "kind": "METCON",   "type": "AMRAP",   "config": { "timeCapSeconds": 900 }, "movements": [{ "position": 1, "name": "Burpee", "reps": 21 }] },
+    { "kind": "COOLDOWN", "type": "TABATA",  "config": { "workSeconds": 20, "restSeconds": 10, "rounds": 8, "cycles": 1 }, "movements": [{ "position": 1, "name": "Plank", "reps": 1 }] }
+  ]
+}
+```
 
 ## Quality Gates
 

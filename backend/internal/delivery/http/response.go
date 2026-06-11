@@ -6,35 +6,49 @@ import (
 	appwod "github.com/rxwod/backend/internal/application/wod"
 )
 
-type CreateWODResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
+type StageSummaryResponse struct {
+	Kind        string `json:"kind"`
+	Position    int    `json:"position"`
 	Type        string `json:"type"`
-	Status      string `json:"status"`
 	ScoringKind string `json:"scoringKind"`
 }
 
+type CreateWODResponse struct {
+	ID         string                 `json:"id"`
+	Name       string                 `json:"name"`
+	Status     string                 `json:"status"`
+	StageCount int                    `json:"stageCount"`
+	Stages     []StageSummaryResponse `json:"stages"`
+}
+
 type WODSummaryResponse struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Type        string    `json:"type"`
-	Status      string    `json:"status"`
-	ScoringKind string    `json:"scoringKind"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	ID         string                 `json:"id"`
+	Name       string                 `json:"name"`
+	Status     string                 `json:"status"`
+	StageCount int                    `json:"stageCount"`
+	Stages     []StageSummaryResponse `json:"stages"`
+	CreatedAt  time.Time              `json:"createdAt"`
+	UpdatedAt  time.Time              `json:"updatedAt"`
 }
 
 type WODDetailResponse struct {
-	ID          string               `json:"id"`
-	Name        string               `json:"name"`
-	Description string               `json:"description"`
-	Type        string               `json:"type"`
-	Status      string               `json:"status"`
-	ScoringKind string               `json:"scoringKind"`
-	Config      ConfigResponse       `json:"config"`
-	Movements   []MovementResponse   `json:"movements"`
-	CreatedAt   time.Time            `json:"createdAt"`
-	UpdatedAt   time.Time            `json:"updatedAt"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Status      string          `json:"status"`
+	Stages      []StageResponse `json:"stages"`
+	CreatedAt   time.Time       `json:"createdAt"`
+	UpdatedAt   time.Time       `json:"updatedAt"`
+}
+
+type StageResponse struct {
+	ID          string             `json:"id"`
+	Kind        string             `json:"kind"`
+	Position    int                `json:"position"`
+	Type        string             `json:"type"`
+	ScoringKind string             `json:"scoringKind"`
+	Config      ConfigResponse     `json:"config"`
+	Movements   []MovementResponse `json:"movements"`
 }
 
 type ConfigResponse struct {
@@ -60,39 +74,76 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+func toStageSummaryResponses(summaries []appwod.StageSummaryDTO) []StageSummaryResponse {
+	responses := make([]StageSummaryResponse, 0, len(summaries))
+	for _, summary := range summaries {
+		responses = append(responses, StageSummaryResponse{
+			Kind:        string(summary.Kind),
+			Position:    summary.Position,
+			Type:        string(summary.Type),
+			ScoringKind: string(summary.ScoringKind),
+		})
+	}
+	return responses
+}
+
 func toCreateResponse(dto appwod.CreateWODResultDTO) CreateWODResponse {
 	return CreateWODResponse{
-		ID:          dto.ID,
-		Name:        dto.Name,
-		Type:        string(dto.Type),
-		Status:      string(dto.Status),
-		ScoringKind: string(dto.ScoringKind),
+		ID:         dto.ID,
+		Name:       dto.Name,
+		Status:     string(dto.Status),
+		StageCount: dto.StageCount,
+		Stages:     toStageSummaryResponses(dto.Stages),
 	}
 }
 
 func toSummaryResponse(dto appwod.WODSummaryDTO) WODSummaryResponse {
 	return WODSummaryResponse{
-		ID:          dto.ID,
-		Name:        dto.Name,
-		Type:        string(dto.Type),
-		Status:      string(dto.Status),
-		ScoringKind: string(dto.ScoringKind),
-		CreatedAt:   dto.CreatedAt,
-		UpdatedAt:   dto.UpdatedAt,
+		ID:         dto.ID,
+		Name:       dto.Name,
+		Status:     string(dto.Status),
+		StageCount: dto.StageCount,
+		Stages:     toStageSummaryResponses(dto.Stages),
+		CreatedAt:  dto.CreatedAt,
+		UpdatedAt:  dto.UpdatedAt,
+	}
+}
+
+func toConfigResponse(dto appwod.ConfigDTO) ConfigResponse {
+	return ConfigResponse{
+		TimeCapSeconds:  dto.TimeCapSeconds,
+		Rounds:          dto.Rounds,
+		WorkSeconds:     dto.WorkSeconds,
+		RestSeconds:     dto.RestSeconds,
+		Cycles:          dto.Cycles,
+		IntervalSeconds: dto.IntervalSeconds,
 	}
 }
 
 func toDetailResponse(dto appwod.WODDetailDTO) WODDetailResponse {
-	movements := make([]MovementResponse, 0, len(dto.Movements))
-	for _, movement := range dto.Movements {
-		movements = append(movements, MovementResponse{
-			ID:        movement.ID,
-			Position:  movement.Position,
-			Name:      movement.Name,
-			Reps:      movement.Reps,
-			LoadValue: movement.LoadValue,
-			LoadUnit:  movement.LoadUnit,
-			Notes:     movement.Notes,
+	stages := make([]StageResponse, 0, len(dto.Stages))
+	for _, stage := range dto.Stages {
+		movements := make([]MovementResponse, 0, len(stage.Movements))
+		for _, movement := range stage.Movements {
+			movements = append(movements, MovementResponse{
+				ID:        movement.ID,
+				Position:  movement.Position,
+				Name:      movement.Name,
+				Reps:      movement.Reps,
+				LoadValue: movement.LoadValue,
+				LoadUnit:  movement.LoadUnit,
+				Notes:     movement.Notes,
+			})
+		}
+
+		stages = append(stages, StageResponse{
+			ID:          stage.ID,
+			Kind:        string(stage.Kind),
+			Position:    stage.Position,
+			Type:        string(stage.Type),
+			ScoringKind: string(stage.ScoringKind),
+			Config:      toConfigResponse(stage.Config),
+			Movements:   movements,
 		})
 	}
 
@@ -100,19 +151,9 @@ func toDetailResponse(dto appwod.WODDetailDTO) WODDetailResponse {
 		ID:          dto.ID,
 		Name:        dto.Name,
 		Description: dto.Description,
-		Type:        string(dto.Type),
 		Status:      string(dto.Status),
-		ScoringKind: string(dto.ScoringKind),
-		Config: ConfigResponse{
-			TimeCapSeconds:  dto.Config.TimeCapSeconds,
-			Rounds:          dto.Config.Rounds,
-			WorkSeconds:     dto.Config.WorkSeconds,
-			RestSeconds:     dto.Config.RestSeconds,
-			Cycles:          dto.Config.Cycles,
-			IntervalSeconds: dto.Config.IntervalSeconds,
-		},
-		Movements: movements,
-		CreatedAt: dto.CreatedAt,
-		UpdatedAt: dto.UpdatedAt,
+		Stages:      stages,
+		CreatedAt:   dto.CreatedAt,
+		UpdatedAt:   dto.UpdatedAt,
 	}
 }

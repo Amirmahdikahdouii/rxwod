@@ -3,7 +3,6 @@ package wod
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/rxwod/backend/internal/domain/wod"
 	"github.com/rxwod/backend/internal/platform/clock"
@@ -11,9 +10,9 @@ import (
 )
 
 type Service struct {
-	repo   Repository
-	clock  clock.Clock
-	idgen  idgen.Generator
+	repo  Repository
+	clock clock.Clock
+	idgen idgen.Generator
 }
 
 func NewService(repo Repository, clock clock.Clock, idgen idgen.Generator) *Service {
@@ -24,147 +23,108 @@ func NewService(repo Repository, clock clock.Clock, idgen idgen.Generator) *Serv
 	}
 }
 
-func (s *Service) Create(ctx context.Context, cmd CreateCommand) (CreateWODResultDTO, error) {
-	variant, err := s.buildVariant(cmd)
+func (s *Service) Create(ctx context.Context, cmd CreateWODCommand) (CreateWODResultDTO, error) {
+	aggregate, err := s.buildWOD(cmd)
 	if err != nil {
 		return CreateWODResultDTO{}, err
 	}
 
-	if err := s.repo.Save(ctx, variant); err != nil {
+	if err := s.repo.Save(ctx, aggregate); err != nil {
 		return CreateWODResultDTO{}, fmt.Errorf("save wod: %w", err)
 	}
 
-	return toCreateResultDTO(variant), nil
+	return toCreateResultDTO(aggregate), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (WODDetailDTO, error) {
-	variant, err := s.repo.FindByID(ctx, wod.WODID(id))
+	aggregate, err := s.repo.FindByID(ctx, wod.WODID(id))
 	if err != nil {
 		return WODDetailDTO{}, err
 	}
-	return toDetailDTO(variant)
+	return toDetailDTO(aggregate), nil
 }
 
 func (s *Service) List(ctx context.Context) ([]WODSummaryDTO, error) {
-	variants, err := s.repo.List(ctx)
+	aggregates, err := s.repo.List(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	summaries := make([]WODSummaryDTO, 0, len(variants))
-	for _, variant := range variants {
-		summaries = append(summaries, toSummaryDTO(variant))
+	summaries := make([]WODSummaryDTO, 0, len(aggregates))
+	for _, aggregate := range aggregates {
+		summaries = append(summaries, toSummaryDTO(aggregate))
 	}
 	return summaries, nil
 }
 
-func (s *Service) buildVariant(cmd CreateCommand) (wod.Variant, error) {
+func (s *Service) buildWOD(cmd CreateWODCommand) (wod.WOD, error) {
 	now := s.clock.Now()
 	id := wod.WODID(s.idgen.NewID())
 
-	switch cmd.Type {
+	stages := make([]wod.Stage, 0, len(cmd.Stages))
+	for i, stageInput := range cmd.Stages {
+		stage, err := s.buildStage(stageInput, i+1)
+		if err != nil {
+			return wod.WOD{}, err
+		}
+		stages = append(stages, stage)
+	}
+
+	return wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), stages, now)
+}
+
+func (s *Service) buildStage(input StageInput, position int) (wod.Stage, error) {
+	cfg, err := buildConfig(input.Config)
+	if err != nil {
+		return wod.Stage{}, err
+	}
+	movements, err := buildMovements(s.idgen, input.Movements)
+	if err != nil {
+		return wod.Stage{}, err
+	}
+	return wod.NewStage(wod.StageID(s.idgen.NewID()), input.Kind, position, cfg, movements)
+}
+
+func buildConfig(input StageConfigInput) (wod.Config, error) {
+	switch input.Type {
 	case wod.WODTypeAMRAP:
-		if cmd.AMRAP == nil {
-			return nil, fmt.Errorf("amrap command is required")
+		if input.TimeCapSeconds == nil {
+			return nil, ErrMissingConfigField
 		}
-		return s.buildAMRAP(id, *cmd.AMRAP, now)
+		return wod.NewAMRAPConfig(wod.TimeCapSeconds(*input.TimeCapSeconds))
 	case wod.WODTypeForTime:
-		if cmd.ForTime == nil {
-			return nil, fmt.Errorf("fortime command is required")
+		if input.Rounds == nil {
+			return nil, ErrMissingConfigField
 		}
-		return s.buildForTime(id, *cmd.ForTime, now)
+		var timeCap *wod.TimeCapSeconds
+		if input.TimeCapSeconds != nil {
+			value := wod.TimeCapSeconds(*input.TimeCapSeconds)
+			timeCap = &value
+		}
+		return wod.NewForTimeConfig(wod.RoundCount(*input.Rounds), timeCap)
 	case wod.WODTypeTabata:
-		if cmd.Tabata == nil {
-			return nil, fmt.Errorf("tabata command is required")
+		if input.WorkSeconds == nil || input.RestSeconds == nil || input.Rounds == nil || input.Cycles == nil {
+			return nil, ErrMissingConfigField
 		}
-		return s.buildTabata(id, *cmd.Tabata, now)
+		return wod.NewTabataConfig(
+			wod.WorkSeconds(*input.WorkSeconds),
+			wod.RestSeconds(*input.RestSeconds),
+			wod.RoundCount(*input.Rounds),
+			wod.CycleCount(*input.Cycles),
+		)
 	case wod.WODTypeEMOM:
-		if cmd.EMOM == nil {
-			return nil, fmt.Errorf("emom command is required")
+		if input.IntervalSeconds == nil || input.Rounds == nil {
+			return nil, ErrMissingConfigField
 		}
-		return s.buildEMOM(id, *cmd.EMOM, now)
+		return wod.NewEMOMConfig(wod.IntervalSeconds(*input.IntervalSeconds), wod.RoundCount(*input.Rounds))
 	default:
 		return nil, wod.ErrUnknownWODType
 	}
 }
 
-func (s *Service) buildAMRAP(id wod.WODID, cmd CreateAMRAPCommand, now time.Time) (wod.Variant, error) {
-	cfg, err := wod.NewAMRAPConfig(wod.TimeCapSeconds(cmd.TimeCap))
-	if err != nil {
-		return nil, err
-	}
-	movements, err := buildMovements(s.idgen, cmd.Movements)
-	if err != nil {
-		return nil, err
-	}
-	aggregate, err := wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), cfg, movements, now)
-	if err != nil {
-		return nil, err
-	}
-	return wod.NewSavedAMRAP(aggregate), nil
-}
-
-func (s *Service) buildForTime(id wod.WODID, cmd CreateForTimeCommand, now time.Time) (wod.Variant, error) {
-	var timeCap *wod.TimeCapSeconds
-	if cmd.TimeCap != nil {
-		value := wod.TimeCapSeconds(*cmd.TimeCap)
-		timeCap = &value
-	}
-	cfg, err := wod.NewForTimeConfig(wod.RoundCount(cmd.Rounds), timeCap)
-	if err != nil {
-		return nil, err
-	}
-	movements, err := buildMovements(s.idgen, cmd.Movements)
-	if err != nil {
-		return nil, err
-	}
-	aggregate, err := wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), cfg, movements, now)
-	if err != nil {
-		return nil, err
-	}
-	return wod.NewSavedForTime(aggregate), nil
-}
-
-func (s *Service) buildTabata(id wod.WODID, cmd CreateTabataCommand, now time.Time) (wod.Variant, error) {
-	cfg, err := wod.NewTabataConfig(
-		wod.WorkSeconds(cmd.WorkSeconds),
-		wod.RestSeconds(cmd.RestSeconds),
-		wod.RoundCount(cmd.Rounds),
-		wod.CycleCount(cmd.Cycles),
-	)
-	if err != nil {
-		return nil, err
-	}
-	movements, err := buildMovements(s.idgen, cmd.Movements)
-	if err != nil {
-		return nil, err
-	}
-	aggregate, err := wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), cfg, movements, now)
-	if err != nil {
-		return nil, err
-	}
-	return wod.NewSavedTabata(aggregate), nil
-}
-
-func (s *Service) buildEMOM(id wod.WODID, cmd CreateEMOMCommand, now time.Time) (wod.Variant, error) {
-	cfg, err := wod.NewEMOMConfig(wod.IntervalSeconds(cmd.IntervalSeconds), wod.RoundCount(cmd.Rounds))
-	if err != nil {
-		return nil, err
-	}
-	movements, err := buildMovements(s.idgen, cmd.Movements)
-	if err != nil {
-		return nil, err
-	}
-	aggregate, err := wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), cfg, movements, now)
-	if err != nil {
-		return nil, err
-	}
-	return wod.NewSavedEMOM(aggregate), nil
-}
-
 func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Movement, error) {
 	movements := make([]wod.Movement, 0, len(inputs))
-	for _, input := range inputs {
+	for i, input := range inputs {
 		var reps *wod.RepCount
 		if input.Reps != nil {
 			value := wod.RepCount(*input.Reps)
@@ -180,9 +140,15 @@ func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Mo
 			value := wod.LoadUnit(*input.LoadUnit)
 			loadUnit = &value
 		}
+
+		position := input.Position
+		if position == 0 {
+			position = i + 1
+		}
+
 		movement, err := wod.NewMovement(
 			wod.MovementID(generator.NewID()),
-			input.Position,
+			position,
 			input.Name,
 			reps,
 			loadValue,
@@ -197,86 +163,111 @@ func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Mo
 	return movements, nil
 }
 
-func toCreateResultDTO(variant wod.Variant) CreateWODResultDTO {
+func toCreateResultDTO(aggregate wod.WOD) CreateWODResultDTO {
+	stages := aggregate.Stages()
 	return CreateWODResultDTO{
-		ID:          variant.ID().String(),
-		Name:        string(variant.Name()),
-		Type:        variant.Type(),
-		Status:      variant.Status(),
-		ScoringKind: variant.ScoringKind(),
+		ID:         aggregate.ID().String(),
+		Name:       string(aggregate.Name()),
+		Status:     aggregate.Status(),
+		StageCount: len(stages),
+		Stages:     stagesToSummaryDTO(stages),
 	}
 }
 
-func toSummaryDTO(variant wod.Variant) WODSummaryDTO {
+func toSummaryDTO(aggregate wod.WOD) WODSummaryDTO {
+	stages := aggregate.Stages()
 	return WODSummaryDTO{
-		ID:          variant.ID().String(),
-		Name:        string(variant.Name()),
-		Type:        variant.Type(),
-		Status:      variant.Status(),
-		ScoringKind: variant.ScoringKind(),
-		CreatedAt:   variant.CreatedAt(),
-		UpdatedAt:   variant.UpdatedAt(),
+		ID:         aggregate.ID().String(),
+		Name:       string(aggregate.Name()),
+		Status:     aggregate.Status(),
+		StageCount: len(stages),
+		Stages:     stagesToSummaryDTO(stages),
+		CreatedAt:  aggregate.CreatedAt(),
+		UpdatedAt:  aggregate.UpdatedAt(),
 	}
 }
 
-func toDetailDTO(variant wod.Variant) (WODDetailDTO, error) {
-	config, err := configFromVariant(variant)
-	if err != nil {
-		return WODDetailDTO{}, err
-	}
-
-	movements := make([]MovementDTO, 0, len(variant.Movements()))
-	for _, movement := range variant.Movements() {
-		movements = append(movements, movementToDTO(movement))
+func toDetailDTO(aggregate wod.WOD) WODDetailDTO {
+	stages := aggregate.Stages()
+	stageDTOs := make([]StageDTO, 0, len(stages))
+	for _, stage := range stages {
+		stageDTOs = append(stageDTOs, stageToDTO(stage))
 	}
 
 	return WODDetailDTO{
-		ID:          variant.ID().String(),
-		Name:        string(variant.Name()),
-		Description: string(variant.Description()),
-		Type:        variant.Type(),
-		Status:      variant.Status(),
-		ScoringKind: variant.ScoringKind(),
-		Config:      config,
-		Movements:   movements,
-		CreatedAt:   variant.CreatedAt(),
-		UpdatedAt:   variant.UpdatedAt(),
-	}, nil
+		ID:          aggregate.ID().String(),
+		Name:        string(aggregate.Name()),
+		Description: string(aggregate.Description()),
+		Status:      aggregate.Status(),
+		Stages:      stageDTOs,
+		CreatedAt:   aggregate.CreatedAt(),
+		UpdatedAt:   aggregate.UpdatedAt(),
+	}
 }
 
-func configFromVariant(variant wod.Variant) (ConfigDTO, error) {
-	switch v := variant.(type) {
-	case wod.SavedAMRAP:
-		timeCap := int(v.WOD().Config().TimeCap())
-		return ConfigDTO{TimeCapSeconds: &timeCap}, nil
-	case wod.SavedForTime:
-		rounds := int(v.WOD().Config().Rounds())
+func stagesToSummaryDTO(stages []wod.Stage) []StageSummaryDTO {
+	summaries := make([]StageSummaryDTO, 0, len(stages))
+	for _, stage := range stages {
+		summaries = append(summaries, StageSummaryDTO{
+			Kind:        stage.Kind(),
+			Position:    stage.Position(),
+			Type:        stage.Type(),
+			ScoringKind: stage.ScoringKind(),
+		})
+	}
+	return summaries
+}
+
+func stageToDTO(stage wod.Stage) StageDTO {
+	movements := make([]MovementDTO, 0, len(stage.Movements()))
+	for _, movement := range stage.Movements() {
+		movements = append(movements, movementToDTO(movement))
+	}
+
+	return StageDTO{
+		ID:          stage.ID().String(),
+		Kind:        stage.Kind(),
+		Position:    stage.Position(),
+		Type:        stage.Type(),
+		ScoringKind: stage.ScoringKind(),
+		Config:      configToDTO(stage.Config()),
+		Movements:   movements,
+	}
+}
+
+func configToDTO(cfg wod.Config) ConfigDTO {
+	switch c := cfg.(type) {
+	case wod.AMRAPConfig:
+		timeCap := int(c.TimeCap())
+		return ConfigDTO{TimeCapSeconds: &timeCap}
+	case wod.ForTimeConfig:
+		rounds := int(c.Rounds())
 		dto := ConfigDTO{Rounds: &rounds}
-		if capValue := v.WOD().Config().TimeCap(); capValue != nil {
+		if capValue := c.TimeCap(); capValue != nil {
 			value := int(*capValue)
 			dto.TimeCapSeconds = &value
 		}
-		return dto, nil
-	case wod.SavedTabata:
-		work := int(v.WOD().Config().WorkSeconds())
-		rest := int(v.WOD().Config().RestSeconds())
-		rounds := int(v.WOD().Config().Rounds())
-		cycles := int(v.WOD().Config().Cycles())
+		return dto
+	case wod.TabataConfig:
+		work := int(c.WorkSeconds())
+		rest := int(c.RestSeconds())
+		rounds := int(c.Rounds())
+		cycles := int(c.Cycles())
 		return ConfigDTO{
 			WorkSeconds: &work,
 			RestSeconds: &rest,
 			Rounds:      &rounds,
 			Cycles:      &cycles,
-		}, nil
-	case wod.SavedEMOM:
-		interval := int(v.WOD().Config().IntervalSeconds())
-		rounds := int(v.WOD().Config().Rounds())
+		}
+	case wod.EMOMConfig:
+		interval := int(c.IntervalSeconds())
+		rounds := int(c.Rounds())
 		return ConfigDTO{
 			IntervalSeconds: &interval,
 			Rounds:          &rounds,
-		}, nil
+		}
 	default:
-		return ConfigDTO{}, wod.ErrUnknownWODType
+		return ConfigDTO{}
 	}
 }
 

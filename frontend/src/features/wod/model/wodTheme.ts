@@ -1,8 +1,16 @@
-import type { WODType } from './wodTypes'
+import type { StageKind, WODType } from './wodTypes'
 
 export const WOD_TYPE_BADGE_CLASS: Record<WODType, string> = {
   AMRAP: 'badge-amrap',
   FORTIME: 'badge-fortime',
   TABATA: 'badge-tabata',
   EMOM: 'badge-emom',
+}
+
+export const STAGE_KIND_BADGE_CLASS: Record<StageKind, string> = {
+  WARMUP: 'badge-stage-warmup',
+  STRENGTH: 'badge-stage-strength',
+  CORE: 'badge-stage-core',
+  METCON: 'badge-stage-metcon',
+  COOLDOWN: 'badge-stage-cooldown',
 }

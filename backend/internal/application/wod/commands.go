@@ -13,43 +13,24 @@ type MovementInput struct {
 	Notes     string
 }
 
-type CreateAMRAPCommand struct {
+type StageConfigInput struct {
+	Type            domainwod.WODType
+	TimeCapSeconds  *int
+	Rounds          *int
+	WorkSeconds     *int
+	RestSeconds     *int
+	Cycles          *int
+	IntervalSeconds *int
+}
+
+type StageInput struct {
+	Kind      domainwod.StageKind
+	Config    StageConfigInput
+	Movements []MovementInput
+}
+
+type CreateWODCommand struct {
 	Name        string
 	Description string
-	TimeCap     int
-	Movements   []MovementInput
-}
-
-type CreateForTimeCommand struct {
-	Name        string
-	Description string
-	Rounds      int
-	TimeCap     *int
-	Movements   []MovementInput
-}
-
-type CreateTabataCommand struct {
-	Name        string
-	Description string
-	WorkSeconds int
-	RestSeconds int
-	Rounds      int
-	Cycles      int
-	Movements   []MovementInput
-}
-
-type CreateEMOMCommand struct {
-	Name             string
-	Description      string
-	IntervalSeconds  int
-	Rounds           int
-	Movements        []MovementInput
-}
-
-type CreateCommand struct {
-	Type domainwod.WODType
-	AMRAP   *CreateAMRAPCommand
-	ForTime *CreateForTimeCommand
-	Tabata  *CreateTabataCommand
-	EMOM    *CreateEMOMCommand
+	Stages      []StageInput
 }

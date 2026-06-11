@@ -1,4 +1,4 @@
-import type { WODFormConfig, WODType } from './wodTypes'
+import type { StageFormState, StageKind, StagePayload, WODFormConfig, WODType } from './wodTypes'
 
 export interface FieldSchema {
   key: string
@@ -56,5 +56,27 @@ export function configToPayload(config: WODFormConfig): Record<string, number | 
       }
     case 'EMOM':
       return { intervalSeconds: config.intervalSeconds, rounds: config.rounds }
+  }
+}
+
+export function defaultStage(kind: StageKind = 'WARMUP', type: WODType = 'FORTIME'): StageFormState {
+  return {
+    kind,
+    type,
+    config: defaultConfigForType(type),
+    movements: [{ position: 1, name: '', reps: 10 }],
+  }
+}
+
+export function stageToPayload(stage: StageFormState): StagePayload {
+  return {
+    kind: stage.kind,
+    type: stage.type,
+    config: configToPayload(stage.config),
+    movements: stage.movements.map((movement, index) => ({
+      ...movement,
+      position: index + 1,
+      name: movement.name.trim(),
+    })),
   }
 }

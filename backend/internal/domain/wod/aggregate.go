@@ -2,112 +2,100 @@ package wod
 
 import "time"
 
-type WOD[C Config] struct {
+type WOD struct {
 	id          WODID
 	name        WODName
 	description WODDescription
-	config      C
-	movements   []Movement
+	stages      []Stage
 	status      WODStatus
-	scoring     ScoringConfig
 	createdAt   time.Time
 	updatedAt   time.Time
 }
 
-func NewWOD[C Config](
+func NewWOD(
 	id WODID,
 	name WODName,
 	description WODDescription,
-	cfg C,
-	movements []Movement,
+	stages []Stage,
 	now time.Time,
-) (WOD[C], error) {
-	if err := cfg.Validate(); err != nil {
-		return WOD[C]{}, err
-	}
+) (WOD, error) {
 	if err := validateName(name); err != nil {
-		return WOD[C]{}, err
+		return WOD{}, err
 	}
-	if len(movements) == 0 {
-		return WOD[C]{}, ErrMovementRequired
-	}
-	for _, movement := range movements {
-		if err := movement.Validate(); err != nil {
-			return WOD[C]{}, err
-		}
+	if err := validateStages(stages); err != nil {
+		return WOD{}, err
 	}
 
-	return WOD[C]{
+	return WOD{
 		id:          id,
-		name:        WODName(string(name)),
+		name:        name,
 		description: description,
-		config:      cfg,
-		movements:   cloneMovements(movements),
+		stages:      cloneStages(stages),
 		status:      WODStatusDraft,
-		scoring:     NewScoringConfig(cfg.ScoringKind()),
 		createdAt:   now,
 		updatedAt:   now,
 	}, nil
 }
 
-func ReconstructWOD[C Config](
+func ReconstructWOD(
 	id WODID,
 	name WODName,
 	description WODDescription,
-	cfg C,
-	movements []Movement,
+	stages []Stage,
 	status WODStatus,
-	scoring ScoringConfig,
 	createdAt time.Time,
 	updatedAt time.Time,
-) (WOD[C], error) {
-	w, err := NewWOD(id, name, description, cfg, movements, createdAt)
+) (WOD, error) {
+	w, err := NewWOD(id, name, description, stages, createdAt)
 	if err != nil {
-		return WOD[C]{}, err
+		return WOD{}, err
 	}
 	w.status = status
-	w.scoring = scoring
 	w.updatedAt = updatedAt
 	return w, nil
 }
 
-func (w WOD[C]) ID() WODID {
+func validateStages(stages []Stage) error {
+	if len(stages) == 0 {
+		return ErrStageRequired
+	}
+	for i, stage := range stages {
+		if stage.position != i+1 {
+			return ErrInvalidStagePosition
+		}
+	}
+	return nil
+}
+
+func (w WOD) ID() WODID {
 	return w.id
 }
 
-func (w WOD[C]) Name() WODName {
+func (w WOD) Name() WODName {
 	return w.name
 }
 
-func (w WOD[C]) Description() WODDescription {
+func (w WOD) Description() WODDescription {
 	return w.description
 }
 
-func (w WOD[C]) Config() C {
-	return w.config
+func (w WOD) Stages() []Stage {
+	return cloneStages(w.stages)
 }
 
-func (w WOD[C]) Movements() []Movement {
-	return cloneMovements(w.movements)
-}
-
-func (w WOD[C]) Status() WODStatus {
+func (w WOD) Status() WODStatus {
 	return w.status
 }
 
-func (w WOD[C]) Scoring() ScoringConfig {
-	return w.scoring
-}
-
-func (w WOD[C]) CreatedAt() time.Time {
+func (w WOD) CreatedAt() time.Time {
 	return w.createdAt
 }
 
-func (w WOD[C]) UpdatedAt() time.Time {
+func (w WOD) UpdatedAt() time.Time {
 	return w.updatedAt
 }
 
-func (w *WOD[C]) Publish(now time.Time) error {
+func (w *WOD) Publish(now time.Time) error {
 	if w.status != WODStatusDraft {
 		return ErrInvalidStatusTransition
 	}

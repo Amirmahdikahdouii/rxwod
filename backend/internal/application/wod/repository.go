@@ -7,7 +7,7 @@ import (
 )
 
 type Repository interface {
-	Save(ctx context.Context, variant domainwod.Variant) error
-	FindByID(ctx context.Context, id domainwod.WODID) (domainwod.Variant, error)
-	List(ctx context.Context) ([]domainwod.Variant, error)
+	Save(ctx context.Context, wod domainwod.WOD) error
+	FindByID(ctx context.Context, id domainwod.WODID) (domainwod.WOD, error)
+	List(ctx context.Context) ([]domainwod.WOD, error)
 }

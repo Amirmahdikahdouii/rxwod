@@ -361,6 +361,72 @@ button:disabled {
   color: var(--badge-emom-text);
 }
 
+.badge-stage-warmup {
+  background: var(--badge-stage-warmup-bg);
+  color: var(--badge-stage-warmup-text);
+}
+
+.badge-stage-strength {
+  background: var(--badge-stage-strength-bg);
+  color: var(--badge-stage-strength-text);
+}
+
+.badge-stage-core {
+  background: var(--badge-stage-core-bg);
+  color: var(--badge-stage-core-text);
+}
+
+.badge-stage-metcon {
+  background: var(--badge-stage-metcon-bg);
+  color: var(--badge-stage-metcon-text);
+}
+
+.badge-stage-cooldown {
+  background: var(--badge-stage-cooldown-bg);
+  color: var(--badge-stage-cooldown-text);
+}
+
+.badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stage-editor {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  background: var(--color-surface-elevated);
+}
+
+.stage-editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.stage-editor__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.stage-editor__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
 .score-preview {
   border-left: 3px solid var(--color-accent);
   background: var(--color-accent-muted);

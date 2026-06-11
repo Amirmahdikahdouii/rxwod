@@ -3,9 +3,9 @@ package wod
 type ScoringKind string
 
 const (
-	ScoringRoundsReps      ScoringKind = "ROUNDS_REPS"
-	ScoringTimeToComplete  ScoringKind = "TIME_TO_COMPLETE"
-	ScoringTotalReps       ScoringKind = "TOTAL_REPS"
+	ScoringRoundsReps     ScoringKind = "ROUNDS_REPS"
+	ScoringTimeToComplete ScoringKind = "TIME_TO_COMPLETE"
+	ScoringTotalReps      ScoringKind = "TOTAL_REPS"
 )
 
 type ScoringConfig struct {
