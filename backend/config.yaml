@@ -1,0 +1,8 @@
+app:
+  env: development
+
+http:
+  port: 8080
+
+database:
+  url: "postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable"

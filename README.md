@@ -46,7 +46,9 @@ npm run dev
 
 5. Open `http://localhost:5173`
 
-Copy [`.env.example`](.env.example) and adjust values as needed.
+Backend defaults live in [`backend/config.yaml`](backend/config.yaml). Environment
+variables from [`.env.example`](.env.example) can override matching YAML values
+when exported in the shell before starting the API.
 
 ## API Endpoints
 

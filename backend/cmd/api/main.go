@@ -26,7 +26,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	db, err := postgres.NewDB(ctx, cfg.DatabaseURL)
+	db, err := postgres.NewDB(ctx, cfg.DatabaseURL())
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
 	}
@@ -37,7 +37,7 @@ func main() {
 	router := deliveryhttp.NewRouter(service)
 
 	go func() {
-		address := fmt.Sprintf(":%d", cfg.HTTPPort)
+		address := fmt.Sprintf(":%d", cfg.HTTPPort())
 		log.Printf("starting api on %s", address)
 		if err := router.Start(address); err != nil {
 			log.Printf("server stopped: %v", err)
