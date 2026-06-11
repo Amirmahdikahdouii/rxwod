@@ -126,3 +126,18 @@ func (c EMOMConfig) Validate() error {
 	}
 	return nil
 }
+
+type OpenConfig struct{}
+
+func NewOpenConfig() (OpenConfig, error) {
+	cfg := OpenConfig{}
+	return cfg, cfg.Validate()
+}
+
+func (OpenConfig) wodConfig()                 {}
+func (OpenConfig) Type() WODType            { return WODTypeOpen }
+func (OpenConfig) ScoringKind() ScoringKind { return ScoringNone }
+
+func (OpenConfig) Validate() error {
+	return nil
+}

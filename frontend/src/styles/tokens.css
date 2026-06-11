@@ -34,6 +34,9 @@
   --badge-emom-bg: rgba(5, 150, 105, 0.15);
   --badge-emom-text: #047857;
 
+  --badge-open-bg: rgba(87, 83, 78, 0.15);
+  --badge-open-text: #57534e;
+
   --badge-stage-warmup-bg: rgba(120, 113, 108, 0.15);
   --badge-stage-warmup-text: #57534e;
   --badge-stage-strength-bg: rgba(79, 70, 229, 0.12);
@@ -76,6 +79,9 @@
   --badge-tabata-text: #fca5a5;
   --badge-emom-bg: rgba(52, 211, 153, 0.2);
   --badge-emom-text: #6ee7b7;
+
+  --badge-open-bg: rgba(168, 162, 158, 0.2);
+  --badge-open-text: #d6d3d1;
 
   --badge-stage-warmup-bg: rgba(168, 162, 158, 0.2);
   --badge-stage-warmup-text: #d6d3d1;

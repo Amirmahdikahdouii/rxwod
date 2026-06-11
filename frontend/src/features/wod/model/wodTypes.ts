@@ -1,8 +1,10 @@
-export type WODType = 'AMRAP' | 'FORTIME' | 'TABATA' | 'EMOM'
+export type WODType = 'AMRAP' | 'FORTIME' | 'TABATA' | 'EMOM' | 'OPEN'
 
 export type StageKind = 'WARMUP' | 'STRENGTH' | 'CORE' | 'METCON' | 'COOLDOWN'
 
-export type ScoringKind = 'ROUNDS_REPS' | 'TIME_TO_COMPLETE' | 'TOTAL_REPS'
+export type StageFormat = 'OPEN' | 'STRUCTURED'
+
+export type ScoringKind = 'ROUNDS_REPS' | 'TIME_TO_COMPLETE' | 'TOTAL_REPS' | 'NONE'
 
 export type WODStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
@@ -10,7 +12,9 @@ export type LoadUnit = 'kg' | 'lb' | 'bodyweight'
 
 export interface MovementInput {
   position: number
+  label?: string
   name: string
+  prescription?: string
   reps?: number
   loadValue?: number
   loadUnit?: LoadUnit
@@ -18,6 +22,7 @@ export interface MovementInput {
 }
 
 export type WODFormConfig =
+  | { type: 'OPEN' }
   | { type: 'AMRAP'; timeCapSeconds: number }
   | { type: 'FORTIME'; rounds: number; timeCapSeconds?: number }
   | { type: 'TABATA'; workSeconds: number; restSeconds: number; rounds: number; cycles: number }
@@ -26,6 +31,7 @@ export type WODFormConfig =
 export interface StageFormState {
   kind: StageKind
   type: WODType
+  instructions: string
   config: WODFormConfig
   movements: MovementInput[]
 }
@@ -33,6 +39,7 @@ export interface StageFormState {
 export interface StagePayload {
   kind: StageKind
   type: WODType
+  instructions: string
   config: Record<string, number | undefined>
   movements: MovementInput[]
 }
@@ -70,6 +77,7 @@ export interface WODSummary {
 
 export interface StageDetail extends StageSummary {
   id: string
+  instructions: string
   config: Record<string, number | undefined>
   movements: Array<MovementInput & { id: string }>
 }
@@ -84,13 +92,28 @@ export interface WODDetail {
   updatedAt: string
 }
 
-export const WOD_TYPES: WODType[] = ['AMRAP', 'FORTIME', 'TABATA', 'EMOM']
+export const WOD_TYPES: WODType[] = ['OPEN', 'AMRAP', 'FORTIME', 'TABATA', 'EMOM']
+
+export const STRUCTURED_WOD_TYPES: WODType[] = ['AMRAP', 'FORTIME', 'TABATA', 'EMOM']
 
 export const STAGE_KINDS: StageKind[] = ['WARMUP', 'STRENGTH', 'CORE', 'METCON', 'COOLDOWN']
 
 export const SCORING_BY_TYPE: Record<WODType, ScoringKind> = {
+  OPEN: 'NONE',
   AMRAP: 'ROUNDS_REPS',
   FORTIME: 'TIME_TO_COMPLETE',
   TABATA: 'TOTAL_REPS',
   EMOM: 'ROUNDS_REPS',
+}
+
+export function isOpenFormat(type: WODType): boolean {
+  return type === 'OPEN'
+}
+
+export function stageFormat(type: WODType): StageFormat {
+  return isOpenFormat(type) ? 'OPEN' : 'STRUCTURED'
+}
+
+export function defaultTypeForKind(kind: StageKind): WODType {
+  return kind === 'METCON' ? 'AMRAP' : 'OPEN'
 }

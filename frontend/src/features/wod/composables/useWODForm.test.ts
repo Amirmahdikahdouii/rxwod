@@ -17,18 +17,29 @@ function mountForm() {
 }
 
 describe('useWODForm', () => {
-  it('builds multi-stage payload', () => {
+  it('builds open prescription payload', () => {
     const form = mountForm()
     form.name.value = 'Monday Session'
     form.description.value = 'Full class plan'
     form.stages.value = [
       {
-        ...defaultStage('WARMUP', 'FORTIME'),
-        movements: [{ position: 1, name: 'Jumping Jacks', reps: 20 }],
+        ...defaultStage('WARMUP', 'OPEN'),
+        movements: [{
+          position: 1,
+          label: 'D',
+          name: 'Crow + Knee Lift Off',
+          prescription: '1-2X4 lift offs per side, rest as needed.',
+        }],
       },
       {
-        ...defaultStage('METCON', 'AMRAP'),
-        movements: [{ position: 1, name: 'Burpee', reps: 21 }],
+        ...defaultStage('STRENGTH', 'OPEN'),
+        instructions: 'Complete in 20 minutes.',
+        movements: [{
+          position: 1,
+          label: 'B',
+          name: 'Close Grip Bench Press',
+          prescription: '3RM',
+        }],
       },
     ]
 
@@ -38,45 +49,58 @@ describe('useWODForm', () => {
       stages: [
         {
           kind: 'WARMUP',
-          type: 'FORTIME',
-          config: { rounds: 5 },
-          movements: [{ position: 1, name: 'Jumping Jacks', reps: 20 }],
+          type: 'OPEN',
+          instructions: '',
+          config: {},
+          movements: [{
+            position: 1,
+            label: 'D',
+            name: 'Crow + Knee Lift Off',
+            prescription: '1-2X4 lift offs per side, rest as needed.',
+            notes: '',
+          }],
         },
         {
-          kind: 'METCON',
-          type: 'AMRAP',
-          config: { timeCapSeconds: 900 },
-          movements: [{ position: 1, name: 'Burpee', reps: 21 }],
+          kind: 'STRENGTH',
+          type: 'OPEN',
+          instructions: 'Complete in 20 minutes.',
+          config: {},
+          movements: [{
+            position: 1,
+            label: 'B',
+            name: 'Close Grip Bench Press',
+            prescription: '3RM',
+            notes: '',
+          }],
         },
       ],
     })
   })
 
-  it('adds and removes stages', () => {
+  it('defaults warmup stage to OPEN format', () => {
     const form = mountForm()
-    form.addStage()
-    expect(form.stages.value).toHaveLength(2)
-
-    form.removeStage(1)
-    expect(form.stages.value).toHaveLength(1)
+    expect(form.stages.value[0].type).toBe('OPEN')
   })
 
-  it('does not remove the last stage', () => {
+  it('switches to structured format with AMRAP defaults for metcon', async () => {
     const form = mountForm()
-    form.removeStage(0)
-    expect(form.stages.value).toHaveLength(1)
-  })
-
-  it('resets only the changed stage config when type changes', async () => {
-    const form = mountForm()
-    form.addStage()
-    form.updateStageType(1, 'TABATA')
+    form.updateStageFormat(0, 'STRUCTURED')
     await nextTick()
 
     expect(form.stages.value[0].config).toEqual({
       type: 'FORTIME',
       rounds: 5,
     })
+  })
+
+  it('resets only the changed stage config when structured type changes', async () => {
+    const form = mountForm()
+    form.addStage()
+    form.updateStageFormat(1, 'STRUCTURED')
+    form.updateStageType(1, 'TABATA')
+    await nextTick()
+
+    expect(form.stages.value[0].type).toBe('OPEN')
     expect(form.stages.value[1].config).toEqual({
       type: 'TABATA',
       workSeconds: 20,

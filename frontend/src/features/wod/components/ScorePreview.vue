@@ -15,6 +15,8 @@ function label(kind: ScoringKind): string {
       return 'Scored by completion time'
     case 'TOTAL_REPS':
       return 'Scored by total reps'
+    case 'NONE':
+      return 'No structured scoring — prescription-based stage'
   }
 }
 </script>

@@ -1,13 +1,20 @@
 import { computed, ref } from 'vue'
 import { createWOD } from '@/features/wod/api/wodApi'
-import { defaultConfigForType, defaultStage, stageToPayload } from '@/features/wod/model/wodSchemas'
+import {
+  defaultConfigForType,
+  defaultMovement,
+  defaultStage,
+  stageToPayload,
+} from '@/features/wod/model/wodSchemas'
 import type {
   CreateWODResponse,
   MovementInput,
   StageFormState,
+  StageFormat,
   StageKind,
   WODType,
 } from '@/features/wod/model/wodTypes'
+import { defaultTypeForKind } from '@/features/wod/model/wodTypes'
 
 export function useWODForm() {
   const name = ref('')
@@ -24,7 +31,7 @@ export function useWODForm() {
   }))
 
   function addStage() {
-    stages.value.push(defaultStage('METCON', 'AMRAP'))
+    stages.value.push(defaultStage('METCON'))
   }
 
   function removeStage(index: number) {
@@ -58,7 +65,32 @@ export function useWODForm() {
 
   function updateStageKind(index: number, kind: StageKind) {
     const next = [...stages.value]
-    next[index] = { ...next[index], kind }
+    const stage = next[index]
+    const type = defaultTypeForKind(kind)
+    next[index] = {
+      ...stage,
+      kind,
+      type,
+      config: defaultConfigForType(type),
+    }
+    stages.value = next
+  }
+
+  function updateStageFormat(index: number, format: StageFormat) {
+    const next = [...stages.value]
+    const stage = next[index]
+    if (format === 'OPEN') {
+      next[index] = { ...stage, type: 'OPEN', config: defaultConfigForType('OPEN') }
+    } else {
+      const type: WODType = stage.kind === 'METCON' ? 'AMRAP' : 'FORTIME'
+      next[index] = { ...stage, type, config: defaultConfigForType(type) }
+    }
+    stages.value = next
+  }
+
+  function updateStageInstructions(index: number, value: string) {
+    const next = [...stages.value]
+    next[index] = { ...next[index], instructions: value }
     stages.value = next
   }
 
@@ -80,7 +112,7 @@ export function useWODForm() {
   function addMovement(stageIndex: number) {
     const next = [...stages.value]
     const stage = next[stageIndex]
-    stage.movements.push({ position: stage.movements.length + 1, name: '', reps: 10 })
+    stage.movements.push({ ...defaultMovement(), position: stage.movements.length + 1 })
     stages.value = next
   }
 
@@ -136,6 +168,8 @@ export function useWODForm() {
     moveStageUp,
     moveStageDown,
     updateStageKind,
+    updateStageFormat,
+    updateStageInstructions,
     updateStageType,
     updateStageConfigField,
     addMovement,

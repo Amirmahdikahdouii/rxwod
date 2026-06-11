@@ -50,9 +50,9 @@ func (r *WODRepository) Save(ctx context.Context, w domainwod.WOD) error {
 
 	for _, stage := range stages {
 		_, err = tx.Exec(ctx, `
-			INSERT INTO wod_stages (id, wod_id, position, stage_kind, wod_type, config, scoring_kind)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)
-		`, stage.ID, stage.WODID, stage.Position, stage.StageKind, stage.WODType, stage.Config, stage.ScoringKind)
+			INSERT INTO wod_stages (id, wod_id, position, stage_kind, wod_type, instructions, config, scoring_kind)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`, stage.ID, stage.WODID, stage.Position, stage.StageKind, stage.WODType, stage.Instructions, stage.Config, stage.ScoringKind)
 		if err != nil {
 			return fmt.Errorf("insert stage: %w", err)
 		}
@@ -60,9 +60,9 @@ func (r *WODRepository) Save(ctx context.Context, w domainwod.WOD) error {
 
 	for _, movement := range movements {
 		_, err = tx.Exec(ctx, `
-			INSERT INTO wod_movements (id, stage_id, position, name, reps, load_value, load_unit, notes)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		`, movement.ID, movement.StageID, movement.Position, movement.Name, movement.Reps, movement.LoadValue, movement.LoadUnit, movement.Notes)
+			INSERT INTO wod_movements (id, stage_id, position, label, name, prescription, reps, load_value, load_unit, notes)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		`, movement.ID, movement.StageID, movement.Position, movement.Label, movement.Name, movement.Prescription, movement.Reps, movement.LoadValue, movement.LoadUnit, movement.Notes)
 		if err != nil {
 			return fmt.Errorf("insert movement: %w", err)
 		}
@@ -150,7 +150,7 @@ func (r *WODRepository) fetchRecord(ctx context.Context, id string) (wodRecord, 
 
 func (r *WODRepository) fetchStages(ctx context.Context, wodID string) ([]stageRecord, error) {
 	rows, err := r.db.pool.Query(ctx, `
-		SELECT id, wod_id, position, stage_kind, wod_type, config, scoring_kind
+		SELECT id, wod_id, position, stage_kind, wod_type, instructions, config, scoring_kind
 		FROM wod_stages
 		WHERE wod_id = $1
 		ORDER BY position ASC
@@ -169,6 +169,7 @@ func (r *WODRepository) fetchStages(ctx context.Context, wodID string) ([]stageR
 			&stage.Position,
 			&stage.StageKind,
 			&stage.WODType,
+			&stage.Instructions,
 			&stage.Config,
 			&stage.ScoringKind,
 		); err != nil {
@@ -189,7 +190,7 @@ func (r *WODRepository) fetchMovements(ctx context.Context, stageIDs []string) (
 	}
 
 	rows, err := r.db.pool.Query(ctx, `
-		SELECT id, stage_id, position, name, reps, load_value, load_unit, notes
+		SELECT id, stage_id, position, label, name, prescription, reps, load_value, load_unit, notes
 		FROM wod_movements
 		WHERE stage_id = ANY($1)
 		ORDER BY position ASC
@@ -205,7 +206,9 @@ func (r *WODRepository) fetchMovements(ctx context.Context, stageIDs []string) (
 			&movement.ID,
 			&movement.StageID,
 			&movement.Position,
+			&movement.Label,
 			&movement.Name,
+			&movement.Prescription,
 			&movement.Reps,
 			&movement.LoadValue,
 			&movement.LoadUnit,

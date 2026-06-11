@@ -1,18 +1,20 @@
 package wod
 
 type Stage struct {
-	id        StageID
-	kind      StageKind
-	position  int
-	config    Config
-	scoring   ScoringConfig
-	movements []Movement
+	id           StageID
+	kind         StageKind
+	position     int
+	instructions string
+	config       Config
+	scoring      ScoringConfig
+	movements    []Movement
 }
 
 func NewStage(
 	id StageID,
 	kind StageKind,
 	position int,
+	instructions string,
 	cfg Config,
 	movements []Movement,
 ) (Stage, error) {
@@ -38,12 +40,13 @@ func NewStage(
 	}
 
 	return Stage{
-		id:        id,
-		kind:      kind,
-		position:  position,
-		config:    cfg,
-		scoring:   NewScoringConfig(cfg.ScoringKind()),
-		movements: cloneMovements(movements),
+		id:           id,
+		kind:         kind,
+		position:     position,
+		instructions: instructions,
+		config:       cfg,
+		scoring:      NewScoringConfig(cfg.ScoringKind()),
+		movements:    cloneMovements(movements),
 	}, nil
 }
 
@@ -57,6 +60,10 @@ func (s Stage) Kind() StageKind {
 
 func (s Stage) Position() int {
 	return s.position
+}
+
+func (s Stage) Instructions() string {
+	return s.instructions
 }
 
 func (s Stage) Config() Config {

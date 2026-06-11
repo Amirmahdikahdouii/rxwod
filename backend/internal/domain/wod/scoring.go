@@ -6,6 +6,7 @@ const (
 	ScoringRoundsReps     ScoringKind = "ROUNDS_REPS"
 	ScoringTimeToComplete ScoringKind = "TIME_TO_COMPLETE"
 	ScoringTotalReps      ScoringKind = "TOTAL_REPS"
+	ScoringNone           ScoringKind = "NONE"
 )
 
 type ScoringConfig struct {

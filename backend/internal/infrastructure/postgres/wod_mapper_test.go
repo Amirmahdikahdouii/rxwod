@@ -10,11 +10,11 @@ import (
 func buildStage(t *testing.T, id string, kind domainwod.StageKind, position int, cfg domainwod.Config) domainwod.Stage {
 	t.Helper()
 	reps := domainwod.RepCount(21)
-	movement, err := domainwod.NewMovement(domainwod.MovementID(id+"-mov-1"), 1, "Burpee", &reps, nil, nil, "")
+	movement, err := domainwod.NewMovement(domainwod.MovementID(id+"-mov-1"), 1, "", "Burpee", "", &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}
-	stage, err := domainwod.NewStage(domainwod.StageID(id), kind, position, cfg, []domainwod.Movement{movement})
+	stage, err := domainwod.NewStage(domainwod.StageID(id), kind, position, "", cfg, []domainwod.Movement{movement})
 	if err != nil {
 		t.Fatalf("stage error: %v", err)
 	}
@@ -80,5 +80,73 @@ func TestWODRecordsRoundTripMultiStage(t *testing.T) {
 	}
 	if restoredStages[2].Type() != domainwod.WODTypeTabata {
 		t.Fatalf("expected cooldown Tabata, got %s", restoredStages[2].Type())
+	}
+}
+
+func TestWODRecordsRoundTripOpenPrescriptions(t *testing.T) {
+	openCfg, err := domainwod.NewOpenConfig()
+	if err != nil {
+		t.Fatalf("config error: %v", err)
+	}
+
+	prescriptionMovement, err := domainwod.NewMovement(
+		domainwod.MovementID("mov-rx"),
+		1,
+		"D",
+		"Crow + Knee Lift Off",
+		"1-2X4 lift offs per side, rest as needed.",
+		nil,
+		nil,
+		nil,
+		"",
+	)
+	if err != nil {
+		t.Fatalf("movement error: %v", err)
+	}
+
+	stage, err := domainwod.NewStage(
+		domainwod.StageID("stage-open"),
+		domainwod.StageWarmup,
+		1,
+		"",
+		openCfg,
+		[]domainwod.Movement{prescriptionMovement},
+	)
+	if err != nil {
+		t.Fatalf("stage error: %v", err)
+	}
+
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	wod, err := domainwod.NewWOD(
+		domainwod.WODID("wod-open"),
+		domainwod.WODName("Prescription Program"),
+		domainwod.WODDescription("desc"),
+		[]domainwod.Stage{stage},
+		now,
+	)
+	if err != nil {
+		t.Fatalf("wod error: %v", err)
+	}
+
+	record, stageRecords, movementRecords, err := wodToRecords(wod)
+	if err != nil {
+		t.Fatalf("to records error: %v", err)
+	}
+
+	movementsByStage := map[string][]movementRecord{
+		stageRecords[0].ID: movementRecords,
+	}
+
+	restored, err := recordsToWOD(record, stageRecords, movementsByStage)
+	if err != nil {
+		t.Fatalf("from records error: %v", err)
+	}
+
+	got := restored.Stages()[0].Movements()[0]
+	if got.Label() != "D" || got.Prescription() == "" {
+		t.Fatalf("expected prescription movement, got label=%q prescription=%q", got.Label(), got.Prescription())
+	}
+	if restored.Stages()[0].ScoringKind() != domainwod.ScoringNone {
+		t.Fatalf("expected NONE scoring, got %s", restored.Stages()[0].ScoringKind())
 	}
 }

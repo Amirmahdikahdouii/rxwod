@@ -18,24 +18,27 @@ type wodRecord struct {
 }
 
 type stageRecord struct {
-	ID          string
-	WODID       string
-	Position    int
-	StageKind   string
-	WODType     string
-	Config      []byte
-	ScoringKind string
+	ID           string
+	WODID        string
+	Position     int
+	StageKind    string
+	WODType      string
+	Instructions string
+	Config       []byte
+	ScoringKind  string
 }
 
 type movementRecord struct {
-	ID        string
-	StageID   string
-	Position  int
-	Name      string
-	Reps      *int
-	LoadValue *float64
-	LoadUnit  *string
-	Notes     string
+	ID           string
+	StageID      string
+	Position     int
+	Label        string
+	Name         string
+	Prescription string
+	Reps         *int
+	LoadValue    *float64
+	LoadUnit     *string
+	Notes        string
 }
 
 type amrapConfigPayload struct {
@@ -77,13 +80,14 @@ func wodToRecords(w domainwod.WOD) (wodRecord, []stageRecord, []movementRecord, 
 			return wodRecord{}, nil, nil, err
 		}
 		stages = append(stages, stageRecord{
-			ID:          stage.ID().String(),
-			WODID:       w.ID().String(),
-			Position:    stage.Position(),
-			StageKind:   string(stage.Kind()),
-			WODType:     string(stage.Type()),
-			Config:      config,
-			ScoringKind: string(stage.ScoringKind()),
+			ID:           stage.ID().String(),
+			WODID:        w.ID().String(),
+			Position:     stage.Position(),
+			StageKind:    string(stage.Kind()),
+			WODType:      string(stage.Type()),
+			Instructions: stage.Instructions(),
+			Config:       config,
+			ScoringKind:  string(stage.ScoringKind()),
 		})
 		movements = append(movements, movementsToRecords(stage)...)
 	}
@@ -95,11 +99,13 @@ func movementsToRecords(stage domainwod.Stage) []movementRecord {
 	records := make([]movementRecord, 0, len(stage.Movements()))
 	for _, movement := range stage.Movements() {
 		record := movementRecord{
-			ID:       movement.ID().String(),
-			StageID:  stage.ID().String(),
-			Position: movement.Position(),
-			Name:     movement.Name(),
-			Notes:    movement.Notes(),
+			ID:           movement.ID().String(),
+			StageID:      stage.ID().String(),
+			Position:     movement.Position(),
+			Label:        movement.Label(),
+			Name:         movement.Name(),
+			Prescription: movement.Prescription(),
+			Notes:        movement.Notes(),
 		}
 		if reps := movement.Reps(); reps != nil {
 			value := int(*reps)
@@ -120,6 +126,8 @@ func movementsToRecords(stage domainwod.Stage) []movementRecord {
 
 func configToJSON(cfg domainwod.Config) ([]byte, error) {
 	switch c := cfg.(type) {
+	case domainwod.OpenConfig:
+		return json.Marshal(map[string]any{})
 	case domainwod.AMRAPConfig:
 		return json.Marshal(amrapConfigPayload{TimeCapSeconds: int(c.TimeCap())})
 	case domainwod.ForTimeConfig:
@@ -148,6 +156,8 @@ func configToJSON(cfg domainwod.Config) ([]byte, error) {
 
 func configFromJSON(wodType string, data []byte) (domainwod.Config, error) {
 	switch domainwod.WODType(wodType) {
+	case domainwod.WODTypeOpen:
+		return domainwod.NewOpenConfig()
 	case domainwod.WODTypeAMRAP:
 		var payload amrapConfigPayload
 		if err := json.Unmarshal(data, &payload); err != nil {
@@ -202,6 +212,7 @@ func recordsToWOD(record wodRecord, stages []stageRecord, movementsByStage map[s
 			domainwod.StageID(stage.ID),
 			domainwod.StageKind(stage.StageKind),
 			stage.Position,
+			stage.Instructions,
 			cfg,
 			movements,
 		)
@@ -243,7 +254,9 @@ func recordsToMovements(records []movementRecord) ([]domainwod.Movement, error) 
 		movement, err := domainwod.NewMovement(
 			domainwod.MovementID(record.ID),
 			record.Position,
+			record.Label,
 			record.Name,
+			record.Prescription,
 			reps,
 			loadValue,
 			loadUnit,

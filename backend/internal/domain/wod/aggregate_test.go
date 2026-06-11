@@ -11,8 +11,29 @@ func sampleMovement(t *testing.T) Movement {
 	movement, err := NewMovement(
 		MovementID("mov-1"),
 		1,
+		"",
 		"Burpee",
+		"",
 		&reps,
+		nil,
+		nil,
+		"",
+	)
+	if err != nil {
+		t.Fatalf("unexpected movement error: %v", err)
+	}
+	return movement
+}
+
+func prescriptionMovement(t *testing.T) Movement {
+	t.Helper()
+	movement, err := NewMovement(
+		MovementID("mov-2"),
+		1,
+		"D",
+		"Crow + Knee Lift Off",
+		"1-2X4 lift offs per side, rest as needed.",
+		nil,
 		nil,
 		nil,
 		"",
@@ -29,8 +50,29 @@ func sampleStage(t *testing.T, kind StageKind, position int, cfg Config) Stage {
 		StageID("stage-1"),
 		kind,
 		position,
+		"",
 		cfg,
 		[]Movement{sampleMovement(t)},
+	)
+	if err != nil {
+		t.Fatalf("unexpected stage error: %v", err)
+	}
+	return stage
+}
+
+func openStage(t *testing.T, kind StageKind, position int, instructions string) Stage {
+	t.Helper()
+	cfg, err := NewOpenConfig()
+	if err != nil {
+		t.Fatalf("unexpected config error: %v", err)
+	}
+	stage, err := NewStage(
+		StageID("stage-open"),
+		kind,
+		position,
+		instructions,
+		cfg,
+		[]Movement{prescriptionMovement(t)},
 	)
 	if err != nil {
 		t.Fatalf("unexpected stage error: %v", err)
@@ -89,6 +131,39 @@ func TestNewMultiStageWOD(t *testing.T) {
 	}
 }
 
+func TestOpenStageWithPrescriptionItems(t *testing.T) {
+	stage := openStage(t, StageWarmup, 1, "")
+	if stage.ScoringKind() != ScoringNone {
+		t.Fatalf("expected NONE scoring for OPEN stage, got %s", stage.ScoringKind())
+	}
+	if stage.Type() != WODTypeOpen {
+		t.Fatalf("expected OPEN type, got %s", stage.Type())
+	}
+
+	movements := stage.Movements()
+	if movements[0].Label() != "D" {
+		t.Fatalf("expected label D, got %s", movements[0].Label())
+	}
+	if movements[0].Prescription() == "" {
+		t.Fatalf("expected prescription text")
+	}
+}
+
+func TestMovementRequiresNameOrPrescription(t *testing.T) {
+	_, err := NewMovement(MovementID("mov-1"), 1, "", "", "", nil, nil, nil, "")
+	if err != ErrInvalidMovement {
+		t.Fatalf("expected ErrInvalidMovement, got %v", err)
+	}
+
+	movement, err := NewMovement(MovementID("mov-1"), 1, "", "", "Accumulate 20 reps.", nil, nil, nil, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if movement.Prescription() != "Accumulate 20 reps." {
+		t.Fatalf("expected prescription to be set")
+	}
+}
+
 func TestNewWODRequiresStage(t *testing.T) {
 	_, err := NewWOD(
 		WODID("wod-1"),
@@ -125,6 +200,7 @@ func TestNewStageRejectsInvalidKind(t *testing.T) {
 		StageID("stage-1"),
 		StageKind("INVALID"),
 		1,
+		"",
 		amrapConfig(t),
 		[]Movement{sampleMovement(t)},
 	)
@@ -138,6 +214,7 @@ func TestNewStageRequiresMovement(t *testing.T) {
 		StageID("stage-1"),
 		StageWarmup,
 		1,
+		"",
 		amrapConfig(t),
 		nil,
 	)
@@ -189,5 +266,15 @@ func TestEMOMConfigValidation(t *testing.T) {
 	_, err := NewEMOMConfig(IntervalSeconds(0), RoundCount(10))
 	if err != ErrInvalidInterval {
 		t.Fatalf("expected ErrInvalidInterval, got %v", err)
+	}
+}
+
+func TestOpenConfigValidation(t *testing.T) {
+	cfg, err := NewOpenConfig()
+	if err != nil {
+		t.Fatalf("unexpected config error: %v", err)
+	}
+	if cfg.ScoringKind() != ScoringNone {
+		t.Fatalf("expected ScoringNone")
 	}
 }

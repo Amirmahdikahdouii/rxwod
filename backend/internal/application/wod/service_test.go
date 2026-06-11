@@ -183,4 +183,50 @@ func TestServiceCreateRequiresStage(t *testing.T) {
 	}
 }
 
+func TestServiceCreatePrescriptionProgram(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	result, err := service.Create(context.Background(), CreateWODCommand{
+		Name:        "Prescription Program",
+		Description: "Coach plan",
+		Stages: []StageInput{
+			{
+				Kind: domainwod.StageWarmup,
+				Config: StageConfigInput{
+					Type: domainwod.WODTypeOpen,
+				},
+				Movements: []MovementInput{{
+					Position:     1,
+					Label:        "D",
+					Name:         "Crow + Knee Lift Off",
+					Prescription: "1-2X4 lift offs per side, rest as needed.",
+				}},
+			},
+			{
+				Kind:         domainwod.StageStrength,
+				Instructions: "Complete in 20 minutes.",
+				Config: StageConfigInput{
+					Type: domainwod.WODTypeOpen,
+				},
+				Movements: []MovementInput{{
+					Position:     1,
+					Label:        "B",
+					Name:         "Close Grip Bench Press",
+					Prescription: "3RM",
+				}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Stages[0].ScoringKind != domainwod.ScoringNone {
+		t.Fatalf("expected NONE scoring for OPEN warmup, got %s", result.Stages[0].ScoringKind)
+	}
+	if result.StageCount != 2 {
+		t.Fatalf("expected 2 stages, got %d", result.StageCount)
+	}
+}
+
 func intPtr(v int) *int { return &v }

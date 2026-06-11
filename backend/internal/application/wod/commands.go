@@ -5,12 +5,14 @@ import (
 )
 
 type MovementInput struct {
-	Position  int
-	Name      string
-	Reps      *int
-	LoadValue *float64
-	LoadUnit  *string
-	Notes     string
+	Position     int
+	Label        string
+	Name         string
+	Prescription string
+	Reps         *int
+	LoadValue    *float64
+	LoadUnit     *string
+	Notes        string
 }
 
 type StageConfigInput struct {
@@ -24,9 +26,10 @@ type StageConfigInput struct {
 }
 
 type StageInput struct {
-	Kind      domainwod.StageKind
-	Config    StageConfigInput
-	Movements []MovementInput
+	Kind         domainwod.StageKind
+	Instructions string
+	Config       StageConfigInput
+	Movements    []MovementInput
 }
 
 type CreateWODCommand struct {

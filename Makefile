@@ -33,3 +33,8 @@ frontend-test:
 	cd frontend && npm run test:unit
 
 test: backend-test frontend-test
+
+run:
+	docker compose up -d postgres
+	cd backend && go run ./cmd/api
+	cd frontend && npm run dev

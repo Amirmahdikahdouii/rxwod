@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import StageEditor from '@/features/wod/components/StageEditor.vue'
-import type { MovementInput, StageFormState, StageKind, WODType } from '@/features/wod/model/wodTypes'
+import type { MovementInput, StageFormState, StageFormat, StageKind, WODType } from '@/features/wod/model/wodTypes'
 
 defineProps<{
   stages: StageFormState[]
@@ -12,6 +12,8 @@ const emit = defineEmits<{
   moveStageUp: [index: number]
   moveStageDown: [index: number]
   updateStageKind: [index: number, kind: StageKind]
+  updateStageFormat: [index: number, format: StageFormat]
+  updateStageInstructions: [index: number, value: string]
   updateStageType: [index: number, type: WODType]
   updateStageConfigField: [index: number, key: string, value: number | undefined]
   addMovement: [stageIndex: number]
@@ -39,6 +41,8 @@ const emit = defineEmits<{
       @move-up="emit('moveStageUp', index)"
       @move-down="emit('moveStageDown', index)"
       @update:kind="(kind) => emit('updateStageKind', index, kind)"
+      @update:format="(format) => emit('updateStageFormat', index, format)"
+      @update:instructions="(value) => emit('updateStageInstructions', index, value)"
       @update:type="(type) => emit('updateStageType', index, type)"
       @update:config-field="(key, value) => emit('updateStageConfigField', index, key, value)"
       @add-movement="emit('addMovement', index)"

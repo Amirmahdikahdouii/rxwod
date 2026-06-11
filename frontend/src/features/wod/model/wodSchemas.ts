@@ -1,4 +1,5 @@
-import type { StageFormState, StageKind, StagePayload, WODFormConfig, WODType } from './wodTypes'
+import type { MovementInput, StageFormState, StageKind, StagePayload, WODFormConfig, WODType } from './wodTypes'
+import { defaultTypeForKind } from './wodTypes'
 
 export interface FieldSchema {
   key: string
@@ -8,7 +9,7 @@ export interface FieldSchema {
   min?: number
 }
 
-export const WOD_CONFIG_SCHEMAS: Record<WODType, FieldSchema[]> = {
+export const WOD_CONFIG_SCHEMAS: Record<Exclude<WODType, 'OPEN'>, FieldSchema[]> = {
   AMRAP: [
     { key: 'timeCapSeconds', label: 'Time Cap (seconds)', type: 'number', required: true, min: 1 },
   ],
@@ -28,8 +29,14 @@ export const WOD_CONFIG_SCHEMAS: Record<WODType, FieldSchema[]> = {
   ],
 }
 
+export function defaultMovement(): MovementInput {
+  return { position: 1, label: '', name: '', prescription: '', reps: undefined }
+}
+
 export function defaultConfigForType(type: WODType): WODFormConfig {
   switch (type) {
+    case 'OPEN':
+      return { type: 'OPEN' }
     case 'AMRAP':
       return { type: 'AMRAP', timeCapSeconds: 900 }
     case 'FORTIME':
@@ -43,6 +50,8 @@ export function defaultConfigForType(type: WODType): WODFormConfig {
 
 export function configToPayload(config: WODFormConfig): Record<string, number | undefined> {
   switch (config.type) {
+    case 'OPEN':
+      return {}
     case 'AMRAP':
       return { timeCapSeconds: config.timeCapSeconds }
     case 'FORTIME':
@@ -59,12 +68,14 @@ export function configToPayload(config: WODFormConfig): Record<string, number | 
   }
 }
 
-export function defaultStage(kind: StageKind = 'WARMUP', type: WODType = 'FORTIME'): StageFormState {
+export function defaultStage(kind: StageKind = 'WARMUP', type?: WODType): StageFormState {
+  const resolvedType = type ?? defaultTypeForKind(kind)
   return {
     kind,
-    type,
-    config: defaultConfigForType(type),
-    movements: [{ position: 1, name: '', reps: 10 }],
+    type: resolvedType,
+    instructions: '',
+    config: defaultConfigForType(resolvedType),
+    movements: [defaultMovement()],
   }
 }
 
@@ -72,11 +83,15 @@ export function stageToPayload(stage: StageFormState): StagePayload {
   return {
     kind: stage.kind,
     type: stage.type,
+    instructions: stage.instructions.trim(),
     config: configToPayload(stage.config),
     movements: stage.movements.map((movement, index) => ({
       ...movement,
       position: index + 1,
+      label: movement.label?.trim() ?? '',
       name: movement.name.trim(),
+      prescription: movement.prescription?.trim() ?? '',
+      notes: movement.notes?.trim() ?? '',
     })),
   }
 }

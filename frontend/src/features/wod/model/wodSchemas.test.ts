@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { configToPayload, defaultConfigForType, defaultStage, stageToPayload } from '@/features/wod/model/wodSchemas'
+import {
+  configToPayload,
+  defaultConfigForType,
+  defaultMovement,
+  defaultStage,
+  stageToPayload,
+} from '@/features/wod/model/wodSchemas'
 
 describe('wodSchemas', () => {
   it('builds AMRAP payload', () => {
     const config = defaultConfigForType('AMRAP')
     expect(configToPayload(config)).toEqual({ timeCapSeconds: 900 })
+  })
+
+  it('builds OPEN payload as empty config', () => {
+    const config = defaultConfigForType('OPEN')
+    expect(configToPayload(config)).toEqual({})
   })
 
   it('builds TABATA payload', () => {
@@ -17,26 +28,44 @@ describe('wodSchemas', () => {
     })
   })
 
-  it('creates default stage with warmup fortime defaults', () => {
-    expect(defaultStage()).toEqual({
+  it('creates default warmup stage as OPEN', () => {
+    expect(defaultStage('WARMUP')).toEqual({
       kind: 'WARMUP',
-      type: 'FORTIME',
-      config: { type: 'FORTIME', rounds: 5 },
-      movements: [{ position: 1, name: '', reps: 10 }],
+      type: 'OPEN',
+      instructions: '',
+      config: { type: 'OPEN' },
+      movements: [{ position: 1, label: '', name: '', prescription: '', reps: undefined }],
     })
   })
 
-  it('maps stage to API payload with trimmed movement names', () => {
+  it('creates default metcon stage as AMRAP', () => {
+    expect(defaultStage('METCON').type).toBe('AMRAP')
+  })
+
+  it('maps stage to API payload with prescriptions', () => {
     const stage = {
-      ...defaultStage('METCON', 'AMRAP'),
-      movements: [{ position: 1, name: '  Burpee  ', reps: 21 }],
+      ...defaultStage('STRENGTH', 'OPEN'),
+      instructions: 'Complete in 20 minutes.',
+      movements: [{
+        ...defaultMovement(),
+        label: 'B',
+        name: 'Close Grip Bench Press',
+        prescription: '3RM',
+      }],
     }
 
     expect(stageToPayload(stage)).toEqual({
-      kind: 'METCON',
-      type: 'AMRAP',
-      config: { timeCapSeconds: 900 },
-      movements: [{ position: 1, name: 'Burpee', reps: 21 }],
+      kind: 'STRENGTH',
+      type: 'OPEN',
+      instructions: 'Complete in 20 minutes.',
+      config: {},
+      movements: [{
+        position: 1,
+        label: 'B',
+        name: 'Close Grip Bench Press',
+        prescription: '3RM',
+        notes: '',
+      }],
     })
   })
 })

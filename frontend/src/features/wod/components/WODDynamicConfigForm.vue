@@ -13,7 +13,12 @@ const emit = defineEmits<{
   'update:field': [key: string, value: number | undefined]
 }>()
 
-const fields = computed(() => WOD_CONFIG_SCHEMAS[props.type])
+const fields = computed(() => {
+  if (props.type === 'OPEN') {
+    return []
+  }
+  return WOD_CONFIG_SCHEMAS[props.type]
+})
 
 function fieldValue(key: string): number | undefined {
   const value = Object.entries(props.config).find(([entryKey]) => entryKey === key)?.[1]

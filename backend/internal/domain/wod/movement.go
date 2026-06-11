@@ -1,32 +1,43 @@
 package wod
 
+import (
+	"strings"
+	"unicode/utf8"
+)
+
 type Movement struct {
-	id        MovementID
-	position  int
-	name      string
-	reps      *RepCount
-	loadValue *LoadValue
-	loadUnit  *LoadUnit
-	notes     string
+	id           MovementID
+	position     int
+	label        string
+	name         string
+	prescription string
+	reps         *RepCount
+	loadValue    *LoadValue
+	loadUnit     *LoadUnit
+	notes        string
 }
 
 func NewMovement(
 	id MovementID,
 	position int,
+	label string,
 	name string,
+	prescription string,
 	reps *RepCount,
 	loadValue *LoadValue,
 	loadUnit *LoadUnit,
 	notes string,
 ) (Movement, error) {
 	m := Movement{
-		id:        id,
-		position:  position,
-		name:      name,
-		reps:      reps,
-		loadValue: loadValue,
-		loadUnit:  loadUnit,
-		notes:     notes,
+		id:           id,
+		position:     position,
+		label:        label,
+		name:         name,
+		prescription: prescription,
+		reps:         reps,
+		loadValue:    loadValue,
+		loadUnit:     loadUnit,
+		notes:        notes,
 	}
 	return m, m.Validate()
 }
@@ -39,8 +50,16 @@ func (m Movement) Position() int {
 	return m.position
 }
 
+func (m Movement) Label() string {
+	return m.label
+}
+
 func (m Movement) Name() string {
 	return m.name
+}
+
+func (m Movement) Prescription() string {
+	return m.prescription
 }
 
 func (m Movement) Reps() *RepCount {
@@ -75,7 +94,10 @@ func (m Movement) Validate() error {
 	if m.position <= 0 {
 		return ErrInvalidPosition
 	}
-	if len(m.name) == 0 {
+	if utf8.RuneCountInString(strings.TrimSpace(m.label)) > 4 {
+		return ErrInvalidMovementLabel
+	}
+	if strings.TrimSpace(m.name) == "" && strings.TrimSpace(m.prescription) == "" {
 		return ErrInvalidMovement
 	}
 	if m.reps != nil && *m.reps <= 0 {

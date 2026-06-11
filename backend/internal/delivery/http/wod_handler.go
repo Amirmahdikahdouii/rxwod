@@ -73,17 +73,20 @@ func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
 		movements := make([]appwod.MovementInput, 0, len(stage.Movements))
 		for _, movement := range stage.Movements {
 			movements = append(movements, appwod.MovementInput{
-				Position:  movement.Position,
-				Name:      movement.Name,
-				Reps:      movement.Reps,
-				LoadValue: movement.LoadValue,
-				LoadUnit:  movement.LoadUnit,
-				Notes:     movement.Notes,
+				Position:     movement.Position,
+				Label:        movement.Label,
+				Name:         movement.Name,
+				Prescription: movement.Prescription,
+				Reps:         movement.Reps,
+				LoadValue:    movement.LoadValue,
+				LoadUnit:     movement.LoadUnit,
+				Notes:        movement.Notes,
 			})
 		}
 
 		stages = append(stages, appwod.StageInput{
-			Kind: domainwod.StageKind(stage.Kind),
+			Kind:         domainwod.StageKind(stage.Kind),
+			Instructions: stage.Instructions,
 			Config: appwod.StageConfigInput{
 				Type:            domainwod.WODType(stage.Type),
 				TimeCapSeconds:  stage.Config.TimeCapSeconds,
@@ -115,6 +118,7 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidCycles),
 		errors.Is(err, domainwod.ErrMovementRequired),
 		errors.Is(err, domainwod.ErrInvalidMovement),
+		errors.Is(err, domainwod.ErrInvalidMovementLabel),
 		errors.Is(err, domainwod.ErrInvalidLoadUnit),
 		errors.Is(err, domainwod.ErrInvalidReps),
 		errors.Is(err, domainwod.ErrInvalidPosition),

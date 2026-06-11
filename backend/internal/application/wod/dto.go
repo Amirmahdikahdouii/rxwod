@@ -7,13 +7,15 @@ import (
 )
 
 type MovementDTO struct {
-	ID        string
-	Position  int
-	Name      string
-	Reps      *int
-	LoadValue *float64
-	LoadUnit  *string
-	Notes     string
+	ID           string
+	Position     int
+	Label        string
+	Name         string
+	Prescription string
+	Reps         *int
+	LoadValue    *float64
+	LoadUnit     *string
+	Notes        string
 }
 
 type ConfigDTO struct {
@@ -26,13 +28,14 @@ type ConfigDTO struct {
 }
 
 type StageDTO struct {
-	ID          string
-	Kind        domainwod.StageKind
-	Position    int
-	Type        domainwod.WODType
-	ScoringKind domainwod.ScoringKind
-	Config      ConfigDTO
-	Movements   []MovementDTO
+	ID           string
+	Kind         domainwod.StageKind
+	Position     int
+	Instructions string
+	Type         domainwod.WODType
+	ScoringKind  domainwod.ScoringKind
+	Config       ConfigDTO
+	Movements    []MovementDTO
 }
 
 type StageSummaryDTO struct {

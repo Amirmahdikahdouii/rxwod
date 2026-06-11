@@ -5,6 +5,17 @@ stage kind (`WARMUP`, `STRENGTH`, `CORE`, `METCON`, `COOLDOWN`) and its own work
 config. This guide explains how to add a new workout type (for example `CHIPPER`) that
 stages can use, without rewriting the core domain.
 
+## OPEN format and prescriptions
+
+Use the built-in `OPEN` workout type for prescription-based stages (warmup, strength, skill work)
+that do not need structured scoring. Each stage supports:
+
+- `instructions` — stage-level coaching notes (e.g. "Complete in 20 minutes.")
+- Movement `label` — optional item prefix (A, B, D)
+- Movement `prescription` — free-text coaching instruction (e.g. "3RM", "Accumulate 20 reps")
+
+Structured types (`AMRAP`, `FORTIME`, `TABATA`, `EMOM`) remain available for scored metcons.
+
 ## 1. Domain Layer
 
 Add to [`backend/internal/domain/wod/types.go`](../backend/internal/domain/wod/types.go):

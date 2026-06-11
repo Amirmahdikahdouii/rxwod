@@ -1,6 +1,7 @@
 import type { StageKind, WODType } from './wodTypes'
 
 export const WOD_TYPE_BADGE_CLASS: Record<WODType, string> = {
+  OPEN: 'badge-open',
   AMRAP: 'badge-amrap',
   FORTIME: 'badge-fortime',
   TABATA: 'badge-tabata',

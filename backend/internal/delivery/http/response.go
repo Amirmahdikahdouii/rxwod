@@ -42,13 +42,14 @@ type WODDetailResponse struct {
 }
 
 type StageResponse struct {
-	ID          string             `json:"id"`
-	Kind        string             `json:"kind"`
-	Position    int                `json:"position"`
-	Type        string             `json:"type"`
-	ScoringKind string             `json:"scoringKind"`
-	Config      ConfigResponse     `json:"config"`
-	Movements   []MovementResponse `json:"movements"`
+	ID           string             `json:"id"`
+	Kind         string             `json:"kind"`
+	Position     int                `json:"position"`
+	Instructions string             `json:"instructions"`
+	Type         string             `json:"type"`
+	ScoringKind  string             `json:"scoringKind"`
+	Config       ConfigResponse     `json:"config"`
+	Movements    []MovementResponse `json:"movements"`
 }
 
 type ConfigResponse struct {
@@ -61,13 +62,15 @@ type ConfigResponse struct {
 }
 
 type MovementResponse struct {
-	ID        string   `json:"id"`
-	Position  int      `json:"position"`
-	Name      string   `json:"name"`
-	Reps      *int     `json:"reps,omitempty"`
-	LoadValue *float64 `json:"loadValue,omitempty"`
-	LoadUnit  *string  `json:"loadUnit,omitempty"`
-	Notes     string   `json:"notes,omitempty"`
+	ID           string   `json:"id"`
+	Position     int      `json:"position"`
+	Label        string   `json:"label,omitempty"`
+	Name         string   `json:"name"`
+	Prescription string   `json:"prescription,omitempty"`
+	Reps         *int     `json:"reps,omitempty"`
+	LoadValue    *float64 `json:"loadValue,omitempty"`
+	LoadUnit     *string  `json:"loadUnit,omitempty"`
+	Notes        string   `json:"notes,omitempty"`
 }
 
 type ErrorResponse struct {
@@ -126,24 +129,27 @@ func toDetailResponse(dto appwod.WODDetailDTO) WODDetailResponse {
 		movements := make([]MovementResponse, 0, len(stage.Movements))
 		for _, movement := range stage.Movements {
 			movements = append(movements, MovementResponse{
-				ID:        movement.ID,
-				Position:  movement.Position,
-				Name:      movement.Name,
-				Reps:      movement.Reps,
-				LoadValue: movement.LoadValue,
-				LoadUnit:  movement.LoadUnit,
-				Notes:     movement.Notes,
+				ID:           movement.ID,
+				Position:     movement.Position,
+				Label:        movement.Label,
+				Name:         movement.Name,
+				Prescription: movement.Prescription,
+				Reps:         movement.Reps,
+				LoadValue:    movement.LoadValue,
+				LoadUnit:     movement.LoadUnit,
+				Notes:        movement.Notes,
 			})
 		}
 
 		stages = append(stages, StageResponse{
-			ID:          stage.ID,
-			Kind:        string(stage.Kind),
-			Position:    stage.Position,
-			Type:        string(stage.Type),
-			ScoringKind: string(stage.ScoringKind),
-			Config:      toConfigResponse(stage.Config),
-			Movements:   movements,
+			ID:           stage.ID,
+			Kind:         string(stage.Kind),
+			Position:     stage.Position,
+			Instructions: stage.Instructions,
+			Type:         string(stage.Type),
+			ScoringKind:  string(stage.ScoringKind),
+			Config:       toConfigResponse(stage.Config),
+			Movements:    movements,
 		})
 	}
 

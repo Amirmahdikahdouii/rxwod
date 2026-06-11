@@ -26,6 +26,7 @@ const (
 	WODTypeForTime WODType = "FORTIME"
 	WODTypeTabata  WODType = "TABATA"
 	WODTypeEMOM    WODType = "EMOM"
+	WODTypeOpen    WODType = "OPEN"
 )
 
 type WODStatus string

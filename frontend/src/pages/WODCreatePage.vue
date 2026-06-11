@@ -16,6 +16,8 @@ const {
   moveStageUp,
   moveStageDown,
   updateStageKind,
+  updateStageFormat,
+  updateStageInstructions,
   updateStageType,
   updateStageConfigField,
   addMovement,
@@ -39,7 +41,7 @@ const successSummary = computed(() => {
   <div class="container stack-lg">
     <header class="page-header">
       <h1 class="page-title">Create WOD Program</h1>
-      <p class="page-subtitle">Build a multi-stage class plan — warmup, strength, metcon, and more.</p>
+      <p class="page-subtitle">Build your class plan with instructions and free-text prescriptions.</p>
     </header>
 
     <form class="card stack-lg" @submit.prevent="submit">
@@ -52,7 +54,7 @@ const successSummary = computed(() => {
       <section class="card-section stack">
         <h2 class="section-title">Program Stages</h2>
         <p class="page-subtitle" style="margin: 0">
-          Add ordered stages. Each stage has its own kind, workout type, config, and movements.
+          Add ordered stages with instructions and prescriptions, or structured metcon scoring.
         </p>
         <StageListEditor
           :stages="stages"
@@ -61,6 +63,8 @@ const successSummary = computed(() => {
           @move-stage-up="moveStageUp"
           @move-stage-down="moveStageDown"
           @update-stage-kind="updateStageKind"
+          @update-stage-format="updateStageFormat"
+          @update-stage-instructions="updateStageInstructions"
           @update-stage-type="updateStageType"
           @update-stage-config-field="updateStageConfigField"
           @add-movement="addMovement"

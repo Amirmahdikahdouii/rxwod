@@ -82,11 +82,13 @@ func (s *Service) buildStage(input StageInput, position int) (wod.Stage, error) 
 	if err != nil {
 		return wod.Stage{}, err
 	}
-	return wod.NewStage(wod.StageID(s.idgen.NewID()), input.Kind, position, cfg, movements)
+	return wod.NewStage(wod.StageID(s.idgen.NewID()), input.Kind, position, input.Instructions, cfg, movements)
 }
 
 func buildConfig(input StageConfigInput) (wod.Config, error) {
 	switch input.Type {
+	case wod.WODTypeOpen:
+		return wod.NewOpenConfig()
 	case wod.WODTypeAMRAP:
 		if input.TimeCapSeconds == nil {
 			return nil, ErrMissingConfigField
@@ -149,7 +151,9 @@ func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Mo
 		movement, err := wod.NewMovement(
 			wod.MovementID(generator.NewID()),
 			position,
+			input.Label,
 			input.Name,
+			input.Prescription,
 			reps,
 			loadValue,
 			loadUnit,
@@ -225,18 +229,21 @@ func stageToDTO(stage wod.Stage) StageDTO {
 	}
 
 	return StageDTO{
-		ID:          stage.ID().String(),
-		Kind:        stage.Kind(),
-		Position:    stage.Position(),
-		Type:        stage.Type(),
-		ScoringKind: stage.ScoringKind(),
-		Config:      configToDTO(stage.Config()),
-		Movements:   movements,
+		ID:           stage.ID().String(),
+		Kind:         stage.Kind(),
+		Position:     stage.Position(),
+		Instructions: stage.Instructions(),
+		Type:         stage.Type(),
+		ScoringKind:  stage.ScoringKind(),
+		Config:       configToDTO(stage.Config()),
+		Movements:    movements,
 	}
 }
 
 func configToDTO(cfg wod.Config) ConfigDTO {
 	switch c := cfg.(type) {
+	case wod.OpenConfig:
+		return ConfigDTO{}
 	case wod.AMRAPConfig:
 		timeCap := int(c.TimeCap())
 		return ConfigDTO{TimeCapSeconds: &timeCap}
@@ -273,10 +280,12 @@ func configToDTO(cfg wod.Config) ConfigDTO {
 
 func movementToDTO(movement wod.Movement) MovementDTO {
 	dto := MovementDTO{
-		ID:       movement.ID().String(),
-		Position: movement.Position(),
-		Name:     movement.Name(),
-		Notes:    movement.Notes(),
+		ID:           movement.ID().String(),
+		Position:     movement.Position(),
+		Label:        movement.Label(),
+		Name:         movement.Name(),
+		Prescription: movement.Prescription(),
+		Notes:        movement.Notes(),
 	}
 	if reps := movement.Reps(); reps != nil {
 		value := int(*reps)

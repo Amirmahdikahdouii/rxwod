@@ -25,11 +25,11 @@ func TestWODRepositoryIntegration(t *testing.T) {
 	repo := NewWODRepository(db)
 
 	reps := domainwod.RepCount(15)
-	warmupMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a1"), 1, "Jumping Jacks", &reps, nil, nil, "")
+	warmupMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a1"), 1, "", "Jumping Jacks", "", &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}
-	metconMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a2"), 1, "Air Squat", &reps, nil, nil, "")
+	metconMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a2"), 1, "", "Air Squat", "", &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}
@@ -43,11 +43,11 @@ func TestWODRepositoryIntegration(t *testing.T) {
 		t.Fatalf("config error: %v", err)
 	}
 
-	warmup, err := domainwod.NewStage(domainwod.StageID("00000000-0000-4000-8000-0000000000b1"), domainwod.StageWarmup, 1, forTime, []domainwod.Movement{warmupMovement})
+	warmup, err := domainwod.NewStage(domainwod.StageID("00000000-0000-4000-8000-0000000000b1"), domainwod.StageWarmup, 1, "", forTime, []domainwod.Movement{warmupMovement})
 	if err != nil {
 		t.Fatalf("stage error: %v", err)
 	}
-	metcon, err := domainwod.NewStage(domainwod.StageID("00000000-0000-4000-8000-0000000000b2"), domainwod.StageMetcon, 2, tabata, []domainwod.Movement{metconMovement})
+	metcon, err := domainwod.NewStage(domainwod.StageID("00000000-0000-4000-8000-0000000000b2"), domainwod.StageMetcon, 2, "", tabata, []domainwod.Movement{metconMovement})
 	if err != nil {
 		t.Fatalf("stage error: %v", err)
 	}

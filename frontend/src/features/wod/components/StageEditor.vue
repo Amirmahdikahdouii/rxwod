@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import MovementListEditor from '@/features/wod/components/MovementListEditor.vue'
+import { computed } from 'vue'
+import ProgramItemEditor from '@/features/wod/components/ProgramItemEditor.vue'
 import ScorePreview from '@/features/wod/components/ScorePreview.vue'
 import StageKindSelector from '@/features/wod/components/StageKindSelector.vue'
 import WODDynamicConfigForm from '@/features/wod/components/WODDynamicConfigForm.vue'
 import WODTypeSelector from '@/features/wod/components/WODTypeSelector.vue'
 import { STAGE_KIND_BADGE_CLASS } from '@/features/wod/model/wodTheme'
-import type { MovementInput, StageFormState, StageKind, WODType } from '@/features/wod/model/wodTypes'
+import type { MovementInput, StageFormState, StageFormat, StageKind, WODType } from '@/features/wod/model/wodTypes'
+import { isOpenFormat } from '@/features/wod/model/wodTypes'
+import BaseSelect from '@/shared/components/BaseSelect.vue'
+import BaseTextarea from '@/shared/components/BaseTextarea.vue'
 
-defineProps<{
+const props = defineProps<{
   index: number
   stage: StageFormState
   canRemove: boolean
@@ -20,12 +24,26 @@ const emit = defineEmits<{
   moveUp: []
   moveDown: []
   'update:kind': [value: StageKind]
+  'update:format': [value: StageFormat]
   'update:type': [value: WODType]
+  'update:instructions': [value: string]
   'update:configField': [key: string, value: number | undefined]
   addMovement: []
   removeMovement: [movementIndex: number]
   'update:movement': [movementIndex: number, field: keyof MovementInput, value: string | number | undefined]
 }>()
+
+const formatOptions = [
+  { value: 'OPEN', label: 'Open (prescription)' },
+  { value: 'STRUCTURED', label: 'Structured (scored WOD)' },
+]
+
+const stageFormat = computed<StageFormat>(() => (isOpenFormat(props.stage.type) ? 'OPEN' : 'STRUCTURED'))
+const openFormat = computed(() => stageFormat.value === 'OPEN')
+
+function onFormatChange(value: string) {
+  emit('update:format', value as StageFormat)
+}
 </script>
 
 <template>
@@ -50,19 +68,41 @@ const emit = defineEmits<{
 
     <div class="type-config-grid">
       <StageKindSelector :model-value="stage.kind" @update:model-value="emit('update:kind', $event)" />
-      <WODTypeSelector :model-value="stage.type" @update:model-value="emit('update:type', $event)" />
+      <BaseSelect
+        label="Format"
+        :model-value="stageFormat"
+        :options="formatOptions"
+        @update:model-value="onFormatChange"
+      />
     </div>
 
-    <ScorePreview :type="stage.type" />
-
-    <WODDynamicConfigForm
-      :type="stage.type"
-      :config="stage.config"
-      @update:field="(key, value) => emit('update:configField', key, value)"
+    <BaseTextarea
+      label="Stage instructions"
+      :model-value="stage.instructions"
+      placeholder="e.g. Complete in 20 minutes."
+      :rows="2"
+      @update:model-value="emit('update:instructions', $event)"
     />
 
-    <MovementListEditor
+    <template v-if="openFormat">
+      <p class="page-subtitle" style="margin: 0">
+        Open format uses free-text prescriptions. Add items with labels, names, and coaching details.
+      </p>
+    </template>
+
+    <template v-else>
+      <WODTypeSelector :model-value="stage.type" @update:model-value="emit('update:type', $event)" />
+      <ScorePreview :type="stage.type" />
+      <WODDynamicConfigForm
+        :type="stage.type"
+        :config="stage.config"
+        @update:field="(key, value) => emit('update:configField', key, value)"
+      />
+    </template>
+
+    <ProgramItemEditor
       :movements="stage.movements"
+      :open-format="openFormat"
       @add="emit('addMovement')"
       @remove="(movementIndex) => emit('removeMovement', movementIndex)"
       @update:movement="(movementIndex, field, value) => emit('update:movement', movementIndex, field, value)"

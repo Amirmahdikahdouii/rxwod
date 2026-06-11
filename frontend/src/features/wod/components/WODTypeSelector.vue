@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
 import type { WODType } from '@/features/wod/model/wodTypes'
-import { WOD_TYPES } from '@/features/wod/model/wodTypes'
+import { STRUCTURED_WOD_TYPES } from '@/features/wod/model/wodTypes'
 
 defineProps<{
   modelValue: WODType
@@ -13,7 +13,7 @@ const emit = defineEmits<{
 }>()
 
 const options = computed(() =>
-  WOD_TYPES.map((type) => ({
+  STRUCTURED_WOD_TYPES.map((type) => ({
     value: type,
     label: type,
   })),
