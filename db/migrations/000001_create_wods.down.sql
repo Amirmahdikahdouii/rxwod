@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS wod_movements;
+DROP TABLE IF EXISTS wods;
+DROP TYPE IF EXISTS scoring_kind;
+DROP TYPE IF EXISTS wod_status;
+DROP TYPE IF EXISTS wod_type;
