@@ -5,7 +5,12 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	appauth "github.com/rxwod/backend/internal/application/auth"
+	appauthz "github.com/rxwod/backend/internal/application/authz"
+	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
+	domaingym "github.com/rxwod/backend/internal/domain/gym"
+	domainuser "github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 )
@@ -134,7 +139,28 @@ func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
 
 func mapError(c echo.Context, err error) error {
 	switch {
+	case errors.Is(err, appauthz.ErrUnauthenticated):
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "authentication is required"})
+	case errors.Is(err, appauthz.ErrGymRequired):
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "x-gym-id header is required"})
+	case errors.Is(err, appauthz.ErrActiveMembershipMissing),
+		errors.Is(err, appauthz.ErrForbidden):
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission denied"})
+	case errors.Is(err, appauthz.ErrGymMismatch):
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
+	case errors.Is(err, appauth.ErrInvalidCredentials),
+		errors.Is(err, appauth.ErrRefreshTokenInvalid):
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, domainwod.ErrInvalidName),
+		errors.Is(err, appauth.ErrPasswordTooShort),
+		errors.Is(err, domainuser.ErrInvalidEmail),
+		errors.Is(err, domainuser.ErrInvalidDisplayName),
+		errors.Is(err, domainuser.ErrPasswordHashEmpty),
+		errors.Is(err, domaingym.ErrInvalidGymName),
+		errors.Is(err, domaingym.ErrInvalidMembershipStatus),
+		errors.Is(err, domaingym.ErrInvalidInvitationStatus),
+		errors.Is(err, domaingym.ErrInvalidInvitationRole),
+		errors.Is(err, appgym.ErrRoleNotAssignable),
 		errors.Is(err, domainwod.ErrInvalidTimeCap),
 		errors.Is(err, domainwod.ErrInvalidRounds),
 		errors.Is(err, domainwod.ErrInvalidWorkSeconds),
@@ -156,7 +182,7 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound):
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "wod not found"})
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
 	default:
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
 	}

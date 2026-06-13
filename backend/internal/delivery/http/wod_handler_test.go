@@ -9,7 +9,11 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	appauthz "github.com/rxwod/backend/internal/application/authz"
 	appwod "github.com/rxwod/backend/internal/application/wod"
+	domainauthz "github.com/rxwod/backend/internal/domain/authz"
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 	"github.com/rxwod/backend/internal/platform/clock"
@@ -29,18 +33,20 @@ func (m *handlerMemoryRepo) Save(_ context.Context, aggregate domainwod.WOD) err
 	return nil
 }
 
-func (m *handlerMemoryRepo) FindByID(_ context.Context, id domainwod.WODID) (domainwod.WOD, error) {
+func (m *handlerMemoryRepo) FindByID(_ context.Context, gymID gym.GymID, id domainwod.WODID) (domainwod.WOD, error) {
 	aggregate, ok := m.items[id]
-	if !ok {
+	if !ok || aggregate.GymID() != gymID {
 		return domainwod.WOD{}, postgres.ErrNotFound
 	}
 	return aggregate, nil
 }
 
-func (m *handlerMemoryRepo) List(_ context.Context) ([]domainwod.WOD, error) {
+func (m *handlerMemoryRepo) List(_ context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
 	items := make([]domainwod.WOD, 0, len(m.items))
 	for _, aggregate := range m.items {
-		items = append(items, aggregate)
+		if aggregate.GymID() == gymID {
+			items = append(items, aggregate)
+		}
 	}
 	return items, nil
 }
@@ -48,7 +54,22 @@ func (m *handlerMemoryRepo) List(_ context.Context) ([]domainwod.WOD, error) {
 func newTestRouter() *echo.Echo {
 	repo := newHandlerMemoryRepo()
 	service := appwod.NewService(repo, clock.System{}, idgen.UUIDGenerator{})
-	return NewRouter(service)
+	handler := NewWODHandler(service)
+	e := echo.New()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			ctx := appauthz.WithPrincipal(c.Request().Context(), appauthz.Principal{
+				UserID: user.UserID("user-1"),
+				GymID:  gym.GymID("gym-1"),
+				Role:   domainauthz.RoleOwner,
+			})
+			c.SetRequest(c.Request().WithContext(ctx))
+			return next(c)
+		}
+	})
+	e.POST("/api/v1/wods", handler.Create)
+	e.PUT("/api/v1/wods/:id", handler.Update)
+	return e
 }
 
 func postWOD(t *testing.T, router *echo.Echo, body string) *httptest.ResponseRecorder {

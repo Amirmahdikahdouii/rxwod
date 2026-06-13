@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	appauthz "github.com/rxwod/backend/internal/application/authz"
+	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 	"github.com/rxwod/backend/internal/domain/wod"
 	"github.com/rxwod/backend/internal/platform/clock"
 	"github.com/rxwod/backend/internal/platform/idgen"
@@ -24,7 +26,12 @@ func NewService(repo Repository, clock clock.Clock, idgen idgen.Generator) *Serv
 }
 
 func (s *Service) Create(ctx context.Context, cmd CreateWODCommand) (CreateWODResultDTO, error) {
-	aggregate, err := s.buildWOD(cmd)
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODCreate)
+	if err != nil {
+		return CreateWODResultDTO{}, err
+	}
+
+	aggregate, err := s.buildWOD(cmd, principal)
 	if err != nil {
 		return CreateWODResultDTO{}, err
 	}
@@ -37,7 +44,12 @@ func (s *Service) Create(ctx context.Context, cmd CreateWODCommand) (CreateWODRe
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (WODDetailDTO, error) {
-	aggregate, err := s.repo.FindByID(ctx, wod.WODID(id))
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODRead)
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	aggregate, err := s.repo.FindByID(ctx, principal.GymID, wod.WODID(id))
 	if err != nil {
 		return WODDetailDTO{}, err
 	}
@@ -45,7 +57,12 @@ func (s *Service) GetByID(ctx context.Context, id string) (WODDetailDTO, error) 
 }
 
 func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (WODDetailDTO, error) {
-	existing, err := s.repo.FindByID(ctx, wod.WODID(id))
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODUpdate)
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	existing, err := s.repo.FindByID(ctx, principal.GymID, wod.WODID(id))
 	if err != nil {
 		return WODDetailDTO{}, err
 	}
@@ -57,6 +74,8 @@ func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (
 
 	updated, err := wod.ReconstructWOD(
 		existing.ID(),
+		existing.GymID(),
+		existing.CreatedBy(),
 		wod.WODName(cmd.Name),
 		wod.WODDescription(cmd.Description),
 		stages,
@@ -76,7 +95,12 @@ func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (
 }
 
 func (s *Service) List(ctx context.Context) ([]WODSummaryDTO, error) {
-	aggregates, err := s.repo.List(ctx)
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODRead)
+	if err != nil {
+		return nil, err
+	}
+
+	aggregates, err := s.repo.List(ctx, principal.GymID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +112,7 @@ func (s *Service) List(ctx context.Context) ([]WODSummaryDTO, error) {
 	return summaries, nil
 }
 
-func (s *Service) buildWOD(cmd CreateWODCommand) (wod.WOD, error) {
+func (s *Service) buildWOD(cmd CreateWODCommand, principal appauthz.Principal) (wod.WOD, error) {
 	now := s.clock.Now()
 	id := wod.WODID(s.idgen.NewID())
 
@@ -97,7 +121,7 @@ func (s *Service) buildWOD(cmd CreateWODCommand) (wod.WOD, error) {
 		return wod.WOD{}, err
 	}
 
-	return wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), stages, now)
+	return wod.NewWOD(id, principal.GymID, principal.UserID, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), stages, now)
 }
 
 func (s *Service) buildStages(inputs []StageInput) ([]wod.Stage, error) {

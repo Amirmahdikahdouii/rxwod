@@ -1,0 +1,11 @@
+DROP INDEX IF EXISTS idx_gym_invitations_email_status;
+DROP INDEX IF EXISTS idx_gym_memberships_gym_id;
+DROP INDEX IF EXISTS idx_gym_memberships_user_id;
+DROP INDEX IF EXISTS idx_gyms_owner_id;
+DROP INDEX IF EXISTS idx_gym_invitations_pending_unique;
+DROP TABLE IF EXISTS gym_invitations;
+DROP TABLE IF EXISTS gym_memberships;
+DROP TABLE IF EXISTS gyms;
+DROP TYPE IF EXISTS invitation_status;
+DROP TYPE IF EXISTS membership_status;
+DROP TYPE IF EXISTS gym_role;

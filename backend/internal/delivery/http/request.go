@@ -1,5 +1,28 @@
 package http
 
+type RegisterRequest struct {
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	DisplayName string `json:"displayName"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+type CreateGymRequest struct {
+	Name string `json:"name"`
+}
+
+type InviteMemberRequest struct {
+	Email string `json:"email"`
+}
+
 type CreateWODRequest struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -26,10 +27,16 @@ func load(configPaths ...string) (Config, error) {
 	mustBindEnv(v, "app.env", "APP_ENV")
 	mustBindEnv(v, "http.port", "HTTP_PORT")
 	mustBindEnv(v, "database.url", "DATABASE_URL")
+	mustBindEnv(v, "auth.jwtSecret", "AUTH_JWT_SECRET")
+	mustBindEnv(v, "auth.accessTokenTTL", "AUTH_ACCESS_TOKEN_TTL")
+	mustBindEnv(v, "auth.refreshTokenTTL", "AUTH_REFRESH_TOKEN_TTL")
 
 	v.SetDefault("app.env", "development")
 	v.SetDefault("http.port", 8080)
 	v.SetDefault("database.url", "postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable")
+	v.SetDefault("auth.jwtSecret", "dev-secret-change-me")
+	v.SetDefault("auth.accessTokenTTL", "15m")
+	v.SetDefault("auth.refreshTokenTTL", "168h")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -75,6 +82,18 @@ func (c Config) Validate() error {
 		return fmt.Errorf("http.port must be between 1 and 65535")
 	}
 
+	if strings.TrimSpace(c.Auth.JWTSecret) == "" {
+		return fmt.Errorf("auth.jwtSecret is required")
+	}
+
+	if c.AccessTokenTTL() <= 0 {
+		return fmt.Errorf("auth.accessTokenTTL must be a valid positive duration")
+	}
+
+	if c.RefreshTokenTTL() <= 0 {
+		return fmt.Errorf("auth.refreshTokenTTL must be a valid positive duration")
+	}
+
 	return nil
 }
 
@@ -88,4 +107,16 @@ func (c Config) HTTPPort() int {
 
 func (c Config) DatabaseURL() string {
 	return c.Database.URL
+}
+
+func (c Config) JWTSecret() string {
+	return c.Auth.JWTSecret
+}
+
+func (c Config) AccessTokenTTL() time.Duration {
+	return parseDuration(c.Auth.AccessTokenTTL)
+}
+
+func (c Config) RefreshTokenTTL() time.Duration {
+	return parseDuration(c.Auth.RefreshTokenTTL)
 }

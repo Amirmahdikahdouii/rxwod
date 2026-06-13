@@ -6,3 +6,8 @@ http:
 
 database:
   url: "postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable"
+
+auth:
+  jwtSecret: "dev-secret-change-me"
+  accessTokenTTL: "15m"
+  refreshTokenTTL: "168h"

@@ -3,8 +3,54 @@ package http
 import (
 	"time"
 
+	appauth "github.com/rxwod/backend/internal/application/auth"
+	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 )
+
+type TokenResponse struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken,omitempty"`
+	ExpiresIn    int64  `json:"expiresIn"`
+}
+
+type MeResponse struct {
+	User UserResponse        `json:"user"`
+	Gyms []WorkspaceResponse `json:"gyms"`
+}
+
+type UserResponse struct {
+	ID          string `json:"id"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+}
+
+type GymResponse struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	OwnerID string `json:"ownerId"`
+}
+
+type WorkspaceResponse struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Role string `json:"role"`
+}
+
+type MemberResponse struct {
+	UserID      string `json:"userId"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	Role        string `json:"role"`
+	Status      string `json:"status"`
+}
+
+type InvitationResponse struct {
+	ID    string `json:"id"`
+	GymID string `json:"gymId"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
 
 type StageSummaryResponse struct {
 	Kind        string `json:"kind"`
@@ -76,6 +122,72 @@ type MovementResponse struct {
 
 type ErrorResponse struct {
 	Error string `json:"error"`
+}
+
+func toTokenResponse(dto appauth.TokenDTO) TokenResponse {
+	return TokenResponse{
+		AccessToken:  dto.AccessToken,
+		RefreshToken: dto.RefreshToken,
+		ExpiresIn:    dto.ExpiresIn,
+	}
+}
+
+func toAccessTokenResponse(dto appauth.AccessTokenDTO) TokenResponse {
+	return TokenResponse{
+		AccessToken: dto.AccessToken,
+		ExpiresIn:   dto.ExpiresIn,
+	}
+}
+
+func toUserResponse(dto appauth.UserDTO) UserResponse {
+	return UserResponse{
+		ID:          dto.ID,
+		Email:       dto.Email,
+		DisplayName: dto.DisplayName,
+	}
+}
+
+func toGymResponse(dto appgym.GymDTO) GymResponse {
+	return GymResponse{
+		ID:      dto.ID,
+		Name:    dto.Name,
+		OwnerID: dto.OwnerID,
+	}
+}
+
+func toWorkspaceResponses(dtos []appgym.WorkspaceDTO) []WorkspaceResponse {
+	responses := make([]WorkspaceResponse, 0, len(dtos))
+	for _, dto := range dtos {
+		responses = append(responses, WorkspaceResponse{
+			ID:   dto.ID,
+			Name: dto.Name,
+			Role: string(dto.Role),
+		})
+	}
+	return responses
+}
+
+func toMemberResponses(dtos []appgym.MemberDTO) []MemberResponse {
+	responses := make([]MemberResponse, 0, len(dtos))
+	for _, dto := range dtos {
+		responses = append(responses, MemberResponse{
+			UserID:      dto.UserID,
+			Email:       dto.Email,
+			DisplayName: dto.DisplayName,
+			Role:        string(dto.Role),
+			Status:      string(dto.Status),
+		})
+	}
+	return responses
+}
+
+func toInvitationResponse(dto appgym.InvitationDTO) InvitationResponse {
+	return InvitationResponse{
+		ID:    dto.ID,
+		GymID: dto.GymID,
+		Email: dto.Email,
+		Role:  string(dto.Role),
+	}
 }
 
 func toStageSummaryResponses(summaries []appwod.StageSummaryDTO) []StageSummaryResponse {

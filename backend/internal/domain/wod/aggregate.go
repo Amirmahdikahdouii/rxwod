@@ -1,9 +1,16 @@
 package wod
 
-import "time"
+import (
+	"time"
+
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
+)
 
 type WOD struct {
 	id          WODID
+	gymID       gym.GymID
+	createdBy   user.UserID
 	name        WODName
 	description WODDescription
 	stages      []Stage
@@ -14,6 +21,8 @@ type WOD struct {
 
 func NewWOD(
 	id WODID,
+	gymID gym.GymID,
+	createdBy user.UserID,
 	name WODName,
 	description WODDescription,
 	stages []Stage,
@@ -28,6 +37,8 @@ func NewWOD(
 
 	return WOD{
 		id:          id,
+		gymID:       gymID,
+		createdBy:   createdBy,
 		name:        name,
 		description: description,
 		stages:      cloneStages(stages),
@@ -39,6 +50,8 @@ func NewWOD(
 
 func ReconstructWOD(
 	id WODID,
+	gymID gym.GymID,
+	createdBy user.UserID,
 	name WODName,
 	description WODDescription,
 	stages []Stage,
@@ -46,7 +59,7 @@ func ReconstructWOD(
 	createdAt time.Time,
 	updatedAt time.Time,
 ) (WOD, error) {
-	w, err := NewWOD(id, name, description, stages, createdAt)
+	w, err := NewWOD(id, gymID, createdBy, name, description, stages, createdAt)
 	if err != nil {
 		return WOD{}, err
 	}
@@ -69,6 +82,14 @@ func validateStages(stages []Stage) error {
 
 func (w WOD) ID() WODID {
 	return w.id
+}
+
+func (w WOD) GymID() gym.GymID {
+	return w.gymID
+}
+
+func (w WOD) CreatedBy() user.UserID {
+	return w.createdBy
 }
 
 func (w WOD) Name() WODName {

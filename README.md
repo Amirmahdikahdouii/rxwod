@@ -24,19 +24,19 @@ db/         PostgreSQL migrations
 docker compose up -d postgres
 ```
 
-2. Apply migrations:
+1. Apply migrations:
 
 ```bash
 make migrate-up
 ```
 
-3. Run the API:
+1. Run the API:
 
 ```bash
 cd backend && go run ./cmd/api
 ```
 
-4. Run the frontend:
+1. Run the frontend:
 
 ```bash
 cd frontend
@@ -44,7 +44,7 @@ npm install
 npm run dev
 ```
 
-5. Open `http://localhost:5173`
+1. Open `http://localhost:5173`
 
 Backend defaults live in [`backend/config.yaml`](backend/config.yaml). Environment
 variables from [`.env.example`](.env.example) can override matching YAML values
@@ -56,9 +56,31 @@ A WOD is a multi-stage program: one create request builds an ordered list of sta
 with a stage kind (`WARMUP`, `STRENGTH`, `CORE`, `METCON`, `COOLDOWN`), its own workout type
 (`AMRAP`, `FORTIME`, `TABATA`, `EMOM`) config, and its own movements.
 
-- `POST /api/v1/wods` — create a multi-stage WOD program
-- `GET /api/v1/wods` — list WOD programs (with stage summaries)
-- `GET /api/v1/wods/:id` — fetch a program with full nested stages
+Backend APIs now use email/password authentication and gym workspaces. Authenticated gym-scoped
+requests must send both `Authorization: Bearer <accessToken>` and `X-Gym-ID: <gymId>`.
+
+Auth:
+
+- `POST /api/v1/auth/register` — create a user and return access/refresh tokens
+- `POST /api/v1/auth/login` — authenticate and return access/refresh tokens
+- `POST /api/v1/auth/refresh` — exchange a refresh token for a new access token
+- `GET /api/v1/me` — current user plus active gym memberships
+
+Gyms:
+
+- `POST /api/v1/gyms` — create a gym; the caller becomes owner
+- `GET /api/v1/gyms` — list gyms available to the caller
+- `GET /api/v1/gyms/:gymId` — read gym details
+- `GET /api/v1/gyms/:gymId/members` — owner-only member list
+- `POST /api/v1/gyms/:gymId/coaches` — owner-only coach invite/add by email
+- `POST /api/v1/gyms/:gymId/athletes` — owner-only athlete invite/add by email
+
+WODs:
+
+- `POST /api/v1/wods` — owner/coach create a multi-stage WOD program in the active gym
+- `GET /api/v1/wods` — owner/coach/athlete list WOD programs in the active gym
+- `GET /api/v1/wods/:id` — owner/coach/athlete fetch a program in the active gym
+- `PUT /api/v1/wods/:id` — owner-only update in the active gym
 
 Example create payload:
 

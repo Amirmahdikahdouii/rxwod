@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 )
 
@@ -23,6 +25,22 @@ func TestWODRepositoryIntegration(t *testing.T) {
 	defer db.Close()
 
 	repo := NewWODRepository(db)
+	gymID := gym.GymID("00000000-0000-4000-8000-000000000010")
+	userID := user.UserID("00000000-0000-4000-8000-000000000020")
+	if _, err := db.pool.Exec(ctx, `
+		INSERT INTO users (id, email, password_hash, display_name)
+		VALUES ($1, 'integration@example.com', 'hash', 'Integration User')
+		ON CONFLICT (id) DO NOTHING
+	`, userID.String()); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := db.pool.Exec(ctx, `
+		INSERT INTO gyms (id, name, owner_id)
+		VALUES ($1, 'Integration Gym', $2)
+		ON CONFLICT (id) DO NOTHING
+	`, gymID.String(), userID.String()); err != nil {
+		t.Fatalf("seed gym: %v", err)
+	}
 
 	reps := domainwod.RepCount(15)
 	warmupMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a1"), 1, "", "Jumping Jacks", "", nil, &reps, nil, nil, "")
@@ -55,6 +73,8 @@ func TestWODRepositoryIntegration(t *testing.T) {
 	now := time.Now().UTC()
 	wod, err := domainwod.NewWOD(
 		domainwod.WODID("00000000-0000-4000-8000-000000000001"),
+		gymID,
+		userID,
 		domainwod.WODName("Integration Program"),
 		domainwod.WODDescription("test"),
 		[]domainwod.Stage{warmup, metcon},
@@ -68,7 +88,7 @@ func TestWODRepositoryIntegration(t *testing.T) {
 		t.Fatalf("save error: %v", err)
 	}
 
-	found, err := repo.FindByID(ctx, wod.ID())
+	found, err := repo.FindByID(ctx, wod.GymID(), wod.ID())
 	if err != nil {
 		t.Fatalf("find error: %v", err)
 	}

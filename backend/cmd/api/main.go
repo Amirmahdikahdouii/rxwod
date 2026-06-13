@@ -9,9 +9,14 @@ import (
 	"syscall"
 	"time"
 
+	appauth "github.com/rxwod/backend/internal/application/auth"
+	appauthz "github.com/rxwod/backend/internal/application/authz"
+	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 	deliveryhttp "github.com/rxwod/backend/internal/delivery/http"
 	"github.com/rxwod/backend/internal/infrastructure/config"
+	infrajwt "github.com/rxwod/backend/internal/infrastructure/jwt"
+	"github.com/rxwod/backend/internal/infrastructure/password"
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 	"github.com/rxwod/backend/internal/platform/clock"
 	"github.com/rxwod/backend/internal/platform/idgen"
@@ -32,9 +37,29 @@ func main() {
 	}
 	defer db.Close()
 
-	repo := postgres.NewWODRepository(db)
-	service := appwod.NewService(repo, clock.System{}, idgen.UUIDGenerator{})
-	router := deliveryhttp.NewRouter(service)
+	systemClock := clock.System{}
+	uuidGenerator := idgen.UUIDGenerator{}
+
+	userRepo := postgres.NewUserRepository(db)
+	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
+	gymRepo := postgres.NewGymRepository(db)
+	wodRepo := postgres.NewWODRepository(db)
+
+	gymService := appgym.NewService(gymRepo, systemClock, uuidGenerator, 7*24*time.Hour)
+	accessTokenIssuer := infrajwt.NewAccessTokenIssuer(cfg.JWTSecret(), cfg.AccessTokenTTL())
+	authService := appauth.NewService(
+		userRepo,
+		refreshTokenRepo,
+		password.NewBcryptHasher(),
+		accessTokenIssuer,
+		gymService,
+		systemClock,
+		uuidGenerator,
+		cfg.RefreshTokenTTL(),
+	)
+	authorizer := appauthz.NewAuthorizer(gymRepo)
+	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)
+	router := deliveryhttp.NewRouter(authService, gymService, wodService, authorizer)
 
 	go func() {
 		address := fmt.Sprintf(":%d", cfg.HTTPPort())

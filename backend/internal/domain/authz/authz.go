@@ -1,0 +1,58 @@
+package authz
+
+type Role string
+
+const (
+	RoleOwner   Role = "owner"
+	RoleCoach   Role = "coach"
+	RoleAthlete Role = "athlete"
+)
+
+type Permission string
+
+const (
+	PermissionGymRead             Permission = "gym:read"
+	PermissionGymManage           Permission = "gym:manage"
+	PermissionMemberInviteCoach   Permission = "member:invite_coach"
+	PermissionMemberInviteAthlete Permission = "member:invite_athlete"
+	PermissionMemberList          Permission = "member:list"
+	PermissionWODCreate           Permission = "wod:create"
+	PermissionWODRead             Permission = "wod:read"
+	PermissionWODUpdate           Permission = "wod:update"
+	PermissionWODDelete           Permission = "wod:delete"
+)
+
+var rolePermissions = map[Role]map[Permission]struct{}{
+	RoleOwner: {
+		PermissionGymRead:             {},
+		PermissionGymManage:           {},
+		PermissionMemberInviteCoach:   {},
+		PermissionMemberInviteAthlete: {},
+		PermissionMemberList:          {},
+		PermissionWODCreate:           {},
+		PermissionWODRead:             {},
+		PermissionWODUpdate:           {},
+		PermissionWODDelete:           {},
+	},
+	RoleCoach: {
+		PermissionWODCreate: {},
+		PermissionWODRead:   {},
+	},
+	RoleAthlete: {
+		PermissionWODRead: {},
+	},
+}
+
+func HasPermission(role Role, permission Permission) bool {
+	permissions, ok := rolePermissions[role]
+	if !ok {
+		return false
+	}
+	_, ok = permissions[permission]
+	return ok
+}
+
+func IsValidRole(role Role) bool {
+	_, ok := rolePermissions[role]
+	return ok
+}

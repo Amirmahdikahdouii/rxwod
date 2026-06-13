@@ -3,6 +3,14 @@ package wod
 import (
 	"testing"
 	"time"
+
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
+)
+
+const (
+	testGymID  gym.GymID   = "gym-1"
+	testUserID user.UserID = "user-1"
 )
 
 func sampleMovement(t *testing.T) Movement {
@@ -109,6 +117,8 @@ func TestNewMultiStageWOD(t *testing.T) {
 
 	wod, err := NewWOD(
 		WODID("wod-1"),
+		testGymID,
+		testUserID,
 		WODName("Monday Session"),
 		WODDescription("test"),
 		stages,
@@ -177,6 +187,8 @@ func TestMovementRejectsInvalidSets(t *testing.T) {
 func TestNewWODRequiresStage(t *testing.T) {
 	_, err := NewWOD(
 		WODID("wod-1"),
+		testGymID,
+		testUserID,
 		WODName("Empty Program"),
 		WODDescription("test"),
 		nil,
@@ -195,6 +207,8 @@ func TestNewWODRejectsNonContiguousPositions(t *testing.T) {
 
 	_, err := NewWOD(
 		WODID("wod-1"),
+		testGymID,
+		testUserID,
 		WODName("Bad Positions"),
 		WODDescription("test"),
 		stages,
@@ -252,6 +266,8 @@ func TestInvalidName(t *testing.T) {
 
 	_, err := NewWOD(
 		WODID("wod-1"),
+		testGymID,
+		testUserID,
 		WODName("ab"),
 		WODDescription("test"),
 		stages,

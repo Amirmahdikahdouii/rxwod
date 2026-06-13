@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 )
 
 type wodRecord struct {
 	ID          string
+	GymID       string
+	CreatedBy   string
 	Name        string
 	Status      string
 	Description string
@@ -66,6 +70,8 @@ type emomConfigPayload struct {
 func wodToRecords(w domainwod.WOD) (wodRecord, []stageRecord, []movementRecord, error) {
 	record := wodRecord{
 		ID:          w.ID().String(),
+		GymID:       w.GymID().String(),
+		CreatedBy:   w.CreatedBy().String(),
 		Name:        string(w.Name()),
 		Status:      string(w.Status()),
 		Description: string(w.Description()),
@@ -229,6 +235,8 @@ func recordsToWOD(record wodRecord, stages []stageRecord, movementsByStage map[s
 
 	return domainwod.ReconstructWOD(
 		domainwod.WODID(record.ID),
+		gym.GymID(record.GymID),
+		user.UserID(record.CreatedBy),
 		domainwod.WODName(record.Name),
 		domainwod.WODDescription(record.Description),
 		domainStages,

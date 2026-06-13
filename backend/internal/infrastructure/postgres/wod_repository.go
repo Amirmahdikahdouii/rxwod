@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/rxwod/backend/internal/domain/gym"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 )
 
@@ -32,14 +33,14 @@ func (r *WODRepository) Save(ctx context.Context, w domainwod.WOD) error {
 	defer tx.Rollback(ctx)
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO wods (id, name, status, description, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO wods (id, gym_id, created_by, name, status, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			status = EXCLUDED.status,
 			description = EXCLUDED.description,
 			updated_at = EXCLUDED.updated_at
-	`, record.ID, record.Name, record.Status, record.Description, record.CreatedAt, record.UpdatedAt)
+	`, record.ID, record.GymID, record.CreatedBy, record.Name, record.Status, record.Description, record.CreatedAt, record.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert wod: %w", err)
 	}
@@ -74,8 +75,8 @@ func (r *WODRepository) Save(ctx context.Context, w domainwod.WOD) error {
 	return nil
 }
 
-func (r *WODRepository) FindByID(ctx context.Context, id domainwod.WODID) (domainwod.WOD, error) {
-	record, err := r.fetchRecord(ctx, id.String())
+func (r *WODRepository) FindByID(ctx context.Context, gymID gym.GymID, id domainwod.WODID) (domainwod.WOD, error) {
+	record, err := r.fetchRecord(ctx, gymID.String(), id.String())
 	if err != nil {
 		return domainwod.WOD{}, err
 	}
@@ -90,12 +91,13 @@ func (r *WODRepository) FindByID(ctx context.Context, id domainwod.WODID) (domai
 	return recordsToWOD(record, stages, movementsByStage)
 }
 
-func (r *WODRepository) List(ctx context.Context) ([]domainwod.WOD, error) {
+func (r *WODRepository) List(ctx context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
 	rows, err := r.db.pool.Query(ctx, `
-		SELECT id, name, status, description, created_at, updated_at
+		SELECT id, gym_id, created_by, name, status, description, created_at, updated_at
 		FROM wods
+		WHERE gym_id = $1
 		ORDER BY created_at DESC
-	`)
+	`, gymID.String())
 	if err != nil {
 		return nil, fmt.Errorf("list wods: %w", err)
 	}
@@ -132,12 +134,12 @@ func (r *WODRepository) List(ctx context.Context) ([]domainwod.WOD, error) {
 	return wods, nil
 }
 
-func (r *WODRepository) fetchRecord(ctx context.Context, id string) (wodRecord, error) {
+func (r *WODRepository) fetchRecord(ctx context.Context, gymID string, id string) (wodRecord, error) {
 	row := r.db.pool.QueryRow(ctx, `
-		SELECT id, name, status, description, created_at, updated_at
+		SELECT id, gym_id, created_by, name, status, description, created_at, updated_at
 		FROM wods
-		WHERE id = $1
-	`, id)
+		WHERE id = $1 AND gym_id = $2
+	`, id, gymID)
 	record, err := scanRecord(row)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -241,6 +243,8 @@ func scanRecord(scanner rowScanner) (wodRecord, error) {
 	var record wodRecord
 	if err := scanner.Scan(
 		&record.ID,
+		&record.GymID,
+		&record.CreatedBy,
 		&record.Name,
 		&record.Status,
 		&record.Description,

@@ -4,7 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
+)
+
+const (
+	testGymID  gym.GymID   = "gym-1"
+	testUserID user.UserID = "user-1"
 )
 
 func buildStage(t *testing.T, id string, kind domainwod.StageKind, position int, cfg domainwod.Config) domainwod.Stage {
@@ -42,7 +49,7 @@ func TestWODRecordsRoundTripMultiStage(t *testing.T) {
 	}
 
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	wod, err := domainwod.NewWOD(domainwod.WODID("wod-1"), domainwod.WODName("Monday Session"), domainwod.WODDescription("desc"), stages, now)
+	wod, err := domainwod.NewWOD(domainwod.WODID("wod-1"), testGymID, testUserID, domainwod.WODName("Monday Session"), domainwod.WODDescription("desc"), stages, now)
 	if err != nil {
 		t.Fatalf("wod error: %v", err)
 	}
@@ -53,6 +60,9 @@ func TestWODRecordsRoundTripMultiStage(t *testing.T) {
 	}
 	if len(stageRecords) != 3 {
 		t.Fatalf("expected 3 stage records, got %d", len(stageRecords))
+	}
+	if record.GymID != testGymID.String() || record.CreatedBy != testUserID.String() {
+		t.Fatalf("expected gym and creator IDs to round trip, got %+v", record)
 	}
 	if len(movementRecords) != 3 {
 		t.Fatalf("expected 3 movement records, got %d", len(movementRecords))
@@ -122,6 +132,8 @@ func TestWODRecordsRoundTripOpenPrescriptions(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	wod, err := domainwod.NewWOD(
 		domainwod.WODID("wod-open"),
+		testGymID,
+		testUserID,
 		domainwod.WODName("Prescription Program"),
 		domainwod.WODDescription("desc"),
 		[]domainwod.Stage{stage},

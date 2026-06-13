@@ -139,6 +139,9 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("APP_ENV", "")
 	t.Setenv("HTTP_PORT", "")
 	t.Setenv("DATABASE_URL", "")
+	t.Setenv("AUTH_JWT_SECRET", "")
+	t.Setenv("AUTH_ACCESS_TOKEN_TTL", "")
+	t.Setenv("AUTH_REFRESH_TOKEN_TTL", "")
 }
 
 func writeConfig(t *testing.T, dir string, contents string) {

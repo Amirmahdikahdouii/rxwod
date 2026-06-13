@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	appauthz "github.com/rxwod/backend/internal/application/authz"
+	domainauthz "github.com/rxwod/backend/internal/domain/authz"
+	"github.com/rxwod/backend/internal/domain/gym"
+	"github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 	"github.com/rxwod/backend/internal/platform/clock"
 	"github.com/rxwod/backend/internal/platform/idgen"
@@ -40,27 +44,45 @@ func (m *memoryRepo) Save(_ context.Context, aggregate domainwod.WOD) error {
 	return nil
 }
 
-func (m *memoryRepo) FindByID(_ context.Context, id domainwod.WODID) (domainwod.WOD, error) {
+func (m *memoryRepo) FindByID(_ context.Context, gymID gym.GymID, id domainwod.WODID) (domainwod.WOD, error) {
 	aggregate, ok := m.items[id]
-	if !ok {
+	if !ok || aggregate.GymID() != gymID {
 		return domainwod.WOD{}, errors.New("not found")
 	}
 	return aggregate, nil
 }
 
-func (m *memoryRepo) List(_ context.Context) ([]domainwod.WOD, error) {
+func (m *memoryRepo) List(_ context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
 	items := make([]domainwod.WOD, 0, len(m.items))
 	for _, aggregate := range m.items {
-		items = append(items, aggregate)
+		if aggregate.GymID() == gymID {
+			items = append(items, aggregate)
+		}
 	}
 	return items, nil
+}
+
+func testContext() context.Context {
+	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
+		UserID: user.UserID("user-1"),
+		GymID:  gym.GymID("gym-1"),
+		Role:   domainauthz.RoleOwner,
+	})
+}
+
+func testContextForGym(gymID gym.GymID) context.Context {
+	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
+		UserID: user.UserID("user-1"),
+		GymID:  gymID,
+		Role:   domainauthz.RoleOwner,
+	})
 }
 
 func TestServiceCreateMultiStageProgram(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
 
-	result, err := service.Create(context.Background(), CreateWODCommand{
+	result, err := service.Create(testContext(), CreateWODCommand{
 		Name:        "Monday Session",
 		Description: "Full class plan",
 		Stages: []StageInput{
@@ -111,7 +133,7 @@ func TestServiceCreateRejectsInvalidStageKind(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, clock.System{}, idgen.UUIDGenerator{})
 
-	_, err := service.Create(context.Background(), CreateWODCommand{
+	_, err := service.Create(testContext(), CreateWODCommand{
 		Name: "Bad Kind",
 		Stages: []StageInput{
 			{
@@ -130,7 +152,7 @@ func TestServiceCreateRejectsMissingConfigField(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, clock.System{}, idgen.UUIDGenerator{})
 
-	_, err := service.Create(context.Background(), CreateWODCommand{
+	_, err := service.Create(testContext(), CreateWODCommand{
 		Name: "Missing Field",
 		Stages: []StageInput{
 			{
@@ -149,7 +171,7 @@ func TestServiceCreateRejectsTabataValidation(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, clock.System{}, idgen.UUIDGenerator{})
 
-	_, err := service.Create(context.Background(), CreateWODCommand{
+	_, err := service.Create(testContext(), CreateWODCommand{
 		Name: "Tabata Test",
 		Stages: []StageInput{
 			{
@@ -174,7 +196,7 @@ func TestServiceCreateRequiresStage(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, clock.System{}, idgen.UUIDGenerator{})
 
-	_, err := service.Create(context.Background(), CreateWODCommand{
+	_, err := service.Create(testContext(), CreateWODCommand{
 		Name:   "Empty Program",
 		Stages: nil,
 	})
@@ -187,7 +209,7 @@ func TestServiceCreatePrescriptionProgram(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
 
-	result, err := service.Create(context.Background(), CreateWODCommand{
+	result, err := service.Create(testContext(), CreateWODCommand{
 		Name:        "Prescription Program",
 		Description: "Coach plan",
 		Stages: []StageInput{
@@ -235,7 +257,7 @@ func TestServiceUpdatePreservesIdentityAndTimestamps(t *testing.T) {
 	generator := &sequentialIDGen{}
 	createService := NewService(repo, fixedClock{now: createdAt}, generator)
 
-	created, err := createService.Create(context.Background(), CreateWODCommand{
+	created, err := createService.Create(testContext(), CreateWODCommand{
 		Name:        "Original Program",
 		Description: "Original notes",
 		Stages: []StageInput{
@@ -252,7 +274,7 @@ func TestServiceUpdatePreservesIdentityAndTimestamps(t *testing.T) {
 
 	updatedAt := createdAt.Add(2 * time.Hour)
 	updateService := NewService(repo, fixedClock{now: updatedAt}, generator)
-	updated, err := updateService.Update(context.Background(), created.ID, CreateWODCommand{
+	updated, err := updateService.Update(testContext(), created.ID, CreateWODCommand{
 		Name:        "Updated Program",
 		Description: "Updated notes",
 		Stages: []StageInput{
@@ -295,6 +317,30 @@ func TestServiceUpdatePreservesIdentityAndTimestamps(t *testing.T) {
 	}
 	if updated.Stages[0].Movements[0].Sets == nil || *updated.Stages[0].Movements[0].Sets != 5 {
 		t.Fatalf("expected sets to round trip, got %+v", updated.Stages[0].Movements[0])
+	}
+}
+
+func TestServiceRejectsCrossGymRead(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContextForGym(gym.GymID("gym-1")), CreateWODCommand{
+		Name: "Gym One Program",
+		Stages: []StageInput{
+			{
+				Kind:      domainwod.StageWarmup,
+				Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+				Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	_, err = service.GetByID(testContextForGym(gym.GymID("gym-2")), created.ID)
+	if err == nil {
+		t.Fatal("expected cross-gym read to fail")
 	}
 }
 
