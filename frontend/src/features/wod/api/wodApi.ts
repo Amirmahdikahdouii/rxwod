@@ -3,17 +3,17 @@ import type { CreateWODPayload, CreateWODResponse, WODDetail, WODSummary } from 
 import type { Result } from '@/shared/utils/result'
 
 export function createWOD(payload: CreateWODPayload): Promise<Result<CreateWODResponse>> {
-  return httpClient.post<CreateWODResponse>('/api/v1/wods', payload)
+  return httpClient.post<CreateWODResponse>('/api/v1/wods', payload, { auth: true, workspace: true })
 }
 
 export function listWODs(): Promise<Result<WODSummary[]>> {
-  return httpClient.get<WODSummary[]>('/api/v1/wods')
+  return httpClient.get<WODSummary[]>('/api/v1/wods', { auth: true, workspace: true })
 }
 
 export function getWOD(id: string): Promise<Result<WODDetail>> {
-  return httpClient.get<WODDetail>(`/api/v1/wods/${id}`)
+  return httpClient.get<WODDetail>(`/api/v1/wods/${id}`, { auth: true, workspace: true })
 }
 
 export function updateWOD(id: string, payload: CreateWODPayload): Promise<Result<WODDetail>> {
-  return httpClient.put<WODDetail>(`/api/v1/wods/${id}`, payload)
+  return httpClient.put<WODDetail>(`/api/v1/wods/${id}`, payload, { auth: true, workspace: true })
 }

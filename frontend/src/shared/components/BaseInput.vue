@@ -3,6 +3,7 @@ defineProps<{
   modelValue: string
   label: string
   placeholder?: string
+  type?: string
 }>()
 
 const emit = defineEmits<{
@@ -14,6 +15,7 @@ const emit = defineEmits<{
   <div class="field">
     <label>{{ label }}</label>
     <input
+      :type="type ?? 'text'"
       :value="modelValue"
       :placeholder="placeholder"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"

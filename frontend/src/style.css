@@ -961,3 +961,202 @@ button.stage-editor__summary:hover:not(:disabled) {
     justify-content: flex-start;
   }
 }
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.helper-text {
+  margin: -0.35rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.auth-page {
+  min-height: calc(100vh - 76px);
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.25rem;
+}
+
+.auth-card {
+  width: min(100%, 520px);
+  padding: 2rem;
+}
+
+.auth-card__intro {
+  margin-bottom: 1.5rem;
+}
+
+.auth-card__footer {
+  margin: 1.25rem 0 0;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.auth-card__footer a {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.profile-row,
+.workspace-summary,
+.member-card,
+.member-card__badges,
+.workspace-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.profile-avatar {
+  width: 3rem;
+  height: 3rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.role-pill,
+.status-pill,
+.inline-role {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: var(--radius-pill);
+  padding: 0.25rem 0.65rem;
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.role-pill--large {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8125rem;
+}
+
+.status-pill {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.inline-role {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+
+.workspace-switcher__select {
+  min-width: 170px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.app-header__button {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.8125rem;
+}
+
+.app-header__link--accent {
+  color: var(--color-accent);
+}
+
+.workspace-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 2rem;
+  align-items: center;
+  padding: 2rem;
+}
+
+.workspace-hero__content {
+  max-width: 560px;
+}
+
+.workspace-hero__form {
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.workspace-list,
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.workspace-option {
+  width: 100%;
+  justify-content: space-between;
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.workspace-option--active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+}
+
+.invite-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.member-card {
+  justify-content: space-between;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+}
+
+.compact-button {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.empty-state--compact {
+  padding: 1rem;
+}
+
+@media (max-width: 760px) {
+  .dashboard-grid,
+  .workspace-hero,
+  .invite-form {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-switcher,
+  .app-header__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .workspace-switcher__select {
+    min-width: 0;
+    flex: 1;
+  }
+}

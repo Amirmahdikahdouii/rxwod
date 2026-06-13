@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import ProgramOutlinePanel from '@/features/wod/components/ProgramOutlinePanel.vue'
 import StageListEditor from '@/features/wod/components/StageListEditor.vue'
+import { useSession } from '@/features/auth/composables/useSession'
 import { useWODForm } from '@/features/wod/composables/useWODForm'
+import { canCreateWOD, canEditWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
 import BaseInput from '@/shared/components/BaseInput.vue'
 import BaseTextarea from '@/shared/components/BaseTextarea.vue'
 import { computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
+const session = useSession()
 
 function routeWODId() {
   const id = route.params.id
@@ -61,6 +64,15 @@ const pageSubtitle = computed(() =>
     : 'Build your class plan with instructions and free-text prescriptions.',
 )
 const submitLabel = computed(() => (mode.value === 'edit' ? 'Save Changes' : 'Save Program'))
+const isEditMode = computed(() => Boolean(initialWODId))
+const canUseForm = computed(() =>
+  isEditMode.value
+    ? canEditWOD(session.activeWorkspaceRole.value)
+    : canCreateWOD(session.activeWorkspaceRole.value),
+)
+const roleLabel = computed(() =>
+  session.activeWorkspaceRole.value ? ROLE_LABELS[session.activeWorkspaceRole.value] : 'Member',
+)
 
 onMounted(async () => {
   if (initialWODId) {
@@ -72,11 +84,25 @@ onMounted(async () => {
 <template>
   <div class="container stack-lg">
     <header class="page-header">
+      <p class="eyebrow">{{ session.activeWorkspace.value?.name ?? 'Active workspace' }}</p>
       <h1 class="page-title">{{ pageTitle }}</h1>
-      <p class="page-subtitle">{{ pageSubtitle }}</p>
+      <p class="page-subtitle">
+        {{ pageSubtitle }}
+        <span class="inline-role">{{ roleLabel }}</span>
+      </p>
     </header>
 
-    <p v-if="initialLoading" class="loading-state">Loading program...</p>
+    <div v-if="!canUseForm" class="card empty-state">
+      <h2 class="empty-state__title">This workspace is read-only for your role</h2>
+      <p class="empty-state__text">
+        {{ roleLabel }} access
+        {{ isEditMode ? 'cannot edit saved programs.' : 'cannot create programs.' }}
+        You can still review saved plans for this gym.
+      </p>
+      <RouterLink to="/wods" class="empty-state__link">View Programs</RouterLink>
+    </div>
+
+    <p v-else-if="initialLoading" class="loading-state">Loading program...</p>
 
     <div v-else class="create-layout">
       <div class="create-layout__main">
