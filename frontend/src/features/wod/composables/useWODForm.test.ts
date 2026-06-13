@@ -82,6 +82,25 @@ describe('useWODForm', () => {
     expect(form.stages.value[0].type).toBe('OPEN')
   })
 
+  it('adds metcon stages by default with AMRAP config', () => {
+    const form = mountForm()
+    form.addStage()
+
+    expect(form.stages.value[1].kind).toBe('METCON')
+    expect(form.stages.value[1].config).toEqual({
+      type: 'AMRAP',
+      timeCapSeconds: 900,
+    })
+  })
+
+  it('adds selected non-metcon stages with OPEN config', () => {
+    const form = mountForm()
+    form.addStage('STRENGTH')
+
+    expect(form.stages.value[1].kind).toBe('STRENGTH')
+    expect(form.stages.value[1].config).toEqual({ type: 'OPEN' })
+  })
+
   it('switches to structured format with AMRAP defaults for metcon', async () => {
     const form = mountForm()
     form.updateStageFormat(0, 'STRUCTURED')

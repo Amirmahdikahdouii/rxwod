@@ -33,32 +33,39 @@ function toggleAdvanced(index: number) {
 
 <template>
   <div class="stack">
-    <div class="row row--align-center row--between">
-      <h3 class="section-title" style="margin: 0">Items</h3>
-      <button type="button" class="secondary" @click="emit('add')">Add Item</button>
-    </div>
+    <h3 class="section-title">Items</h3>
 
     <div
       v-for="(movement, index) in movements"
       :key="index"
       class="movement-item stack"
-      style="margin-left: 0.5rem"
     >
       <span class="movement-item__number">{{ index + 1 }}</span>
 
-      <div class="row">
-        <BaseInput
-          label="Label"
-          :model-value="movement.label ?? ''"
-          placeholder="A"
-          @update:model-value="emit('update:movement', index, 'label', $event)"
-        />
-        <BaseInput
-          :label="`Item ${index + 1} name`"
-          :model-value="movement.name"
-          placeholder="e.g. Close Grip Bench Press"
-          @update:model-value="emit('update:movement', index, 'name', $event)"
-        />
+      <div class="movement-item__header">
+        <div class="row">
+          <BaseInput
+            label="Label"
+            :model-value="movement.label ?? ''"
+            placeholder="A"
+            @update:model-value="emit('update:movement', index, 'label', $event)"
+          />
+          <BaseInput
+            :label="`Item ${index + 1} name`"
+            :model-value="movement.name"
+            placeholder="e.g. Close Grip Bench Press"
+            @update:model-value="emit('update:movement', index, 'name', $event)"
+          />
+        </div>
+        <button
+          type="button"
+          class="icon-btn"
+          :disabled="movements.length === 1"
+          title="Remove item"
+          @click="emit('remove', index)"
+        >
+          x
+        </button>
       </div>
 
       <BaseTextarea
@@ -104,8 +111,8 @@ function toggleAdvanced(index: number) {
           @update:model-value="emit('update:movement', index, 'notes', $event)"
         />
       </div>
-
-      <button type="button" class="secondary" @click="emit('remove', index)">Remove</button>
     </div>
+
+    <button type="button" class="add-zone" @click="emit('add')">+ Add item</button>
   </div>
 </template>

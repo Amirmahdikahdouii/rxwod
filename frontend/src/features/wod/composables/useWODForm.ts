@@ -30,8 +30,8 @@ export function useWODForm() {
     stages: stages.value.map(stageToPayload),
   }))
 
-  function addStage() {
-    stages.value.push(defaultStage('METCON'))
+  function addStage(kind: StageKind = 'METCON') {
+    stages.value.push(defaultStage(kind))
   }
 
   function removeStage(index: number) {
