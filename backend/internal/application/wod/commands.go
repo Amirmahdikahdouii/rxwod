@@ -9,6 +9,7 @@ type MovementInput struct {
 	Label        string
 	Name         string
 	Prescription string
+	Sets         *int
 	Reps         *int
 	LoadValue    *float64
 	LoadUnit     *string

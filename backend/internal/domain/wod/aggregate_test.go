@@ -14,6 +14,7 @@ func sampleMovement(t *testing.T) Movement {
 		"",
 		"Burpee",
 		"",
+		nil,
 		&reps,
 		nil,
 		nil,
@@ -33,6 +34,7 @@ func prescriptionMovement(t *testing.T) Movement {
 		"D",
 		"Crow + Knee Lift Off",
 		"1-2X4 lift offs per side, rest as needed.",
+		nil,
 		nil,
 		nil,
 		nil,
@@ -150,17 +152,25 @@ func TestOpenStageWithPrescriptionItems(t *testing.T) {
 }
 
 func TestMovementRequiresNameOrPrescription(t *testing.T) {
-	_, err := NewMovement(MovementID("mov-1"), 1, "", "", "", nil, nil, nil, "")
+	_, err := NewMovement(MovementID("mov-1"), 1, "", "", "", nil, nil, nil, nil, "")
 	if err != ErrInvalidMovement {
 		t.Fatalf("expected ErrInvalidMovement, got %v", err)
 	}
 
-	movement, err := NewMovement(MovementID("mov-1"), 1, "", "", "Accumulate 20 reps.", nil, nil, nil, "")
+	movement, err := NewMovement(MovementID("mov-1"), 1, "", "", "Accumulate 20 reps.", nil, nil, nil, nil, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if movement.Prescription() != "Accumulate 20 reps." {
 		t.Fatalf("expected prescription to be set")
+	}
+}
+
+func TestMovementRejectsInvalidSets(t *testing.T) {
+	sets := SetCount(0)
+	_, err := NewMovement(MovementID("mov-1"), 1, "", "Burpee", "", &sets, nil, nil, nil, "")
+	if err != ErrInvalidSets {
+		t.Fatalf("expected ErrInvalidSets, got %v", err)
 	}
 }
 

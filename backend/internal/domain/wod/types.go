@@ -11,6 +11,7 @@ type MovementID string
 type WODName string
 type WODDescription string
 type TimeCapSeconds int
+type SetCount int
 type RepCount int
 type RoundCount int
 type WorkSeconds int

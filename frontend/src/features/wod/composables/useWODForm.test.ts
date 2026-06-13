@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { useWODForm } from '@/features/wod/composables/useWODForm'
 import { defaultStage } from '@/features/wod/model/wodSchemas'
+import type { WODDetail } from '@/features/wod/model/wodTypes'
 
 function mountForm() {
   let form!: ReturnType<typeof useWODForm>
@@ -29,6 +30,8 @@ describe('useWODForm', () => {
           label: 'D',
           name: 'Crow + Knee Lift Off',
           prescription: '1-2X4 lift offs per side, rest as needed.',
+          sets: 3,
+          reps: 4,
         }],
       },
       {
@@ -57,6 +60,8 @@ describe('useWODForm', () => {
             label: 'D',
             name: 'Crow + Knee Lift Off',
             prescription: '1-2X4 lift offs per side, rest as needed.',
+            sets: 3,
+            reps: 4,
             notes: '',
           }],
         },
@@ -99,6 +104,43 @@ describe('useWODForm', () => {
 
     expect(form.stages.value[1].kind).toBe('STRENGTH')
     expect(form.stages.value[1].config).toEqual({ type: 'OPEN' })
+  })
+
+  it('loads detail responses into edit mode', () => {
+    const form = mountForm()
+    const detail: WODDetail = {
+      id: 'wod-1',
+      name: 'Strength Day',
+      description: 'Coach plan',
+      status: 'DRAFT',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      stages: [{
+        id: 'stage-1',
+        kind: 'STRENGTH',
+        position: 1,
+        instructions: 'Complete in 20 minutes.',
+        type: 'OPEN',
+        scoringKind: 'NONE',
+        config: {},
+        movements: [{
+          id: 'movement-1',
+          position: 1,
+          label: 'A',
+          name: 'Back Squat',
+          prescription: 'Heavy triple',
+          sets: 5,
+          reps: 3,
+        }],
+      }],
+    }
+
+    form.loadFromDetail(detail)
+
+    expect(form.mode.value).toBe('edit')
+    expect(form.wodId.value).toBe('wod-1')
+    expect(form.name.value).toBe('Strength Day')
+    expect(form.stages.value[0].movements[0].sets).toBe(5)
   })
 
   it('switches to structured format with AMRAP defaults for metcon', async () => {

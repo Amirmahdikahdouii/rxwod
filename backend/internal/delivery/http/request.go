@@ -28,6 +28,7 @@ type MovementRequest struct {
 	Label        string   `json:"label,omitempty"`
 	Name         string   `json:"name"`
 	Prescription string   `json:"prescription,omitempty"`
+	Sets         *int     `json:"sets,omitempty"`
 	Reps         *int     `json:"reps,omitempty"`
 	LoadValue    *float64 `json:"loadValue,omitempty"`
 	LoadUnit     *string  `json:"loadUnit,omitempty"`

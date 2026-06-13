@@ -1,9 +1,10 @@
 import { computed, ref } from 'vue'
-import { createWOD } from '@/features/wod/api/wodApi'
+import { createWOD, getWOD, updateWOD } from '@/features/wod/api/wodApi'
 import {
   defaultConfigForType,
   defaultMovement,
   defaultStage,
+  detailToFormState,
   stageToPayload,
 } from '@/features/wod/model/wodSchemas'
 import type {
@@ -12,17 +13,23 @@ import type {
   StageFormState,
   StageFormat,
   StageKind,
+  WODDetail,
   WODType,
 } from '@/features/wod/model/wodTypes'
 import { defaultTypeForKind } from '@/features/wod/model/wodTypes'
 
-export function useWODForm() {
+type WODFormMode = 'create' | 'edit'
+
+export function useWODForm(initialMode: WODFormMode = 'create') {
+  const mode = ref<WODFormMode>(initialMode)
+  const wodId = ref<string | null>(null)
   const name = ref('')
   const description = ref('')
   const stages = ref<StageFormState[]>([defaultStage()])
   const loading = ref(false)
+  const initialLoading = ref(false)
   const error = ref<string | null>(null)
-  const result = ref<CreateWODResponse | null>(null)
+  const result = ref<CreateWODResponse | WODDetail | null>(null)
 
   const payload = computed(() => ({
     name: name.value.trim(),
@@ -139,12 +146,44 @@ export function useWODForm() {
     stages.value = next
   }
 
+  function loadFromDetail(detail: WODDetail) {
+    const next = detailToFormState(detail)
+    mode.value = 'edit'
+    wodId.value = detail.id
+    name.value = next.name
+    description.value = next.description
+    stages.value = next.stages.length > 0 ? next.stages : [defaultStage()]
+    result.value = null
+    error.value = null
+  }
+
+  async function initEdit(id: string) {
+    mode.value = 'edit'
+    wodId.value = id
+    initialLoading.value = true
+    error.value = null
+    result.value = null
+
+    const response = await getWOD(id)
+    initialLoading.value = false
+
+    if (!response.ok) {
+      error.value = response.error
+      return
+    }
+
+    loadFromDetail(response.value)
+  }
+
   async function submit() {
     loading.value = true
     error.value = null
     result.value = null
 
-    const response = await createWOD(payload.value)
+    const response =
+      mode.value === 'edit' && wodId.value
+        ? await updateWOD(wodId.value, payload.value)
+        : await createWOD(payload.value)
     loading.value = false
 
     if (!response.ok) {
@@ -156,10 +195,13 @@ export function useWODForm() {
   }
 
   return {
+    mode,
+    wodId,
     name,
     description,
     stages,
     loading,
+    initialLoading,
     error,
     result,
     payload,
@@ -175,6 +217,8 @@ export function useWODForm() {
     addMovement,
     removeMovement,
     updateMovement,
+    loadFromDetail,
+    initEdit,
     submit,
   }
 }

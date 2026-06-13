@@ -1,4 +1,4 @@
-import type { MovementInput, StageFormState, StageKind, StagePayload, WODFormConfig, WODType } from './wodTypes'
+import type { MovementInput, StageFormState, StageKind, StagePayload, WODDetail, WODFormConfig, WODType } from './wodTypes'
 import { defaultTypeForKind } from './wodTypes'
 
 export interface FieldSchema {
@@ -93,5 +93,56 @@ export function stageToPayload(stage: StageFormState): StagePayload {
       prescription: movement.prescription?.trim() ?? '',
       notes: movement.notes?.trim() ?? '',
     })),
+  }
+}
+
+export function configFromDetail(type: WODType, config: Record<string, number | undefined>): WODFormConfig {
+  switch (type) {
+    case 'OPEN':
+      return { type: 'OPEN' }
+    case 'AMRAP':
+      return { type: 'AMRAP', timeCapSeconds: config.timeCapSeconds ?? 900 }
+    case 'FORTIME':
+      return { type: 'FORTIME', rounds: config.rounds ?? 5, timeCapSeconds: config.timeCapSeconds }
+    case 'TABATA':
+      return {
+        type: 'TABATA',
+        workSeconds: config.workSeconds ?? 20,
+        restSeconds: config.restSeconds ?? 10,
+        rounds: config.rounds ?? 8,
+        cycles: config.cycles ?? 1,
+      }
+    case 'EMOM':
+      return { type: 'EMOM', intervalSeconds: config.intervalSeconds ?? 60, rounds: config.rounds ?? 10 }
+  }
+}
+
+export function detailToFormState(detail: WODDetail): Pick<WODDetail, 'name' | 'description'> & { stages: StageFormState[] } {
+  return {
+    name: detail.name,
+    description: detail.description,
+    stages: detail.stages
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((stage) => ({
+        kind: stage.kind,
+        type: stage.type,
+        instructions: stage.instructions,
+        config: configFromDetail(stage.type, stage.config),
+        movements: stage.movements
+          .slice()
+          .sort((a, b) => a.position - b.position)
+          .map((movement, index): MovementInput => ({
+            position: index + 1,
+            label: movement.label,
+            name: movement.name,
+            prescription: movement.prescription,
+            sets: movement.sets,
+            reps: movement.reps,
+            loadValue: movement.loadValue,
+            loadUnit: movement.loadUnit,
+            notes: movement.notes,
+          })),
+      })),
   }
 }

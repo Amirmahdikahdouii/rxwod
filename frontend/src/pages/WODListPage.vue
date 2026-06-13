@@ -40,7 +40,10 @@ onMounted(async () => {
       <article v-for="item in items" :key="item.id" class="card card--hover stack">
         <div class="row row--align-center row--between">
           <strong>{{ item.name }}</strong>
-          <span class="wod-card__meta">{{ item.stageCount }} stage(s)</span>
+          <div class="wod-card__actions">
+            <span class="wod-card__meta">{{ item.stageCount }} stage(s)</span>
+            <RouterLink :to="`/wods/${item.id}/edit`" class="wod-card__link">Edit</RouterLink>
+          </div>
         </div>
         <p class="wod-card__meta">Status: {{ item.status }}</p>
         <div class="badge-row">

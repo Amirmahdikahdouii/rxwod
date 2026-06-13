@@ -10,6 +10,7 @@ const props = defineProps<{
   loading: boolean
   error: string | null
   successSummary: string
+  submitLabel: string
 }>()
 
 function stageKindLabel(kind: StageKind) {
@@ -56,7 +57,7 @@ function scrollToStage(index: number) {
       <div v-if="props.error" class="alert alert--error" role="alert">{{ props.error }}</div>
       <div v-if="props.successSummary" class="alert alert--success" role="status">{{ props.successSummary }}</div>
       <button type="submit" form="wod-create-form" class="btn-full" :disabled="props.loading">
-        {{ props.loading ? 'Saving...' : 'Save Program' }}
+        {{ props.loading ? 'Saving...' : props.submitLabel }}
       </button>
     </div>
   </aside>

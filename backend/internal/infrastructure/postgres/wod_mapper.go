@@ -35,6 +35,7 @@ type movementRecord struct {
 	Label        string
 	Name         string
 	Prescription string
+	Sets         *int
 	Reps         *int
 	LoadValue    *float64
 	LoadUnit     *string
@@ -106,6 +107,10 @@ func movementsToRecords(stage domainwod.Stage) []movementRecord {
 			Name:         movement.Name(),
 			Prescription: movement.Prescription(),
 			Notes:        movement.Notes(),
+		}
+		if sets := movement.Sets(); sets != nil {
+			value := int(*sets)
+			record.Sets = &value
 		}
 		if reps := movement.Reps(); reps != nil {
 			value := int(*reps)
@@ -236,6 +241,11 @@ func recordsToWOD(record wodRecord, stages []stageRecord, movementsByStage map[s
 func recordsToMovements(records []movementRecord) ([]domainwod.Movement, error) {
 	movements := make([]domainwod.Movement, 0, len(records))
 	for _, record := range records {
+		var sets *domainwod.SetCount
+		if record.Sets != nil {
+			value := domainwod.SetCount(*record.Sets)
+			sets = &value
+		}
 		var reps *domainwod.RepCount
 		if record.Reps != nil {
 			value := domainwod.RepCount(*record.Reps)
@@ -257,6 +267,7 @@ func recordsToMovements(records []movementRecord) ([]domainwod.Movement, error) 
 			record.Label,
 			record.Name,
 			record.Prescription,
+			sets,
 			reps,
 			loadValue,
 			loadUnit,

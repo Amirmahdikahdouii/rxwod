@@ -14,6 +14,7 @@ var (
 	ErrInvalidMovement         = errors.New("movement is invalid")
 	ErrInvalidMovementLabel    = errors.New("movement label must be at most 4 characters")
 	ErrInvalidLoadUnit         = errors.New("load unit is invalid")
+	ErrInvalidSets             = errors.New("sets must be greater than zero when provided")
 	ErrInvalidReps             = errors.New("reps must be greater than zero when provided")
 	ErrInvalidPosition         = errors.New("movement position must be greater than zero")
 	ErrUnknownWODType          = errors.New("unknown wod type")

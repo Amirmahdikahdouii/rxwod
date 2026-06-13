@@ -67,6 +67,7 @@ type MovementResponse struct {
 	Label        string   `json:"label,omitempty"`
 	Name         string   `json:"name"`
 	Prescription string   `json:"prescription,omitempty"`
+	Sets         *int     `json:"sets,omitempty"`
 	Reps         *int     `json:"reps,omitempty"`
 	LoadValue    *float64 `json:"loadValue,omitempty"`
 	LoadUnit     *string  `json:"loadUnit,omitempty"`
@@ -134,6 +135,7 @@ func toDetailResponse(dto appwod.WODDetailDTO) WODDetailResponse {
 				Label:        movement.Label,
 				Name:         movement.Name,
 				Prescription: movement.Prescription,
+				Sets:         movement.Sets,
 				Reps:         movement.Reps,
 				LoadValue:    movement.LoadValue,
 				LoadUnit:     movement.LoadUnit,

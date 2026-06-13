@@ -4,8 +4,10 @@ import {
   defaultConfigForType,
   defaultMovement,
   defaultStage,
+  detailToFormState,
   stageToPayload,
 } from '@/features/wod/model/wodSchemas'
+import type { WODDetail } from '@/features/wod/model/wodTypes'
 
 describe('wodSchemas', () => {
   it('builds AMRAP payload', () => {
@@ -51,6 +53,8 @@ describe('wodSchemas', () => {
         label: 'B',
         name: 'Close Grip Bench Press',
         prescription: '3RM',
+        sets: 5,
+        reps: 3,
       }],
     }
 
@@ -64,7 +68,61 @@ describe('wodSchemas', () => {
         label: 'B',
         name: 'Close Grip Bench Press',
         prescription: '3RM',
+        sets: 5,
+        reps: 3,
         notes: '',
+      }],
+    })
+  })
+
+  it('hydrates detail responses into form state', () => {
+    const detail: WODDetail = {
+      id: 'wod-1',
+      name: 'Strength Day',
+      description: 'Coach plan',
+      status: 'DRAFT',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      stages: [{
+        id: 'stage-1',
+        kind: 'STRENGTH',
+        position: 1,
+        instructions: 'Complete in 20 minutes.',
+        type: 'OPEN',
+        scoringKind: 'NONE',
+        config: {},
+        movements: [{
+          id: 'movement-1',
+          position: 1,
+          label: 'A',
+          name: 'Back Squat',
+          prescription: 'Heavy triple',
+          sets: 5,
+          reps: 3,
+          notes: 'Use a rack',
+        }],
+      }],
+    }
+
+    expect(detailToFormState(detail)).toEqual({
+      name: 'Strength Day',
+      description: 'Coach plan',
+      stages: [{
+        kind: 'STRENGTH',
+        type: 'OPEN',
+        instructions: 'Complete in 20 minutes.',
+        config: { type: 'OPEN' },
+        movements: [{
+          position: 1,
+          label: 'A',
+          name: 'Back Squat',
+          prescription: 'Heavy triple',
+          sets: 5,
+          reps: 3,
+          loadValue: undefined,
+          loadUnit: undefined,
+          notes: 'Use a rack',
+        }],
       }],
     })
   })

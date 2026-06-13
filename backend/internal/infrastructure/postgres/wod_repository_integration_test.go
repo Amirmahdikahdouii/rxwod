@@ -25,11 +25,11 @@ func TestWODRepositoryIntegration(t *testing.T) {
 	repo := NewWODRepository(db)
 
 	reps := domainwod.RepCount(15)
-	warmupMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a1"), 1, "", "Jumping Jacks", "", &reps, nil, nil, "")
+	warmupMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a1"), 1, "", "Jumping Jacks", "", nil, &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}
-	metconMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a2"), 1, "", "Air Squat", "", &reps, nil, nil, "")
+	metconMovement, err := domainwod.NewMovement(domainwod.MovementID("00000000-0000-4000-8000-0000000000a2"), 1, "", "Air Squat", "", nil, &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}

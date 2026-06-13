@@ -60,9 +60,9 @@ func (r *WODRepository) Save(ctx context.Context, w domainwod.WOD) error {
 
 	for _, movement := range movements {
 		_, err = tx.Exec(ctx, `
-			INSERT INTO wod_movements (id, stage_id, position, label, name, prescription, reps, load_value, load_unit, notes)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		`, movement.ID, movement.StageID, movement.Position, movement.Label, movement.Name, movement.Prescription, movement.Reps, movement.LoadValue, movement.LoadUnit, movement.Notes)
+			INSERT INTO wod_movements (id, stage_id, position, label, name, prescription, sets, reps, load_value, load_unit, notes)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`, movement.ID, movement.StageID, movement.Position, movement.Label, movement.Name, movement.Prescription, movement.Sets, movement.Reps, movement.LoadValue, movement.LoadUnit, movement.Notes)
 		if err != nil {
 			return fmt.Errorf("insert movement: %w", err)
 		}
@@ -190,7 +190,7 @@ func (r *WODRepository) fetchMovements(ctx context.Context, stageIDs []string) (
 	}
 
 	rows, err := r.db.pool.Query(ctx, `
-		SELECT id, stage_id, position, label, name, prescription, reps, load_value, load_unit, notes
+		SELECT id, stage_id, position, label, name, prescription, sets, reps, load_value, load_unit, notes
 		FROM wod_movements
 		WHERE stage_id = ANY($1)
 		ORDER BY position ASC
@@ -209,6 +209,7 @@ func (r *WODRepository) fetchMovements(ctx context.Context, stageIDs []string) (
 			&movement.Label,
 			&movement.Name,
 			&movement.Prescription,
+			&movement.Sets,
 			&movement.Reps,
 			&movement.LoadValue,
 			&movement.LoadUnit,

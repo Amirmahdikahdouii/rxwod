@@ -15,6 +15,7 @@ export interface MovementInput {
   label?: string
   name: string
   prescription?: string
+  sets?: number
   reps?: number
   loadValue?: number
   loadUnit?: LoadUnit

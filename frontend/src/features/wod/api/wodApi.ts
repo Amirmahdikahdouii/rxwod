@@ -13,3 +13,7 @@ export function listWODs(): Promise<Result<WODSummary[]>> {
 export function getWOD(id: string): Promise<Result<WODDetail>> {
   return httpClient.get<WODDetail>(`/api/v1/wods/${id}`)
 }
+
+export function updateWOD(id: string, payload: CreateWODPayload): Promise<Result<WODDetail>> {
+  return httpClient.put<WODDetail>(`/api/v1/wods/${id}`, payload)
+}

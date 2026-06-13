@@ -44,6 +44,37 @@ func (s *Service) GetByID(ctx context.Context, id string) (WODDetailDTO, error) 
 	return toDetailDTO(aggregate), nil
 }
 
+func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (WODDetailDTO, error) {
+	existing, err := s.repo.FindByID(ctx, wod.WODID(id))
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	stages, err := s.buildStages(cmd.Stages)
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	updated, err := wod.ReconstructWOD(
+		existing.ID(),
+		wod.WODName(cmd.Name),
+		wod.WODDescription(cmd.Description),
+		stages,
+		existing.Status(),
+		existing.CreatedAt(),
+		s.clock.Now(),
+	)
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	if err := s.repo.Save(ctx, updated); err != nil {
+		return WODDetailDTO{}, fmt.Errorf("save wod: %w", err)
+	}
+
+	return toDetailDTO(updated), nil
+}
+
 func (s *Service) List(ctx context.Context) ([]WODSummaryDTO, error) {
 	aggregates, err := s.repo.List(ctx)
 	if err != nil {
@@ -61,16 +92,24 @@ func (s *Service) buildWOD(cmd CreateWODCommand) (wod.WOD, error) {
 	now := s.clock.Now()
 	id := wod.WODID(s.idgen.NewID())
 
-	stages := make([]wod.Stage, 0, len(cmd.Stages))
-	for i, stageInput := range cmd.Stages {
-		stage, err := s.buildStage(stageInput, i+1)
-		if err != nil {
-			return wod.WOD{}, err
-		}
-		stages = append(stages, stage)
+	stages, err := s.buildStages(cmd.Stages)
+	if err != nil {
+		return wod.WOD{}, err
 	}
 
 	return wod.NewWOD(id, wod.WODName(cmd.Name), wod.WODDescription(cmd.Description), stages, now)
+}
+
+func (s *Service) buildStages(inputs []StageInput) ([]wod.Stage, error) {
+	stages := make([]wod.Stage, 0, len(inputs))
+	for i, stageInput := range inputs {
+		stage, err := s.buildStage(stageInput, i+1)
+		if err != nil {
+			return nil, err
+		}
+		stages = append(stages, stage)
+	}
+	return stages, nil
 }
 
 func (s *Service) buildStage(input StageInput, position int) (wod.Stage, error) {
@@ -127,6 +166,11 @@ func buildConfig(input StageConfigInput) (wod.Config, error) {
 func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Movement, error) {
 	movements := make([]wod.Movement, 0, len(inputs))
 	for i, input := range inputs {
+		var sets *wod.SetCount
+		if input.Sets != nil {
+			value := wod.SetCount(*input.Sets)
+			sets = &value
+		}
 		var reps *wod.RepCount
 		if input.Reps != nil {
 			value := wod.RepCount(*input.Reps)
@@ -154,6 +198,7 @@ func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Mo
 			input.Label,
 			input.Name,
 			input.Prescription,
+			sets,
 			reps,
 			loadValue,
 			loadUnit,
@@ -290,6 +335,10 @@ func movementToDTO(movement wod.Movement) MovementDTO {
 	if reps := movement.Reps(); reps != nil {
 		value := int(*reps)
 		dto.Reps = &value
+	}
+	if sets := movement.Sets(); sets != nil {
+		value := int(*sets)
+		dto.Sets = &value
 	}
 	if loadValue := movement.LoadValue(); loadValue != nil {
 		value := float64(*loadValue)

@@ -11,6 +11,7 @@ type Movement struct {
 	label        string
 	name         string
 	prescription string
+	sets         *SetCount
 	reps         *RepCount
 	loadValue    *LoadValue
 	loadUnit     *LoadUnit
@@ -23,6 +24,7 @@ func NewMovement(
 	label string,
 	name string,
 	prescription string,
+	sets *SetCount,
 	reps *RepCount,
 	loadValue *LoadValue,
 	loadUnit *LoadUnit,
@@ -34,6 +36,7 @@ func NewMovement(
 		label:        label,
 		name:         name,
 		prescription: prescription,
+		sets:         sets,
 		reps:         reps,
 		loadValue:    loadValue,
 		loadUnit:     loadUnit,
@@ -60,6 +63,14 @@ func (m Movement) Name() string {
 
 func (m Movement) Prescription() string {
 	return m.prescription
+}
+
+func (m Movement) Sets() *SetCount {
+	if m.sets == nil {
+		return nil
+	}
+	value := *m.sets
+	return &value
 }
 
 func (m Movement) Reps() *RepCount {
@@ -99,6 +110,9 @@ func (m Movement) Validate() error {
 	}
 	if strings.TrimSpace(m.name) == "" && strings.TrimSpace(m.prescription) == "" {
 		return ErrInvalidMovement
+	}
+	if m.sets != nil && *m.sets <= 0 {
+		return ErrInvalidSets
 	}
 	if m.reps != nil && *m.reps <= 0 {
 		return ErrInvalidReps

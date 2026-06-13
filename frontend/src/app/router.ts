@@ -7,5 +7,6 @@ export const router = createRouter({
   routes: [
     { path: '/', component: WODCreatePage },
     { path: '/wods', component: WODListPage },
+    { path: '/wods/:id/edit', component: WODCreatePage },
   ],
 })

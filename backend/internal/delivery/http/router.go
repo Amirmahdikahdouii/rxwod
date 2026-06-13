@@ -17,6 +17,7 @@ func NewRouter(service *appwod.Service) *echo.Echo {
 	v1.POST("/wods", handler.Create)
 	v1.GET("/wods", handler.List)
 	v1.GET("/wods/:id", handler.GetByID)
+	v1.PUT("/wods/:id", handler.Update)
 
 	return e
 }

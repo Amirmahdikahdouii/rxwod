@@ -10,7 +10,7 @@ import (
 func buildStage(t *testing.T, id string, kind domainwod.StageKind, position int, cfg domainwod.Config) domainwod.Stage {
 	t.Helper()
 	reps := domainwod.RepCount(21)
-	movement, err := domainwod.NewMovement(domainwod.MovementID(id+"-mov-1"), 1, "", "Burpee", "", &reps, nil, nil, "")
+	movement, err := domainwod.NewMovement(domainwod.MovementID(id+"-mov-1"), 1, "", "Burpee", "", nil, &reps, nil, nil, "")
 	if err != nil {
 		t.Fatalf("movement error: %v", err)
 	}
@@ -88,6 +88,8 @@ func TestWODRecordsRoundTripOpenPrescriptions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config error: %v", err)
 	}
+	sets := domainwod.SetCount(3)
+	reps := domainwod.RepCount(10)
 
 	prescriptionMovement, err := domainwod.NewMovement(
 		domainwod.MovementID("mov-rx"),
@@ -95,7 +97,8 @@ func TestWODRecordsRoundTripOpenPrescriptions(t *testing.T) {
 		"D",
 		"Crow + Knee Lift Off",
 		"1-2X4 lift offs per side, rest as needed.",
-		nil,
+		&sets,
+		&reps,
 		nil,
 		nil,
 		"",
@@ -145,6 +148,9 @@ func TestWODRecordsRoundTripOpenPrescriptions(t *testing.T) {
 	got := restored.Stages()[0].Movements()[0]
 	if got.Label() != "D" || got.Prescription() == "" {
 		t.Fatalf("expected prescription movement, got label=%q prescription=%q", got.Label(), got.Prescription())
+	}
+	if got.Sets() == nil || *got.Sets() != sets {
+		t.Fatalf("expected sets %d, got %v", sets, got.Sets())
 	}
 	if restored.Stages()[0].ScoringKind() != domainwod.ScoringNone {
 		t.Fatalf("expected NONE scoring, got %s", restored.Stages()[0].ScoringKind())

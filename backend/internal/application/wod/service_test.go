@@ -229,4 +229,73 @@ func TestServiceCreatePrescriptionProgram(t *testing.T) {
 	}
 }
 
+func TestServiceUpdatePreservesIdentityAndTimestamps(t *testing.T) {
+	repo := newMemoryRepo()
+	createdAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	generator := &sequentialIDGen{}
+	createService := NewService(repo, fixedClock{now: createdAt}, generator)
+
+	created, err := createService.Create(context.Background(), CreateWODCommand{
+		Name:        "Original Program",
+		Description: "Original notes",
+		Stages: []StageInput{
+			{
+				Kind:      domainwod.StageWarmup,
+				Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+				Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks", Sets: intPtr(3), Reps: intPtr(10)}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	updatedAt := createdAt.Add(2 * time.Hour)
+	updateService := NewService(repo, fixedClock{now: updatedAt}, generator)
+	updated, err := updateService.Update(context.Background(), created.ID, CreateWODCommand{
+		Name:        "Updated Program",
+		Description: "Updated notes",
+		Stages: []StageInput{
+			{
+				Kind:         domainwod.StageStrength,
+				Instructions: "Complete in 20 minutes.",
+				Config:       StageConfigInput{Type: domainwod.WODTypeOpen},
+				Movements: []MovementInput{{
+					Position:     1,
+					Label:        "A",
+					Name:         "Back Squat",
+					Prescription: "Build to a heavy triple.",
+					Sets:         intPtr(5),
+					Reps:         intPtr(3),
+				}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("update error: %v", err)
+	}
+
+	if updated.ID != created.ID {
+		t.Fatalf("expected id %s, got %s", created.ID, updated.ID)
+	}
+	if updated.Name != "Updated Program" || updated.Description != "Updated notes" {
+		t.Fatalf("unexpected updated detail: %+v", updated)
+	}
+	if !updated.CreatedAt.Equal(createdAt) {
+		t.Fatalf("expected createdAt %s, got %s", createdAt, updated.CreatedAt)
+	}
+	if !updated.UpdatedAt.Equal(updatedAt) {
+		t.Fatalf("expected updatedAt %s, got %s", updatedAt, updated.UpdatedAt)
+	}
+	if updated.Status != domainwod.WODStatusDraft {
+		t.Fatalf("expected draft status, got %s", updated.Status)
+	}
+	if len(updated.Stages) != 1 || updated.Stages[0].Kind != domainwod.StageStrength {
+		t.Fatalf("unexpected stages: %+v", updated.Stages)
+	}
+	if updated.Stages[0].Movements[0].Sets == nil || *updated.Stages[0].Movements[0].Sets != 5 {
+		t.Fatalf("expected sets to round trip, got %+v", updated.Stages[0].Movements[0])
+	}
+}
+
 func intPtr(v int) *int { return &v }

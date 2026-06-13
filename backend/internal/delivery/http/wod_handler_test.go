@@ -2,7 +2,7 @@ package http
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
+	"github.com/rxwod/backend/internal/infrastructure/postgres"
 	"github.com/rxwod/backend/internal/platform/clock"
 	"github.com/rxwod/backend/internal/platform/idgen"
 )
@@ -31,7 +32,7 @@ func (m *handlerMemoryRepo) Save(_ context.Context, aggregate domainwod.WOD) err
 func (m *handlerMemoryRepo) FindByID(_ context.Context, id domainwod.WODID) (domainwod.WOD, error) {
 	aggregate, ok := m.items[id]
 	if !ok {
-		return domainwod.WOD{}, errors.New("not found")
+		return domainwod.WOD{}, postgres.ErrNotFound
 	}
 	return aggregate, nil
 }
@@ -59,6 +60,15 @@ func postWOD(t *testing.T, router *echo.Echo, body string) *httptest.ResponseRec
 	return rec
 }
 
+func putWOD(t *testing.T, router *echo.Echo, id string, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/wods/"+id, strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
 func TestCreateMultiStageWODHandler(t *testing.T) {
 	router := newTestRouter()
 
@@ -75,6 +85,97 @@ func TestCreateMultiStageWODHandler(t *testing.T) {
 	rec := postWOD(t, router, body)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateWODHandler(t *testing.T) {
+	router := newTestRouter()
+	createBody := `{
+		"name": "Original Program",
+		"description": "Full class plan",
+		"stages": [
+			{ "kind": "WARMUP", "type": "OPEN", "config": {}, "movements": [{ "position": 1, "name": "Jumping Jacks", "sets": 3, "reps": 10 }] }
+		]
+	}`
+
+	createRec := postWOD(t, router, createBody)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created CreateWODResponse
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	updateBody := `{
+		"name": "Updated Program",
+		"description": "Updated plan",
+		"stages": [
+			{ "kind": "STRENGTH", "type": "OPEN", "instructions": "Complete in 20 minutes.", "config": {}, "movements": [{ "position": 1, "label": "A", "name": "Back Squat", "sets": 5, "reps": 3 }] }
+		]
+	}`
+
+	updateRec := putWOD(t, router, created.ID, updateBody)
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", updateRec.Code, updateRec.Body.String())
+	}
+	var updated WODDetailResponse
+	if err := json.Unmarshal(updateRec.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode update response: %v", err)
+	}
+	if updated.ID != created.ID || updated.Name != "Updated Program" {
+		t.Fatalf("unexpected updated response: %+v", updated)
+	}
+	if updated.Stages[0].Movements[0].Sets == nil || *updated.Stages[0].Movements[0].Sets != 5 {
+		t.Fatalf("expected sets in response, got %+v", updated.Stages[0].Movements[0])
+	}
+}
+
+func TestUpdateWODNotFound(t *testing.T) {
+	router := newTestRouter()
+	body := `{
+		"name": "Missing Program",
+		"description": "",
+		"stages": [
+			{ "kind": "WARMUP", "type": "OPEN", "config": {}, "movements": [{ "position": 1, "name": "Jumping Jacks" }] }
+		]
+	}`
+
+	rec := putWOD(t, router, "missing", body)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUpdateWODInvalidSets(t *testing.T) {
+	router := newTestRouter()
+	createBody := `{
+		"name": "Original Program",
+		"description": "",
+		"stages": [
+			{ "kind": "WARMUP", "type": "OPEN", "config": {}, "movements": [{ "position": 1, "name": "Jumping Jacks" }] }
+		]
+	}`
+	createRec := postWOD(t, router, createBody)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", createRec.Code, createRec.Body.String())
+	}
+	var created CreateWODResponse
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+
+	updateBody := `{
+		"name": "Invalid Program",
+		"description": "",
+		"stages": [
+			{ "kind": "WARMUP", "type": "OPEN", "config": {}, "movements": [{ "position": 1, "name": "Jumping Jacks", "sets": 0 }] }
+		]
+	}`
+
+	rec := putWOD(t, router, created.ID, updateBody)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
 	}
 }
 

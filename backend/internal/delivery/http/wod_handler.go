@@ -63,6 +63,30 @@ func (h *WODHandler) GetByID(c echo.Context) error {
 	return c.JSON(http.StatusOK, toDetailResponse(item))
 }
 
+func (h *WODHandler) Update(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id is required"})
+	}
+
+	var req CreateWODRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+
+	cmd, err := toCreateCommand(req)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	result, err := h.service.Update(c.Request().Context(), id, cmd)
+	if err != nil {
+		return mapError(c, err)
+	}
+
+	return c.JSON(http.StatusOK, toDetailResponse(result))
+}
+
 func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
 	if len(req.Stages) == 0 {
 		return appwod.CreateWODCommand{}, domainwod.ErrStageRequired
@@ -77,6 +101,7 @@ func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
 				Label:        movement.Label,
 				Name:         movement.Name,
 				Prescription: movement.Prescription,
+				Sets:         movement.Sets,
 				Reps:         movement.Reps,
 				LoadValue:    movement.LoadValue,
 				LoadUnit:     movement.LoadUnit,
@@ -120,6 +145,7 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidMovement),
 		errors.Is(err, domainwod.ErrInvalidMovementLabel),
 		errors.Is(err, domainwod.ErrInvalidLoadUnit),
+		errors.Is(err, domainwod.ErrInvalidSets),
 		errors.Is(err, domainwod.ErrInvalidReps),
 		errors.Is(err, domainwod.ErrInvalidPosition),
 		errors.Is(err, domainwod.ErrUnknownWODType),

@@ -85,6 +85,13 @@ function toggleAdvanced(index: number) {
       <div v-if="expandedAdvanced[index]" class="stack">
         <div class="row">
           <BaseNumberInput
+            v-if="openFormat"
+            label="Sets"
+            :min="1"
+            :model-value="movement.sets"
+            @update:model-value="emit('update:movement', index, 'sets', $event)"
+          />
+          <BaseNumberInput
             label="Reps"
             :min="1"
             :model-value="movement.reps"
