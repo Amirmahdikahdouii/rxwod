@@ -1,13 +1,14 @@
 services:
   postgres:
     image: postgres:18-alpine
+    restart: always
     container_name: rxwod-postgres
     environment:
       POSTGRES_USER: rxwod
       POSTGRES_PASSWORD: rxwod
       POSTGRES_DB: rxwod
     ports:
-      - "5432:5432"
+      - "5429:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

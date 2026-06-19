@@ -5,7 +5,7 @@ http:
   port: 1324
 
 database:
-  url: "postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable"
+  url: "postgres://rxwod:rxwod@localhost:5429/rxwod?sslmode=disable"
 
 auth:
   jwtSecret: "dev-secret-change-me"
