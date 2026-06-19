@@ -161,6 +161,7 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domaingym.ErrInvalidInvitationStatus),
 		errors.Is(err, domaingym.ErrInvalidInvitationRole),
 		errors.Is(err, appgym.ErrRoleNotAssignable),
+		errors.Is(err, appgym.ErrOwnerMembershipProtected),
 		errors.Is(err, domainwod.ErrInvalidTimeCap),
 		errors.Is(err, domainwod.ErrInvalidRounds),
 		errors.Is(err, domainwod.ErrInvalidWorkSeconds),
@@ -168,7 +169,8 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidInterval),
 		errors.Is(err, domainwod.ErrInvalidCycles),
 		errors.Is(err, domainwod.ErrMovementRequired),
-		errors.Is(err, domainwod.ErrInvalidMovement),
+		errors.Is(err, domainwod.ErrMovementTextRequired),
+		errors.Is(err, domainwod.ErrLoadValueRequiresUnit),
 		errors.Is(err, domainwod.ErrInvalidMovementLabel),
 		errors.Is(err, domainwod.ErrInvalidLoadUnit),
 		errors.Is(err, domainwod.ErrInvalidSets),
@@ -181,7 +183,8 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrNilConfig),
 		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, postgres.ErrNotFound):
+	case errors.Is(err, postgres.ErrNotFound),
+		errors.Is(err, appgym.ErrMemberNotFound):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
 	default:
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})

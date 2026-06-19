@@ -29,6 +29,10 @@ export interface InviteMemberPayload {
   email: string
 }
 
+export interface UpdateMemberRolePayload {
+  role: 'coach' | 'athlete'
+}
+
 export const ROLE_LABELS: Record<WorkspaceRole, string> = {
   owner: 'Owner',
   coach: 'Coach',
@@ -45,4 +49,8 @@ export function canEditWOD(role: WorkspaceRole | null): boolean {
 
 export function canManageMembers(role: WorkspaceRole | null): boolean {
   return role === 'owner'
+}
+
+export function canManageMemberTarget(role: WorkspaceRole): boolean {
+  return role === 'coach' || role === 'athlete'
 }

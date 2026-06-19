@@ -85,14 +85,28 @@ export function stageToPayload(stage: StageFormState): StagePayload {
     type: stage.type,
     instructions: stage.instructions.trim(),
     config: configToPayload(stage.config),
-    movements: stage.movements.map((movement, index) => ({
-      ...movement,
-      position: index + 1,
-      label: movement.label?.trim() ?? '',
-      name: movement.name.trim(),
-      prescription: movement.prescription?.trim() ?? '',
-      notes: movement.notes?.trim() ?? '',
-    })),
+    movements: stage.movements.map((movement, index) => {
+      const payload: MovementInput = {
+        position: index + 1,
+        label: movement.label?.trim() ?? '',
+        name: movement.name.trim(),
+        prescription: movement.prescription?.trim() ?? '',
+        notes: movement.notes?.trim() ?? '',
+      }
+      if (movement.sets != null) {
+        payload.sets = movement.sets
+      }
+      if (movement.reps != null) {
+        payload.reps = movement.reps
+      }
+      if (movement.loadValue != null && movement.loadValue > 0) {
+        payload.loadValue = movement.loadValue
+        if (movement.loadUnit) {
+          payload.loadUnit = movement.loadUnit
+        }
+      }
+      return payload
+    }),
   }
 }
 

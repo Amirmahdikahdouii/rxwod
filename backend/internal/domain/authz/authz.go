@@ -16,6 +16,8 @@ const (
 	PermissionMemberInviteCoach   Permission = "member:invite_coach"
 	PermissionMemberInviteAthlete Permission = "member:invite_athlete"
 	PermissionMemberList          Permission = "member:list"
+	PermissionMemberUpdateRole    Permission = "member:update_role"
+	PermissionMemberRemove        Permission = "member:remove"
 	PermissionWODCreate           Permission = "wod:create"
 	PermissionWODRead             Permission = "wod:read"
 	PermissionWODUpdate           Permission = "wod:update"
@@ -29,6 +31,8 @@ var rolePermissions = map[Role]map[Permission]struct{}{
 		PermissionMemberInviteCoach:   {},
 		PermissionMemberInviteAthlete: {},
 		PermissionMemberList:          {},
+		PermissionMemberUpdateRole:    {},
+		PermissionMemberRemove:        {},
 		PermissionWODCreate:           {},
 		PermissionWODRead:             {},
 		PermissionWODUpdate:           {},

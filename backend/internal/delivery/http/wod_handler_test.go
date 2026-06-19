@@ -244,3 +244,65 @@ func TestCreateWODInvalidName(t *testing.T) {
 		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }
+
+func TestCreateWODLoadValueWithoutUnit(t *testing.T) {
+	router := newTestRouter()
+
+	body := `{
+		"name": "Load Error Program",
+		"description": "",
+		"stages": [
+			{
+				"kind": "METCON",
+				"type": "AMRAP",
+				"config": { "timeCapSeconds": 900 },
+				"movements": [{ "position": 1, "label": "A", "name": "Power Snatch", "reps": 12, "loadValue": 28 }]
+			}
+		]
+	}`
+
+	rec := postWOD(t, router, body)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d body=%s", rec.Code, rec.Body.String())
+	}
+
+	var response ErrorResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if !strings.Contains(response.Error, "METCON stage, item A") {
+		t.Fatalf("expected contextual error, got %q", response.Error)
+	}
+	if !strings.Contains(response.Error, "load value requires a load unit") {
+		t.Fatalf("expected load unit error, got %q", response.Error)
+	}
+}
+
+func TestCreateWODZeroLoadValue(t *testing.T) {
+	router := newTestRouter()
+
+	body := `{
+		"name": "June 18",
+		"description": "",
+		"stages": [
+			{
+				"kind": "WARMUP",
+				"type": "OPEN",
+				"config": {},
+				"movements": [{
+					"position": 1,
+					"label": "A",
+					"name": "Wall facing handstand plate stepup",
+					"reps": 20,
+					"sets": 1,
+					"loadValue": 0
+				}]
+			}
+		]
+	}`
+
+	rec := postWOD(t, router, body)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}

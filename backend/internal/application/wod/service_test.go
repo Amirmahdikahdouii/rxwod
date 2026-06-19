@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -317,6 +318,65 @@ func TestServiceUpdatePreservesIdentityAndTimestamps(t *testing.T) {
 	}
 	if updated.Stages[0].Movements[0].Sets == nil || *updated.Stages[0].Movements[0].Sets != 5 {
 		t.Fatalf("expected sets to round trip, got %+v", updated.Stages[0].Movements[0])
+	}
+}
+
+func TestServiceRejectsLoadValueWithoutUnit(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	load := 28.0
+	_, err := service.Create(testContext(), CreateWODCommand{
+		Name: "Load Error Program",
+		Stages: []StageInput{
+			{
+				Kind:   domainwod.StageMetcon,
+				Config: StageConfigInput{Type: domainwod.WODTypeAMRAP, TimeCapSeconds: intPtr(900)},
+				Movements: []MovementInput{{
+					Position:  1,
+					Label:     "A",
+					Name:      "Power Snatch",
+					Reps:      intPtr(12),
+					LoadValue: &load,
+				}},
+			},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected load value without unit to fail")
+	}
+	if !errors.Is(err, domainwod.ErrLoadValueRequiresUnit) {
+		t.Fatalf("expected ErrLoadValueRequiresUnit, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "METCON stage, item A") {
+		t.Fatalf("expected contextual error, got %v", err)
+	}
+}
+
+func TestServiceCreateAcceptsZeroLoadValue(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	zeroLoad := 0.0
+	_, err := service.Create(testContext(), CreateWODCommand{
+		Name: "June 18",
+		Stages: []StageInput{
+			{
+				Kind: domainwod.StageWarmup,
+				Config: StageConfigInput{Type: domainwod.WODTypeOpen},
+				Movements: []MovementInput{{
+					Position: 1,
+					Label:    "A",
+					Name:     "Wall facing handstand plate stepup",
+					Reps:     intPtr(20),
+					Sets:     intPtr(1),
+					LoadValue: &zeroLoad,
+				}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected zero load value to be accepted, got %v", err)
 	}
 }
 

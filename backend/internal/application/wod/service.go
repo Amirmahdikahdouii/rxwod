@@ -3,6 +3,7 @@ package wod
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
@@ -139,13 +140,17 @@ func (s *Service) buildStages(inputs []StageInput) ([]wod.Stage, error) {
 func (s *Service) buildStage(input StageInput, position int) (wod.Stage, error) {
 	cfg, err := buildConfig(input.Config)
 	if err != nil {
-		return wod.Stage{}, err
+		return wod.Stage{}, formatStageError(input.Kind, err)
 	}
-	movements, err := buildMovements(s.idgen, input.Movements)
+	movements, err := buildMovements(s.idgen, input.Kind, input.Movements)
 	if err != nil {
 		return wod.Stage{}, err
 	}
-	return wod.NewStage(wod.StageID(s.idgen.NewID()), input.Kind, position, input.Instructions, cfg, movements)
+	stage, err := wod.NewStage(wod.StageID(s.idgen.NewID()), input.Kind, position, input.Instructions, cfg, movements)
+	if err != nil {
+		return wod.Stage{}, formatStageError(input.Kind, err)
+	}
+	return stage, nil
 }
 
 func buildConfig(input StageConfigInput) (wod.Config, error) {
@@ -187,7 +192,7 @@ func buildConfig(input StageConfigInput) (wod.Config, error) {
 	}
 }
 
-func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Movement, error) {
+func buildMovements(generator idgen.Generator, kind wod.StageKind, inputs []MovementInput) ([]wod.Movement, error) {
 	movements := make([]wod.Movement, 0, len(inputs))
 	for i, input := range inputs {
 		var sets *wod.SetCount
@@ -201,14 +206,14 @@ func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Mo
 			reps = &value
 		}
 		var loadValue *wod.LoadValue
-		if input.LoadValue != nil {
+		var loadUnit *wod.LoadUnit
+		if input.LoadValue != nil && *input.LoadValue > 0 {
 			value := wod.LoadValue(*input.LoadValue)
 			loadValue = &value
-		}
-		var loadUnit *wod.LoadUnit
-		if input.LoadUnit != nil {
-			value := wod.LoadUnit(*input.LoadUnit)
-			loadUnit = &value
+			if input.LoadUnit != nil {
+				unit := wod.LoadUnit(*input.LoadUnit)
+				loadUnit = &unit
+			}
 		}
 
 		position := input.Position
@@ -229,11 +234,29 @@ func buildMovements(generator idgen.Generator, inputs []MovementInput) ([]wod.Mo
 			input.Notes,
 		)
 		if err != nil {
-			return nil, err
+			return nil, formatMovementError(kind, input.Label, position, input.Name, err)
 		}
 		movements = append(movements, movement)
 	}
 	return movements, nil
+}
+
+func formatStageError(kind wod.StageKind, err error) error {
+	return fmt.Errorf("%s stage: %w", kind, err)
+}
+
+func formatMovementError(kind wod.StageKind, label string, position int, name string, err error) error {
+	return fmt.Errorf("%s stage, %s: %w", kind, movementItemRef(label, position, name), err)
+}
+
+func movementItemRef(label string, position int, name string) string {
+	if trimmed := strings.TrimSpace(label); trimmed != "" {
+		return "item " + trimmed
+	}
+	if trimmed := strings.TrimSpace(name); trimmed != "" {
+		return "\"" + trimmed + "\""
+	}
+	return fmt.Sprintf("item %d", position)
 }
 
 func toCreateResultDTO(aggregate wod.WOD) CreateWODResultDTO {

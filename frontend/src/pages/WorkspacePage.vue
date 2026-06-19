@@ -5,6 +5,7 @@ import { useSession } from '@/features/auth/composables/useSession'
 import { useWorkspaces } from '@/features/workspace/composables/useWorkspaces'
 import {
   canCreateWOD,
+  canManageMemberTarget,
   canManageMembers,
   ROLE_LABELS,
 } from '@/features/workspace/model/workspaceTypes'
@@ -144,13 +145,17 @@ watch(
         </div>
         <div v-else class="member-list">
           <article v-for="member in workspaces.members.value" :key="member.userId" class="member-card">
-            <div>
-              <strong>{{ member.displayName || member.email }}</strong>
-              <p class="page-subtitle page-subtitle--flush">{{ member.email }}</p>
-            </div>
-            <div class="member-card__badges">
+            <strong class="member-card__name">{{ member.displayName || member.email }}</strong>
+            <div class="member-card__meta">
+              <span class="member-card__email">{{ member.email }}</span>
               <span class="role-pill">{{ ROLE_LABELS[member.role] }}</span>
-              <span class="status-pill">{{ member.status }}</span>
+              <RouterLink
+                v-if="canManage && canManageMemberTarget(member.role)"
+                :to="`/workspace/members/${member.userId}`"
+                class="member-card__manage"
+              >
+                Manage
+              </RouterLink>
             </div>
           </article>
         </div>

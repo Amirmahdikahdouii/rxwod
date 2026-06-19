@@ -163,8 +163,8 @@ func TestOpenStageWithPrescriptionItems(t *testing.T) {
 
 func TestMovementRequiresNameOrPrescription(t *testing.T) {
 	_, err := NewMovement(MovementID("mov-1"), 1, "", "", "", nil, nil, nil, nil, "")
-	if err != ErrInvalidMovement {
-		t.Fatalf("expected ErrInvalidMovement, got %v", err)
+	if err != ErrMovementTextRequired {
+		t.Fatalf("expected ErrMovementTextRequired, got %v", err)
 	}
 
 	movement, err := NewMovement(MovementID("mov-1"), 1, "", "", "Accumulate 20 reps.", nil, nil, nil, nil, "")
@@ -173,6 +173,14 @@ func TestMovementRequiresNameOrPrescription(t *testing.T) {
 	}
 	if movement.Prescription() != "Accumulate 20 reps." {
 		t.Fatalf("expected prescription to be set")
+	}
+}
+
+func TestMovementRejectsLoadValueWithoutUnit(t *testing.T) {
+	load := LoadValue(28)
+	_, err := NewMovement(MovementID("mov-1"), 1, "A", "Power Snatch", "", nil, nil, &load, nil, "")
+	if err != ErrLoadValueRequiresUnit {
+		t.Fatalf("expected ErrLoadValueRequiresUnit, got %v", err)
 	}
 }
 

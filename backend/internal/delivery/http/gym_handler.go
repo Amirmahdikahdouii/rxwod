@@ -5,6 +5,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	appgym "github.com/rxwod/backend/internal/application/gym"
+	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 )
 
 type GymHandler struct {
@@ -73,4 +74,28 @@ func (h *GymHandler) InviteAthlete(c echo.Context) error {
 		return mapError(c, err)
 	}
 	return c.JSON(http.StatusCreated, toInvitationResponse(result))
+}
+
+func (h *GymHandler) UpdateMemberRole(c echo.Context) error {
+	var req UpdateMemberRoleRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	result, err := h.service.UpdateMemberRole(
+		c.Request().Context(),
+		c.Param("gymId"),
+		c.Param("userId"),
+		domainauthz.Role(req.Role),
+	)
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, toMemberResponse(result))
+}
+
+func (h *GymHandler) RemoveMember(c echo.Context) error {
+	if err := h.service.RemoveMember(c.Request().Context(), c.Param("gymId"), c.Param("userId")); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
 }

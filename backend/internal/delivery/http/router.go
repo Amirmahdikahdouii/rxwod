@@ -33,6 +33,8 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymContext := authenticated.Group("", GymContextMiddleware(authorizer))
 	gymContext.GET("/gyms/:gymId", gymHandler.Get, RequirePermission(domainauthz.PermissionGymRead))
 	gymContext.GET("/gyms/:gymId/members", gymHandler.Members, RequirePermission(domainauthz.PermissionMemberList))
+	gymContext.PATCH("/gyms/:gymId/members/:userId", gymHandler.UpdateMemberRole, RequirePermission(domainauthz.PermissionMemberUpdateRole))
+	gymContext.DELETE("/gyms/:gymId/members/:userId", gymHandler.RemoveMember, RequirePermission(domainauthz.PermissionMemberRemove))
 	gymContext.POST("/gyms/:gymId/coaches", gymHandler.InviteCoach, RequirePermission(domainauthz.PermissionMemberInviteCoach))
 	gymContext.POST("/gyms/:gymId/athletes", gymHandler.InviteAthlete, RequirePermission(domainauthz.PermissionMemberInviteAthlete))
 	gymContext.POST("/wods", wodHandler.Create, RequirePermission(domainauthz.PermissionWODCreate))

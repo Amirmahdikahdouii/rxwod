@@ -64,6 +64,15 @@ async function request<T>(path: string, init?: RequestOptions): Promise<Result<T
       return err(typeof body.error === 'string' ? body.error : 'Request failed')
     }
 
+    if (response.status === 204) {
+      return ok(undefined as T)
+    }
+
+    const contentType = response.headers.get('content-type')
+    if (!contentType?.includes('application/json')) {
+      return ok(undefined as T)
+    }
+
     const data = (await response.json()) as T
     return ok(data)
   } catch (error) {
@@ -92,4 +101,8 @@ export const httpClient = {
     request<T>(path, { ...options, method: 'POST', body: JSON.stringify(body) }),
   put: <T>(path: string, body: unknown, options?: RequestOptions) =>
     request<T>(path, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown, options?: RequestOptions) =>
+    request<T>(path, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
+  delete: <T>(path: string, options?: RequestOptions) =>
+    request<T>(path, { ...options, method: 'DELETE' }),
 }

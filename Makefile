@@ -37,4 +37,4 @@ test: backend-test frontend-test
 run:
 	docker compose up -d postgres
 	cd backend && go run ./cmd/api
-	cd frontend && npm run dev
+	cd frontend && export VITE_API_BASE_URL=http://localhost:1324 && npm run dev

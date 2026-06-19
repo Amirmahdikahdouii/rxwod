@@ -2,9 +2,11 @@ package gym
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	appauthz "github.com/rxwod/backend/internal/application/authz"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 	domaingym "github.com/rxwod/backend/internal/domain/gym"
 	"github.com/rxwod/backend/internal/domain/user"
@@ -30,6 +32,16 @@ func (s *sequentialIDGen) NewID() string {
 type fakeGymRepo struct {
 	invitations []domaingym.Invitation
 	memberships []domaingym.Membership
+	memberDTOs  map[user.UserID]MemberDTO
+}
+
+func (f *fakeGymRepo) findMembership(gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error) {
+	for _, membership := range f.memberships {
+		if membership.GymID() == gymID && membership.UserID() == userID {
+			return membership, nil
+		}
+	}
+	return domaingym.Membership{}, ErrMemberNotFound
 }
 
 func (f *fakeGymRepo) CreateGymWithOwner(context.Context, domaingym.Gym, domaingym.Membership) error {
@@ -48,6 +60,34 @@ func (f *fakeGymRepo) FindActiveMembership(context.Context, domaingym.GymID, use
 	return domaingym.Membership{}, nil
 }
 
+func (f *fakeGymRepo) FindMembership(_ context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error) {
+	return f.findMembership(gymID, userID)
+}
+
+func (f *fakeGymRepo) FindMember(_ context.Context, gymID domaingym.GymID, userID user.UserID) (MemberDTO, error) {
+	membership, err := f.findMembership(gymID, userID)
+	if err != nil {
+		return MemberDTO{}, err
+	}
+	dto, ok := f.memberDTOs[userID]
+	if !ok {
+		return MemberDTO{}, ErrMemberNotFound
+	}
+	dto.Role = membership.Role()
+	dto.Status = membership.Status()
+	return dto, nil
+}
+
+func (f *fakeGymRepo) DeleteMembership(_ context.Context, gymID domaingym.GymID, userID user.UserID) error {
+	for i, membership := range f.memberships {
+		if membership.GymID() == gymID && membership.UserID() == userID {
+			f.memberships = append(f.memberships[:i], f.memberships[i+1:]...)
+			return nil
+		}
+	}
+	return ErrMemberNotFound
+}
+
 func (f *fakeGymRepo) ListMembers(context.Context, domaingym.GymID) ([]MemberDTO, error) {
 	return nil, nil
 }
@@ -56,7 +96,14 @@ func (f *fakeGymRepo) FindUserByEmail(context.Context, user.Email) (user.User, e
 	return user.User{}, ErrInviteeNotFound
 }
 
-func (f *fakeGymRepo) UpsertMembership(context.Context, domaingym.Membership) error {
+func (f *fakeGymRepo) UpsertMembership(_ context.Context, membership domaingym.Membership) error {
+	for i, existing := range f.memberships {
+		if existing.GymID() == membership.GymID() && existing.UserID() == membership.UserID() {
+			f.memberships[i] = membership
+			return nil
+		}
+	}
+	f.memberships = append(f.memberships, membership)
 	return nil
 }
 
@@ -109,5 +156,146 @@ func TestAcceptInvitesForEmailCreatesActiveMembership(t *testing.T) {
 	}
 	if repo.invitations[0].Status() != domaingym.InvitationStatusAccepted {
 		t.Fatalf("expected invitation accepted, got %s", repo.invitations[0].Status())
+	}
+}
+
+func ownerContext(gymID string) context.Context {
+	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
+		UserID: user.UserID("owner-1"),
+		GymID:  domaingym.GymID(gymID),
+		Role:   domainauthz.RoleOwner,
+	})
+}
+
+func TestUpdateMemberRoleCoachToAthlete(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	membership, err := domaingym.NewMembership(
+		domaingym.MembershipID("membership-1"),
+		domaingym.GymID("gym-1"),
+		user.UserID("coach-1"),
+		domainauthz.RoleCoach,
+		domaingym.MembershipStatusActive,
+		nil,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new membership: %v", err)
+	}
+
+	repo := &fakeGymRepo{
+		memberships: []domaingym.Membership{membership},
+		memberDTOs: map[user.UserID]MemberDTO{
+			user.UserID("coach-1"): {
+				UserID:      "coach-1",
+				Email:       "coach@example.com",
+				DisplayName: "Coach",
+				Role:        domainauthz.RoleCoach,
+				Status:      domaingym.MembershipStatusActive,
+			},
+		},
+	}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	result, err := service.UpdateMemberRole(ownerContext("gym-1"), "gym-1", "coach-1", domainauthz.RoleAthlete)
+	if err != nil {
+		t.Fatalf("update member role: %v", err)
+	}
+	if result.Role != domainauthz.RoleAthlete {
+		t.Fatalf("expected athlete role, got %s", result.Role)
+	}
+	if repo.memberships[0].Role() != domainauthz.RoleAthlete {
+		t.Fatalf("expected persisted athlete role, got %s", repo.memberships[0].Role())
+	}
+}
+
+func TestUpdateMemberRoleRejectsOwner(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	membership, err := domaingym.NewOwnerMembership(
+		domaingym.MembershipID("membership-owner"),
+		domaingym.GymID("gym-1"),
+		user.UserID("owner-1"),
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new owner membership: %v", err)
+	}
+
+	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	_, err = service.UpdateMemberRole(ownerContext("gym-1"), "gym-1", "owner-1", domainauthz.RoleCoach)
+	if !errors.Is(err, ErrOwnerMembershipProtected) {
+		t.Fatalf("expected ErrOwnerMembershipProtected, got %v", err)
+	}
+}
+
+func TestUpdateMemberRoleRejectsInvalidRole(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	membership, err := domaingym.NewMembership(
+		domaingym.MembershipID("membership-1"),
+		domaingym.GymID("gym-1"),
+		user.UserID("coach-1"),
+		domainauthz.RoleCoach,
+		domaingym.MembershipStatusActive,
+		nil,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new membership: %v", err)
+	}
+
+	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	_, err = service.UpdateMemberRole(ownerContext("gym-1"), "gym-1", "coach-1", domainauthz.RoleOwner)
+	if !errors.Is(err, ErrRoleNotAssignable) {
+		t.Fatalf("expected ErrRoleNotAssignable, got %v", err)
+	}
+}
+
+func TestRemoveMemberRemovesCoach(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	membership, err := domaingym.NewMembership(
+		domaingym.MembershipID("membership-1"),
+		domaingym.GymID("gym-1"),
+		user.UserID("coach-1"),
+		domainauthz.RoleCoach,
+		domaingym.MembershipStatusActive,
+		nil,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new membership: %v", err)
+	}
+
+	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	if err := service.RemoveMember(ownerContext("gym-1"), "gym-1", "coach-1"); err != nil {
+		t.Fatalf("remove member: %v", err)
+	}
+	if len(repo.memberships) != 0 {
+		t.Fatalf("expected membership removed, got %d", len(repo.memberships))
+	}
+}
+
+func TestRemoveMemberRejectsOwner(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	membership, err := domaingym.NewOwnerMembership(
+		domaingym.MembershipID("membership-owner"),
+		domaingym.GymID("gym-1"),
+		user.UserID("owner-1"),
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new owner membership: %v", err)
+	}
+
+	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	err = service.RemoveMember(ownerContext("gym-1"), "gym-1", "owner-1")
+	if !errors.Is(err, ErrOwnerMembershipProtected) {
+		t.Fatalf("expected ErrOwnerMembershipProtected, got %v", err)
 	}
 }

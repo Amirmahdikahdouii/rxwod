@@ -6,6 +6,7 @@ import type {
   InvitationResponse,
   InviteMemberPayload,
   MemberResponse,
+  UpdateMemberRolePayload,
 } from '@/features/workspace/model/workspaceTypes'
 import type { Result } from '@/shared/utils/result'
 
@@ -43,6 +44,24 @@ export function inviteAthlete(
   payload: InviteMemberPayload,
 ): Promise<Result<InvitationResponse>> {
   return httpClient.post<InvitationResponse>(`/api/v1/gyms/${gymID}/athletes`, payload, {
+    auth: true,
+    workspace: true,
+  })
+}
+
+export function updateMemberRole(
+  gymID: string,
+  userID: string,
+  payload: UpdateMemberRolePayload,
+): Promise<Result<MemberResponse>> {
+  return httpClient.patch<MemberResponse>(`/api/v1/gyms/${gymID}/members/${userID}`, payload, {
+    auth: true,
+    workspace: true,
+  })
+}
+
+export function removeMember(gymID: string, userID: string): Promise<Result<void>> {
+  return httpClient.delete<void>(`/api/v1/gyms/${gymID}/members/${userID}`, {
     auth: true,
     workspace: true,
   })

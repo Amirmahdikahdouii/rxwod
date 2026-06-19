@@ -79,6 +79,72 @@ func (s *Service) ListMembers(ctx context.Context, gymID string) ([]MemberDTO, e
 	return s.repo.ListMembers(ctx, principal.GymID)
 }
 
+func (s *Service) UpdateMemberRole(ctx context.Context, gymID string, userID string, role domainauthz.Role) (MemberDTO, error) {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionMemberUpdateRole)
+	if err != nil {
+		return MemberDTO{}, err
+	}
+	if principal.GymID.String() != gymID {
+		return MemberDTO{}, appauthz.ErrGymMismatch
+	}
+	if role != domainauthz.RoleCoach && role != domainauthz.RoleAthlete {
+		return MemberDTO{}, ErrRoleNotAssignable
+	}
+
+	membership, err := s.guardManageableMembership(ctx, principal.GymID, user.UserID(userID))
+	if err != nil {
+		return MemberDTO{}, err
+	}
+
+	now := s.clock.Now()
+	updated, err := domaingym.ReconstructMembership(
+		membership.ID(),
+		membership.GymID(),
+		membership.UserID(),
+		role,
+		membership.Status(),
+		membership.InvitedBy(),
+		membership.CreatedAt(),
+		now,
+	)
+	if err != nil {
+		return MemberDTO{}, err
+	}
+	if err := s.repo.UpsertMembership(ctx, updated); err != nil {
+		return MemberDTO{}, fmt.Errorf("update member role: %w", err)
+	}
+	return s.repo.FindMember(ctx, principal.GymID, user.UserID(userID))
+}
+
+func (s *Service) RemoveMember(ctx context.Context, gymID string, userID string) error {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionMemberRemove)
+	if err != nil {
+		return err
+	}
+	if principal.GymID.String() != gymID {
+		return appauthz.ErrGymMismatch
+	}
+
+	if _, err := s.guardManageableMembership(ctx, principal.GymID, user.UserID(userID)); err != nil {
+		return err
+	}
+	if err := s.repo.DeleteMembership(ctx, principal.GymID, user.UserID(userID)); err != nil {
+		return fmt.Errorf("remove member: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) guardManageableMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error) {
+	membership, err := s.repo.FindMembership(ctx, gymID, userID)
+	if err != nil {
+		return domaingym.Membership{}, err
+	}
+	if membership.Role() == domainauthz.RoleOwner {
+		return domaingym.Membership{}, ErrOwnerMembershipProtected
+	}
+	return membership, nil
+}
+
 func (s *Service) InviteCoach(ctx context.Context, gymID string, email string) (InvitationDTO, error) {
 	return s.invite(ctx, gymID, InviteCommand{Email: email, Role: domainauthz.RoleCoach}, domainauthz.PermissionMemberInviteCoach)
 }

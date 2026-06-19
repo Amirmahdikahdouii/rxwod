@@ -100,6 +100,53 @@ func (r *GymRepository) FindActiveMembership(ctx context.Context, gymID domaingy
 	return membership, nil
 }
 
+func (r *GymRepository) FindMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error) {
+	row := r.db.pool.QueryRow(ctx, `
+		SELECT id, gym_id, user_id, role, status, invited_by, created_at, updated_at
+		FROM gym_memberships
+		WHERE gym_id = $1 AND user_id = $2
+	`, gymID.String(), userID.String())
+	membership, err := scanMembership(row)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return domaingym.Membership{}, appgym.ErrMemberNotFound
+		}
+		return domaingym.Membership{}, err
+	}
+	return membership, nil
+}
+
+func (r *GymRepository) FindMember(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (appgym.MemberDTO, error) {
+	row := r.db.pool.QueryRow(ctx, `
+		SELECT u.id, u.email, u.display_name, gm.role, gm.status
+		FROM gym_memberships gm
+		JOIN users u ON u.id = gm.user_id
+		WHERE gm.gym_id = $1 AND gm.user_id = $2
+	`, gymID.String(), userID.String())
+	var member appgym.MemberDTO
+	if err := row.Scan(&member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.Status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return appgym.MemberDTO{}, appgym.ErrMemberNotFound
+		}
+		return appgym.MemberDTO{}, fmt.Errorf("scan gym member: %w", err)
+	}
+	return member, nil
+}
+
+func (r *GymRepository) DeleteMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) error {
+	tag, err := r.db.pool.Exec(ctx, `
+		DELETE FROM gym_memberships
+		WHERE gym_id = $1 AND user_id = $2
+	`, gymID.String(), userID.String())
+	if err != nil {
+		return fmt.Errorf("delete gym membership: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return appgym.ErrMemberNotFound
+	}
+	return nil
+}
+
 func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID) ([]appgym.MemberDTO, error) {
 	rows, err := r.db.pool.Query(ctx, `
 		SELECT u.id, u.email, u.display_name, gm.role, gm.status

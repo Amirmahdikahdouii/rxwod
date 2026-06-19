@@ -23,6 +23,10 @@ type InviteMemberRequest struct {
 	Email string `json:"email"`
 }
 
+type UpdateMemberRoleRequest struct {
+	Role string `json:"role"`
+}
+
 type CreateWODRequest struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`

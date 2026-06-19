@@ -13,7 +13,10 @@ type Repository interface {
 	ListForUser(ctx context.Context, userID user.UserID) ([]WorkspaceDTO, error)
 	FindByID(ctx context.Context, gymID domaingym.GymID) (domaingym.Gym, error)
 	FindActiveMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error)
+	FindMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error)
+	FindMember(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (MemberDTO, error)
 	ListMembers(ctx context.Context, gymID domaingym.GymID) ([]MemberDTO, error)
+	DeleteMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) error
 	FindUserByEmail(ctx context.Context, email user.Email) (user.User, error)
 	UpsertMembership(ctx context.Context, membership domaingym.Membership) error
 	SaveInvitation(ctx context.Context, invitation domaingym.Invitation) error

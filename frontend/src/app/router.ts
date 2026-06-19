@@ -4,6 +4,7 @@ import LoginPage from '@/pages/LoginPage.vue'
 import ProfilePage from '@/pages/ProfilePage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
 import WorkspaceCreatePage from '@/pages/WorkspaceCreatePage.vue'
+import WorkspaceMemberPage from '@/pages/WorkspaceMemberPage.vue'
 import WorkspacePage from '@/pages/WorkspacePage.vue'
 import WODCreatePage from '@/pages/WODCreatePage.vue'
 import WODListPage from '@/pages/WODListPage.vue'
@@ -22,6 +23,11 @@ export const router = createRouter({
     },
     { path: '/profile', component: ProfilePage, meta: { requiresAuth: true } },
     { path: '/workspace', component: WorkspacePage, meta: { requiresAuth: true, requiresWorkspace: true } },
+    {
+      path: '/workspace/members/:userId',
+      component: WorkspaceMemberPage,
+      meta: { requiresAuth: true, requiresWorkspace: true },
+    },
     { path: '/workspace/new', component: WorkspaceCreatePage, meta: { requiresAuth: true } },
   ],
 })

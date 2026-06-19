@@ -109,7 +109,7 @@ func (m Movement) Validate() error {
 		return ErrInvalidMovementLabel
 	}
 	if strings.TrimSpace(m.name) == "" && strings.TrimSpace(m.prescription) == "" {
-		return ErrInvalidMovement
+		return ErrMovementTextRequired
 	}
 	if m.sets != nil && *m.sets <= 0 {
 		return ErrInvalidSets
@@ -118,7 +118,7 @@ func (m Movement) Validate() error {
 		return ErrInvalidReps
 	}
 	if m.loadValue != nil && m.loadUnit == nil {
-		return ErrInvalidMovement
+		return ErrLoadValueRequiresUnit
 	}
 	if m.loadUnit != nil {
 		if err := validateLoadUnit(*m.loadUnit); err != nil {

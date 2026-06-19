@@ -170,15 +170,19 @@ func toWorkspaceResponses(dtos []appgym.WorkspaceDTO) []WorkspaceResponse {
 func toMemberResponses(dtos []appgym.MemberDTO) []MemberResponse {
 	responses := make([]MemberResponse, 0, len(dtos))
 	for _, dto := range dtos {
-		responses = append(responses, MemberResponse{
-			UserID:      dto.UserID,
-			Email:       dto.Email,
-			DisplayName: dto.DisplayName,
-			Role:        string(dto.Role),
-			Status:      string(dto.Status),
-		})
+		responses = append(responses, toMemberResponse(dto))
 	}
 	return responses
+}
+
+func toMemberResponse(dto appgym.MemberDTO) MemberResponse {
+	return MemberResponse{
+		UserID:      dto.UserID,
+		Email:       dto.Email,
+		DisplayName: dto.DisplayName,
+		Role:        string(dto.Role),
+		Status:      string(dto.Status),
+	}
 }
 
 func toInvitationResponse(dto appgym.InvitationDTO) InvitationResponse {

@@ -75,6 +75,30 @@ describe('wodSchemas', () => {
     })
   })
 
+  it('omits zero load value from API payload', () => {
+    const stage = {
+      ...defaultStage('WARMUP', 'OPEN'),
+      movements: [{
+        ...defaultMovement(),
+        label: 'A',
+        name: 'Wall facing handstand plate stepup',
+        reps: 20,
+        sets: 1,
+        loadValue: 0,
+      }],
+    }
+
+    expect(stageToPayload(stage).movements[0]).toEqual({
+      position: 1,
+      label: 'A',
+      name: 'Wall facing handstand plate stepup',
+      prescription: '',
+      reps: 20,
+      sets: 1,
+      notes: '',
+    })
+  })
+
   it('hydrates detail responses into form state', () => {
     const detail: WODDetail = {
       id: 'wod-1',
