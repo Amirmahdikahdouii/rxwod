@@ -11,6 +11,7 @@ import {
   canCreateWOD,
   canEditWOD,
   canPublishWOD,
+  canViewWOD,
   ROLE_LABELS,
 } from '@/features/workspace/model/workspaceTypes'
 
@@ -54,6 +55,10 @@ function statusClass(status: WODSummary['status']) {
 
 function canEditItem(item: WODSummary) {
   return canEditWOD(session.activeWorkspaceRole.value, item, session.currentUser.value?.id)
+}
+
+function canViewItem(item: WODSummary) {
+  return canViewWOD(session.activeWorkspaceRole.value, item)
 }
 
 async function loadPrograms() {
@@ -150,6 +155,13 @@ onMounted(async () => {
             >
               Edit
             </RouterLink>
+            <RouterLink
+              v-else-if="canViewItem(item)"
+              :to="`/wods/${item.id}/edit`"
+              class="wod-card__link"
+            >
+              View
+            </RouterLink>
             <button
               v-if="canEditItem(item) && item.status === 'DRAFT' && canPublishWOD(session.activeWorkspaceRole.value)"
               type="button"
@@ -159,7 +171,6 @@ onMounted(async () => {
             >
               {{ publishingId === item.id ? 'Publishing...' : 'Publish' }}
             </button>
-            <span v-if="!canEditItem(item)" class="wod-card__meta">Read only</span>
           </div>
         </div>
         <p class="wod-card__meta">{{ item.stageCount }} stage(s)</p>

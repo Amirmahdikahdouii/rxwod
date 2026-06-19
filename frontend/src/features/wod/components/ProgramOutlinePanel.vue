@@ -14,7 +14,11 @@ const props = defineProps<{
   error: string | null
   successSummary: string
   canPublish: boolean
+  saveLabel: string
+  showActions?: boolean
 }>()
+
+const showActions = computed(() => props.showActions ?? true)
 
 const emit = defineEmits<{
   saveDraft: []
@@ -75,7 +79,7 @@ function scrollToStage(index: number) {
       </button>
     </div>
 
-    <div class="program-outline__actions program-outline__desktop-actions stack">
+    <div v-if="showActions" class="program-outline__actions program-outline__desktop-actions stack">
       <div v-if="props.error" class="alert alert--error" role="alert">{{ props.error }}</div>
       <div v-if="props.successSummary" class="alert alert--success" role="status">{{ props.successSummary }}</div>
       <div class="program-outline__actions-row">
@@ -85,7 +89,7 @@ function scrollToStage(index: number) {
           :disabled="props.loading"
           @click="emit('saveDraft')"
         >
-          {{ props.savingAction === 'draft' ? 'Saving draft...' : 'Save as Draft' }}
+          {{ props.saveLabel }}
         </button>
         <button
           v-if="props.canPublish"

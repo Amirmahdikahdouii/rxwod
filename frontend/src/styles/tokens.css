@@ -49,11 +49,8 @@
   --badge-stage-cooldown-text: #4b5563;
 
   --color-surface-muted: #e7e5e4;
-  --color-heatmap-0: #e7e5e4;
-  --color-heatmap-1: #bbf7d0;
-  --color-heatmap-2: #4ade80;
-  --color-heatmap-3: #16a34a;
-  --color-heatmap-4: #14532d;
+  --color-calendar-plan: #bbf7d0;
+  --color-calendar-grid: rgba(28, 25, 23, 0.08);
   --color-draft-ring: #d97706;
 }
 
@@ -103,6 +100,8 @@
   --badge-stage-cooldown-text: #d1d5db;
 
   --color-surface-muted: #14171d;
+  --color-calendar-plan: #22c55e;
+  --color-calendar-grid: rgba(245, 245, 244, 0.12);
   --color-heatmap-0: #1a1d24;
   --color-heatmap-1: #14532d;
   --color-heatmap-2: #15803d;

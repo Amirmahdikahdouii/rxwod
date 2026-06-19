@@ -5,7 +5,6 @@ import {
   buildCalendarWeeks,
   buildMonthLabels,
   calendarCellLabel,
-  heatmapLevel,
 } from '@/features/wod/utils/calendarUtils'
 import { computed } from 'vue'
 
@@ -30,8 +29,12 @@ function cellClass(cell: ReturnType<typeof buildCalendarWeeks>[number]['days'][n
   if (!cell.inRange) {
     return 'program-calendar__cell program-calendar__cell--empty'
   }
-  const level = heatmapLevel(cell.publishedCount)
-  const classes = [`program-calendar__cell`, `program-calendar__cell--level-${level}`]
+  const classes = ['program-calendar__cell']
+  if (cell.publishedCount > 0) {
+    classes.push('program-calendar__cell--has-plan')
+  } else {
+    classes.push('program-calendar__cell--empty-day')
+  }
   if (props.selectedDate === cell.date) {
     classes.push('program-calendar__cell--selected')
   }
@@ -116,14 +119,10 @@ function toggleDate(date: string, inRange: boolean) {
     </div>
 
     <div class="program-calendar__legend">
-      <span class="program-calendar__legend-label">Less</span>
-      <span
-        v-for="level in 5"
-        :key="level"
-        class="program-calendar__legend-swatch"
-        :class="`program-calendar__legend-swatch--level-${level - 1}`"
-      />
-      <span class="program-calendar__legend-label">More</span>
+      <span class="program-calendar__legend-swatch program-calendar__legend-swatch--empty-day" />
+      <span class="program-calendar__legend-label">No program</span>
+      <span class="program-calendar__legend-swatch program-calendar__legend-swatch--has-plan" />
+      <span class="program-calendar__legend-label">Scheduled</span>
       <span v-if="showDrafts" class="program-calendar__legend-draft">Draft days marked with a ring</span>
     </div>
   </section>

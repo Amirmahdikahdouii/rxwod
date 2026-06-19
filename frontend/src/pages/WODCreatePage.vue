@@ -14,7 +14,7 @@ import {
 } from '@/features/wod/composables/useWODDraftStorage'
 import { useWODForm } from '@/features/wod/composables/useWODForm'
 import type { WODDetail } from '@/features/wod/model/wodTypes'
-import { canCreateWOD, canEditWOD, canPublishWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
+import { canCreateWOD, canEditWOD, canPublishWOD, canViewWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
 import BaseInput from '@/shared/components/BaseInput.vue'
 import BaseTextarea from '@/shared/components/BaseTextarea.vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -84,18 +84,15 @@ const successSummary = computed(() => {
     const dateLabel = scheduledDate.value || result.value.scheduledDate || 'the selected date'
     return `${result.value.name} published for ${dateLabel} with ${stageCount} stage(s): ${stageLabels}. Athletes can now see it.`
   }
+  if (loadedDetail.value?.status === 'PUBLISHED' || result.value.status === 'PUBLISHED') {
+    return `${result.value.name} changes saved with ${stageCount} stage(s): ${stageLabels}.`
+  }
   return `${result.value.name} saved as draft with ${stageCount} stage(s): ${stageLabels}. Only coaches and owners can see it.`
 })
 
 const stageCountLabel = computed(() => `${stages.value.length} stage${stages.value.length === 1 ? '' : 's'}`)
-const pageTitle = computed(() => (mode.value === 'edit' ? 'Edit WOD Program' : 'Create WOD Program'))
-const pageSubtitle = computed(() =>
-  mode.value === 'edit'
-    ? 'Update your class plan stages, scoring, and prescriptions.'
-    : 'Build your class plan with instructions and free-text prescriptions.',
-)
 const isEditMode = computed(() => Boolean(initialWODId))
-const canUseForm = computed(() => {
+const canEditProgram = computed(() => {
   if (isEditMode.value) {
     if (!loadedDetail.value) {
       return false
@@ -104,7 +101,40 @@ const canUseForm = computed(() => {
   }
   return canCreateWOD(session.activeWorkspaceRole.value)
 })
-const canPublish = computed(() => canPublishWOD(session.activeWorkspaceRole.value))
+const canViewProgram = computed(() => {
+  if (isEditMode.value) {
+    if (!loadedDetail.value) {
+      return false
+    }
+    return canViewWOD(session.activeWorkspaceRole.value, loadedDetail.value)
+  }
+  return canCreateWOD(session.activeWorkspaceRole.value)
+})
+const isViewOnly = computed(() => canViewProgram.value && !canEditProgram.value)
+const isPublished = computed(() => loadedDetail.value?.status === 'PUBLISHED')
+const pageTitle = computed(() => {
+  if (isViewOnly.value) {
+    return 'View WOD Program'
+  }
+  return mode.value === 'edit' ? 'Edit WOD Program' : 'Create WOD Program'
+})
+const pageSubtitle = computed(() => {
+  if (isViewOnly.value) {
+    return 'Review the class plan stages, scoring, and prescriptions.'
+  }
+  return mode.value === 'edit'
+    ? 'Update your class plan stages, scoring, and prescriptions.'
+    : 'Build your class plan with instructions and free-text prescriptions.'
+})
+const canPublishProgram = computed(
+  () => canPublishWOD(session.activeWorkspaceRole.value) && !isPublished.value && !isViewOnly.value,
+)
+const saveButtonLabel = computed(() => {
+  if (savingAction.value === 'draft') {
+    return isPublished.value ? 'Saving changes...' : 'Saving draft...'
+  }
+  return isPublished.value ? 'Save changes' : 'Save as Draft'
+})
 const roleLabel = computed(() =>
   session.activeWorkspaceRole.value ? ROLE_LABELS[session.activeWorkspaceRole.value] : 'Member',
 )
@@ -127,7 +157,7 @@ function currentDraftSnapshot(): StoredWODDraft {
 }
 
 function queueAutosave() {
-  if (!canUseForm.value || !storageKey.value || !isDirty.value) {
+  if (!canEditProgram.value || !storageKey.value || !isDirty.value) {
     return
   }
   if (autosaveTimer) {
@@ -217,7 +247,7 @@ onMounted(async () => {
       </p>
     </header>
 
-    <div v-if="showRecoveryPrompt" class="confirmation-panel" role="alertdialog" aria-live="polite">
+    <div v-if="showRecoveryPrompt && canEditProgram" class="confirmation-panel" role="alertdialog" aria-live="polite">
       <p class="confirmation-panel__text">{{ recoveryMessage }}</p>
       <div class="confirmation-panel__actions">
         <button type="button" class="btn" @click="continueDraftRecovery">Continue editing</button>
@@ -225,7 +255,17 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="!canUseForm && !initialLoading" class="card empty-state">
+    <p v-if="initialLoading" class="loading-state">Loading program...</p>
+
+    <div v-else-if="isEditMode && !loadedDetail" class="card empty-state">
+      <h2 class="empty-state__title">Unable to load program</h2>
+      <p class="empty-state__text">
+        {{ error || 'This program may not exist or you do not have access.' }}
+      </p>
+      <RouterLink to="/wods" class="empty-state__link">View Programs</RouterLink>
+    </div>
+
+    <div v-else-if="!canEditProgram && !canViewProgram" class="card empty-state">
       <h2 class="empty-state__title">This workspace is read-only for your role</h2>
       <p class="empty-state__text">
         {{ roleLabel }} access
@@ -235,11 +275,10 @@ onMounted(async () => {
       <RouterLink to="/wods" class="empty-state__link">View Programs</RouterLink>
     </div>
 
-    <p v-else-if="initialLoading" class="loading-state">Loading program...</p>
-
     <div v-else class="create-layout">
       <div class="create-layout__main">
         <form id="wod-create-form" class="card stack-lg" @submit.prevent="handlePublish">
+          <fieldset class="program-form-fieldset" :disabled="isViewOnly">
           <section class="card-section stack">
             <div class="section-heading-row">
               <h2 class="section-title">Basics</h2>
@@ -288,7 +327,7 @@ onMounted(async () => {
             />
           </section>
 
-          <div class="program-outline__mobile-actions stack">
+          <div v-if="!isViewOnly" class="program-outline__mobile-actions stack">
             <div v-if="error" class="alert alert--error" role="alert">{{ error }}</div>
             <div v-if="result" class="alert alert--success" role="status">{{ successSummary }}</div>
             <div class="program-outline__actions-row">
@@ -298,10 +337,10 @@ onMounted(async () => {
                 :disabled="loading"
                 @click="handleSaveDraft"
               >
-                {{ savingAction === 'draft' ? 'Saving draft...' : 'Save as Draft' }}
+                {{ saveButtonLabel }}
               </button>
               <button
-                v-if="canPublish"
+                v-if="canPublishProgram"
                 type="submit"
                 class="btn-full"
                 :disabled="loading"
@@ -310,6 +349,7 @@ onMounted(async () => {
               </button>
             </div>
           </div>
+          </fieldset>
         </form>
       </div>
 
@@ -323,7 +363,9 @@ onMounted(async () => {
           :saving-action="savingAction"
           :error="error"
           :success-summary="successSummary"
-          :can-publish="canPublish"
+          :can-publish="canPublishProgram"
+          :save-label="saveButtonLabel"
+          :show-actions="!isViewOnly"
           @save-draft="handleSaveDraft"
           @publish="handlePublish"
         />

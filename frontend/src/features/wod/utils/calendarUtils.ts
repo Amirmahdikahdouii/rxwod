@@ -24,22 +24,6 @@ export function formatDateKey(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-export function heatmapLevel(publishedCount: number): number {
-  if (publishedCount <= 0) {
-    return 0
-  }
-  if (publishedCount === 1) {
-    return 1
-  }
-  if (publishedCount === 2) {
-    return 2
-  }
-  if (publishedCount === 3) {
-    return 3
-  }
-  return 4
-}
-
 export function buildCalendarRange(endDate: Date, months = 12): { from: string; to: string; start: Date; end: Date } {
   const end = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
   const start = new Date(end.getFullYear(), end.getMonth() - (months - 1), 1)

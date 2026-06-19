@@ -52,9 +52,22 @@ export function canEditWOD(
     return true
   }
   if (role === 'coach' && wod && userId) {
-    return wod.createdBy === userId && wod.status === 'DRAFT'
+    return wod.createdBy === userId && (wod.status === 'DRAFT' || wod.status === 'PUBLISHED')
   }
   return false
+}
+
+export function canViewWOD(
+  role: WorkspaceRole | null,
+  wod?: { status: string },
+): boolean {
+  if (!role) {
+    return false
+  }
+  if (role === 'athlete' && wod?.status !== 'PUBLISHED') {
+    return false
+  }
+  return true
 }
 
 export function canPublishWOD(role: WorkspaceRole | null): boolean {
