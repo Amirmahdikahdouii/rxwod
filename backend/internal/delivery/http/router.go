@@ -38,9 +38,11 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymContext.POST("/gyms/:gymId/coaches", gymHandler.InviteCoach, RequirePermission(domainauthz.PermissionMemberInviteCoach))
 	gymContext.POST("/gyms/:gymId/athletes", gymHandler.InviteAthlete, RequirePermission(domainauthz.PermissionMemberInviteAthlete))
 	gymContext.POST("/wods", wodHandler.Create, RequirePermission(domainauthz.PermissionWODCreate))
+	gymContext.GET("/wods/calendar", wodHandler.Calendar, RequirePermission(domainauthz.PermissionWODRead))
 	gymContext.GET("/wods", wodHandler.List, RequirePermission(domainauthz.PermissionWODRead))
 	gymContext.GET("/wods/:id", wodHandler.GetByID, RequirePermission(domainauthz.PermissionWODRead))
 	gymContext.PUT("/wods/:id", wodHandler.Update, RequirePermission(domainauthz.PermissionWODUpdate))
+	gymContext.POST("/wods/:id/publish", wodHandler.Publish, RequirePermission(domainauthz.PermissionWODPublish))
 
 	return e
 }

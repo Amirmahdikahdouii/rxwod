@@ -1,6 +1,8 @@
 package wod
 
 import (
+	"time"
+
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 )
 
@@ -34,7 +36,8 @@ type StageInput struct {
 }
 
 type CreateWODCommand struct {
-	Name        string
-	Description string
-	Stages      []StageInput
+	Name          string
+	Description   string
+	ScheduledDate *time.Time
+	Stages        []StageInput
 }

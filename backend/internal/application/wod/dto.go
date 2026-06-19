@@ -47,29 +47,49 @@ type StageSummaryDTO struct {
 }
 
 type WODSummaryDTO struct {
-	ID         string
-	Name       string
-	Status     domainwod.WODStatus
-	StageCount int
-	Stages     []StageSummaryDTO
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID            string
+	Name          string
+	Status        domainwod.WODStatus
+	StageCount    int
+	Stages        []StageSummaryDTO
+	CreatedBy     string
+	ScheduledDate *time.Time
+	PublishedAt   *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type WODDetailDTO struct {
-	ID          string
-	Name        string
-	Description string
-	Status      domainwod.WODStatus
-	Stages      []StageDTO
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID            string
+	Name          string
+	Description   string
+	Status        domainwod.WODStatus
+	Stages        []StageDTO
+	CreatedBy     string
+	ScheduledDate *time.Time
+	PublishedAt   *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type CreateWODResultDTO struct {
-	ID         string
-	Name       string
-	Status     domainwod.WODStatus
-	StageCount int
-	Stages     []StageSummaryDTO
+	ID            string
+	Name          string
+	Status        domainwod.WODStatus
+	StageCount    int
+	Stages        []StageSummaryDTO
+	ScheduledDate *time.Time
+}
+
+type CalendarPlanDTO struct {
+	ID     string
+	Name   string
+	Status domainwod.WODStatus
+}
+
+type CalendarDayDTO struct {
+	Date           string
+	PublishedCount int
+	DraftCount     int
+	Plans          []CalendarPlanDTO
 }

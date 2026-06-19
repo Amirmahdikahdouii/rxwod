@@ -28,9 +28,10 @@ type UpdateMemberRoleRequest struct {
 }
 
 type CreateWODRequest struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Stages      []StageRequest `json:"stages"`
+	Name          string         `json:"name"`
+	Description   string         `json:"description"`
+	ScheduledDate string         `json:"scheduledDate,omitempty"`
+	Stages        []StageRequest `json:"stages"`
 }
 
 type StageRequest struct {

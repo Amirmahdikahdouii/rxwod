@@ -16,7 +16,8 @@ func TestRolePermissionMatrix(t *testing.T) {
 		{name: "coach cannot remove member", role: RoleCoach, permission: PermissionMemberRemove, want: false},
 		{name: "owner updates wod", role: RoleOwner, permission: PermissionWODUpdate, want: true},
 		{name: "coach creates wod", role: RoleCoach, permission: PermissionWODCreate, want: true},
-		{name: "coach cannot update wod", role: RoleCoach, permission: PermissionWODUpdate, want: false},
+		{name: "coach updates wod", role: RoleCoach, permission: PermissionWODUpdate, want: true},
+		{name: "coach publishes wod", role: RoleCoach, permission: PermissionWODPublish, want: true},
 		{name: "athlete reads wod", role: RoleAthlete, permission: PermissionWODRead, want: true},
 		{name: "athlete cannot create wod", role: RoleAthlete, permission: PermissionWODCreate, want: false},
 	}

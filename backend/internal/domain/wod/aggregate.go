@@ -8,15 +8,17 @@ import (
 )
 
 type WOD struct {
-	id          WODID
-	gymID       gym.GymID
-	createdBy   user.UserID
-	name        WODName
-	description WODDescription
-	stages      []Stage
-	status      WODStatus
-	createdAt   time.Time
-	updatedAt   time.Time
+	id            WODID
+	gymID         gym.GymID
+	createdBy     user.UserID
+	name          WODName
+	description   WODDescription
+	stages        []Stage
+	status        WODStatus
+	scheduledDate *time.Time
+	publishedAt   *time.Time
+	createdAt     time.Time
+	updatedAt     time.Time
 }
 
 func NewWOD(
@@ -56,6 +58,8 @@ func ReconstructWOD(
 	description WODDescription,
 	stages []Stage,
 	status WODStatus,
+	scheduledDate *time.Time,
+	publishedAt *time.Time,
 	createdAt time.Time,
 	updatedAt time.Time,
 ) (WOD, error) {
@@ -64,6 +68,8 @@ func ReconstructWOD(
 		return WOD{}, err
 	}
 	w.status = status
+	w.scheduledDate = cloneDate(scheduledDate)
+	w.publishedAt = cloneDate(publishedAt)
 	w.updatedAt = updatedAt
 	return w, nil
 }
@@ -78,6 +84,14 @@ func validateStages(stages []Stage) error {
 		}
 	}
 	return nil
+}
+
+func cloneDate(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	cloned := value.UTC()
+	return &cloned
 }
 
 func (w WOD) ID() WODID {
@@ -108,6 +122,14 @@ func (w WOD) Status() WODStatus {
 	return w.status
 }
 
+func (w WOD) ScheduledDate() *time.Time {
+	return cloneDate(w.scheduledDate)
+}
+
+func (w WOD) PublishedAt() *time.Time {
+	return cloneDate(w.publishedAt)
+}
+
 func (w WOD) CreatedAt() time.Time {
 	return w.createdAt
 }
@@ -116,11 +138,21 @@ func (w WOD) UpdatedAt() time.Time {
 	return w.updatedAt
 }
 
+func (w *WOD) SetScheduledDate(date *time.Time, now time.Time) {
+	w.scheduledDate = cloneDate(date)
+	w.updatedAt = now
+}
+
 func (w *WOD) Publish(now time.Time) error {
 	if w.status != WODStatusDraft {
 		return ErrInvalidStatusTransition
 	}
+	if w.scheduledDate == nil {
+		return ErrScheduledDateRequired
+	}
 	w.status = WODStatusPublished
+	publishedAt := now.UTC()
+	w.publishedAt = &publishedAt
 	w.updatedAt = now
 	return nil
 }

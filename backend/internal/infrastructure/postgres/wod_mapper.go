@@ -11,14 +11,16 @@ import (
 )
 
 type wodRecord struct {
-	ID          string
-	GymID       string
-	CreatedBy   string
-	Name        string
-	Status      string
-	Description string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID            string
+	GymID         string
+	CreatedBy     string
+	Name          string
+	Status        string
+	Description   string
+	ScheduledDate *time.Time
+	PublishedAt   *time.Time
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 type stageRecord struct {
@@ -69,14 +71,16 @@ type emomConfigPayload struct {
 
 func wodToRecords(w domainwod.WOD) (wodRecord, []stageRecord, []movementRecord, error) {
 	record := wodRecord{
-		ID:          w.ID().String(),
-		GymID:       w.GymID().String(),
-		CreatedBy:   w.CreatedBy().String(),
-		Name:        string(w.Name()),
-		Status:      string(w.Status()),
-		Description: string(w.Description()),
-		CreatedAt:   w.CreatedAt(),
-		UpdatedAt:   w.UpdatedAt(),
+		ID:            w.ID().String(),
+		GymID:         w.GymID().String(),
+		CreatedBy:     w.CreatedBy().String(),
+		Name:          string(w.Name()),
+		Status:        string(w.Status()),
+		Description:   string(w.Description()),
+		ScheduledDate: w.ScheduledDate(),
+		PublishedAt:   w.PublishedAt(),
+		CreatedAt:     w.CreatedAt(),
+		UpdatedAt:     w.UpdatedAt(),
 	}
 
 	var stages []stageRecord
@@ -241,6 +245,8 @@ func recordsToWOD(record wodRecord, stages []stageRecord, movementsByStage map[s
 		domainwod.WODDescription(record.Description),
 		domainStages,
 		domainwod.WODStatus(record.Status),
+		record.ScheduledDate,
+		record.PublishedAt,
 		record.CreatedAt,
 		record.UpdatedAt,
 	)

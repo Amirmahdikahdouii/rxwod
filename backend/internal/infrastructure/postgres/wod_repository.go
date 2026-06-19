@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	appwod "github.com/rxwod/backend/internal/application/wod"
 	"github.com/rxwod/backend/internal/domain/gym"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 )
@@ -33,14 +35,16 @@ func (r *WODRepository) Save(ctx context.Context, w domainwod.WOD) error {
 	defer tx.Rollback(ctx)
 
 	_, err = tx.Exec(ctx, `
-		INSERT INTO wods (id, gym_id, created_by, name, status, description, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO wods (id, gym_id, created_by, name, status, description, scheduled_date, published_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (id) DO UPDATE SET
 			name = EXCLUDED.name,
 			status = EXCLUDED.status,
 			description = EXCLUDED.description,
+			scheduled_date = EXCLUDED.scheduled_date,
+			published_at = EXCLUDED.published_at,
 			updated_at = EXCLUDED.updated_at
-	`, record.ID, record.GymID, record.CreatedBy, record.Name, record.Status, record.Description, record.CreatedAt, record.UpdatedAt)
+	`, record.ID, record.GymID, record.CreatedBy, record.Name, record.Status, record.Description, record.ScheduledDate, record.PublishedAt, record.CreatedAt, record.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert wod: %w", err)
 	}
@@ -93,7 +97,7 @@ func (r *WODRepository) FindByID(ctx context.Context, gymID gym.GymID, id domain
 
 func (r *WODRepository) List(ctx context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
 	rows, err := r.db.pool.Query(ctx, `
-		SELECT id, gym_id, created_by, name, status, description, created_at, updated_at
+		SELECT id, gym_id, created_by, name, status, description, scheduled_date, published_at, created_at, updated_at
 		FROM wods
 		WHERE gym_id = $1
 		ORDER BY created_at DESC
@@ -136,7 +140,7 @@ func (r *WODRepository) List(ctx context.Context, gymID gym.GymID) ([]domainwod.
 
 func (r *WODRepository) fetchRecord(ctx context.Context, gymID string, id string) (wodRecord, error) {
 	row := r.db.pool.QueryRow(ctx, `
-		SELECT id, gym_id, created_by, name, status, description, created_at, updated_at
+		SELECT id, gym_id, created_by, name, status, description, scheduled_date, published_at, created_at, updated_at
 		FROM wods
 		WHERE id = $1 AND gym_id = $2
 	`, id, gymID)
@@ -227,6 +231,59 @@ func (r *WODRepository) fetchMovements(ctx context.Context, stageIDs []string) (
 	return movementsByStage, nil
 }
 
+type CalendarWODRecord struct {
+	ID            string
+	Name          string
+	Status        string
+	ScheduledDate time.Time
+}
+
+func (r *WODRepository) ListCalendar(
+	ctx context.Context,
+	gymID gym.GymID,
+	from time.Time,
+	to time.Time,
+	includeDrafts bool,
+) ([]appwod.CalendarEntry, error) {
+	query := `
+		SELECT id, name, status, scheduled_date
+		FROM wods
+		WHERE gym_id = $1
+			AND scheduled_date IS NOT NULL
+			AND scheduled_date >= $2
+			AND scheduled_date <= $3
+	`
+	args := []any{gymID.String(), from, to}
+	if !includeDrafts {
+		query += ` AND status = 'PUBLISHED'`
+	}
+	query += ` ORDER BY scheduled_date ASC, created_at ASC`
+
+	rows, err := r.db.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list calendar wods: %w", err)
+	}
+	defer rows.Close()
+
+	var records []appwod.CalendarEntry
+	for rows.Next() {
+		var record CalendarWODRecord
+		if err := rows.Scan(&record.ID, &record.Name, &record.Status, &record.ScheduledDate); err != nil {
+			return nil, fmt.Errorf("scan calendar wod: %w", err)
+		}
+		records = append(records, appwod.CalendarEntry{
+			ID:            record.ID,
+			Name:          record.Name,
+			Status:        domainwod.WODStatus(record.Status),
+			ScheduledDate: record.ScheduledDate,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate calendar wods: %w", err)
+	}
+	return records, nil
+}
+
 func stageIDs(stages []stageRecord) []string {
 	ids := make([]string, 0, len(stages))
 	for _, stage := range stages {
@@ -248,6 +305,8 @@ func scanRecord(scanner rowScanner) (wodRecord, error) {
 		&record.Name,
 		&record.Status,
 		&record.Description,
+		&record.ScheduledDate,
+		&record.PublishedAt,
 		&record.CreatedAt,
 		&record.UpdatedAt,
 	); err != nil {

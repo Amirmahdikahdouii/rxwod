@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	appauthz "github.com/rxwod/backend/internal/application/authz"
@@ -47,6 +48,32 @@ func (m *handlerMemoryRepo) List(_ context.Context, gymID gym.GymID) ([]domainwo
 		if aggregate.GymID() == gymID {
 			items = append(items, aggregate)
 		}
+	}
+	return items, nil
+}
+
+func (m *handlerMemoryRepo) ListCalendar(_ context.Context, gymID gym.GymID, from, to time.Time, includeDrafts bool) ([]appwod.CalendarEntry, error) {
+	items := make([]appwod.CalendarEntry, 0)
+	for _, aggregate := range m.items {
+		if aggregate.GymID() != gymID {
+			continue
+		}
+		scheduledDate := aggregate.ScheduledDate()
+		if scheduledDate == nil {
+			continue
+		}
+		if scheduledDate.Before(from) || scheduledDate.After(to) {
+			continue
+		}
+		if !includeDrafts && aggregate.Status() != domainwod.WODStatusPublished {
+			continue
+		}
+		items = append(items, appwod.CalendarEntry{
+			ID:            aggregate.ID().String(),
+			Name:          string(aggregate.Name()),
+			Status:        aggregate.Status(),
+			ScheduledDate: *scheduledDate,
+		})
 	}
 	return items, nil
 }

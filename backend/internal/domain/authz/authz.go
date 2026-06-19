@@ -21,6 +21,7 @@ const (
 	PermissionWODCreate           Permission = "wod:create"
 	PermissionWODRead             Permission = "wod:read"
 	PermissionWODUpdate           Permission = "wod:update"
+	PermissionWODPublish            Permission = "wod:publish"
 	PermissionWODDelete           Permission = "wod:delete"
 )
 
@@ -36,11 +37,14 @@ var rolePermissions = map[Role]map[Permission]struct{}{
 		PermissionWODCreate:           {},
 		PermissionWODRead:             {},
 		PermissionWODUpdate:           {},
+		PermissionWODPublish:          {},
 		PermissionWODDelete:           {},
 	},
 	RoleCoach: {
-		PermissionWODCreate: {},
-		PermissionWODRead:   {},
+		PermissionWODCreate:  {},
+		PermissionWODRead:    {},
+		PermissionWODUpdate:  {},
+		PermissionWODPublish: {},
 	},
 	RoleAthlete: {
 		PermissionWODRead: {},

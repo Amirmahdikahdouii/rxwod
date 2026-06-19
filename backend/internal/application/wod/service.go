@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
@@ -36,6 +37,9 @@ func (s *Service) Create(ctx context.Context, cmd CreateWODCommand) (CreateWODRe
 	if err != nil {
 		return CreateWODResultDTO{}, err
 	}
+	if cmd.ScheduledDate != nil {
+		aggregate.SetScheduledDate(cmd.ScheduledDate, s.clock.Now())
+	}
 
 	if err := s.repo.Save(ctx, aggregate); err != nil {
 		return CreateWODResultDTO{}, fmt.Errorf("save wod: %w", err)
@@ -54,6 +58,9 @@ func (s *Service) GetByID(ctx context.Context, id string) (WODDetailDTO, error) 
 	if err != nil {
 		return WODDetailDTO{}, err
 	}
+	if !canViewWOD(principal, aggregate) {
+		return WODDetailDTO{}, appauthz.ErrForbidden
+	}
 	return toDetailDTO(aggregate), nil
 }
 
@@ -67,12 +74,19 @@ func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (
 	if err != nil {
 		return WODDetailDTO{}, err
 	}
+	if err := ensureCanModifyWOD(principal, existing); err != nil {
+		return WODDetailDTO{}, err
+	}
+	if existing.Status() != wod.WODStatusDraft {
+		return WODDetailDTO{}, wod.ErrPublishedWODNotEditable
+	}
 
 	stages, err := s.buildStages(cmd.Stages)
 	if err != nil {
 		return WODDetailDTO{}, err
 	}
 
+	now := s.clock.Now()
 	updated, err := wod.ReconstructWOD(
 		existing.ID(),
 		existing.GymID(),
@@ -81,11 +95,16 @@ func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (
 		wod.WODDescription(cmd.Description),
 		stages,
 		existing.Status(),
+		cmd.ScheduledDate,
+		existing.PublishedAt(),
 		existing.CreatedAt(),
-		s.clock.Now(),
+		now,
 	)
 	if err != nil {
 		return WODDetailDTO{}, err
+	}
+	if cmd.ScheduledDate == nil {
+		updated.SetScheduledDate(nil, now)
 	}
 
 	if err := s.repo.Save(ctx, updated); err != nil {
@@ -95,7 +114,33 @@ func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (
 	return toDetailDTO(updated), nil
 }
 
-func (s *Service) List(ctx context.Context) ([]WODSummaryDTO, error) {
+func (s *Service) Publish(ctx context.Context, id string) (WODDetailDTO, error) {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODPublish)
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	existing, err := s.repo.FindByID(ctx, principal.GymID, wod.WODID(id))
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+	if err := ensureCanModifyWOD(principal, existing); err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	aggregate := existing
+	if err := aggregate.Publish(s.clock.Now()); err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	if err := s.repo.Save(ctx, aggregate); err != nil {
+		return WODDetailDTO{}, fmt.Errorf("save wod: %w", err)
+	}
+
+	return toDetailDTO(aggregate), nil
+}
+
+func (s *Service) List(ctx context.Context, statusFilter *wod.WODStatus) ([]WODSummaryDTO, error) {
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODRead)
 	if err != nil {
 		return nil, err
@@ -108,9 +153,75 @@ func (s *Service) List(ctx context.Context) ([]WODSummaryDTO, error) {
 
 	summaries := make([]WODSummaryDTO, 0, len(aggregates))
 	for _, aggregate := range aggregates {
+		if !canViewWOD(principal, aggregate) {
+			continue
+		}
+		if statusFilter != nil && aggregate.Status() != *statusFilter {
+			continue
+		}
 		summaries = append(summaries, toSummaryDTO(aggregate))
 	}
 	return summaries, nil
+}
+
+func (s *Service) Calendar(ctx context.Context, from, to time.Time) ([]CalendarDayDTO, error) {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODRead)
+	if err != nil {
+		return nil, err
+	}
+
+	includeDrafts := principal.Role != domainauthz.RoleAthlete
+	entries, err := s.repo.ListCalendar(ctx, principal.GymID, from, to, includeDrafts)
+	if err != nil {
+		return nil, err
+	}
+
+	byDate := make(map[string]*CalendarDayDTO)
+	for _, entry := range entries {
+		dateKey := entry.ScheduledDate.Format("2006-01-02")
+		day, ok := byDate[dateKey]
+		if !ok {
+			day = &CalendarDayDTO{Date: dateKey, Plans: []CalendarPlanDTO{}}
+			byDate[dateKey] = day
+		}
+		if entry.Status == wod.WODStatusPublished {
+			day.PublishedCount++
+		} else if entry.Status == wod.WODStatusDraft && includeDrafts {
+			day.DraftCount++
+		}
+		if entry.Status == wod.WODStatusPublished || includeDrafts {
+			day.Plans = append(day.Plans, CalendarPlanDTO{
+				ID:     entry.ID,
+				Name:   entry.Name,
+				Status: entry.Status,
+			})
+		}
+	}
+
+	days := make([]CalendarDayDTO, 0, len(byDate))
+	for _, day := range byDate {
+		days = append(days, *day)
+	}
+	return days, nil
+}
+
+func canViewWOD(principal appauthz.Principal, aggregate wod.WOD) bool {
+	if principal.Role == domainauthz.RoleAthlete && aggregate.Status() != wod.WODStatusPublished {
+		return false
+	}
+	return true
+}
+
+func ensureCanModifyWOD(principal appauthz.Principal, aggregate wod.WOD) error {
+	if principal.Role == domainauthz.RoleOwner {
+		return nil
+	}
+	if principal.Role == domainauthz.RoleCoach &&
+		aggregate.CreatedBy() == principal.UserID &&
+		aggregate.Status() == wod.WODStatusDraft {
+		return nil
+	}
+	return appauthz.ErrForbidden
 }
 
 func (s *Service) buildWOD(cmd CreateWODCommand, principal appauthz.Principal) (wod.WOD, error) {
@@ -262,24 +373,28 @@ func movementItemRef(label string, position int, name string) string {
 func toCreateResultDTO(aggregate wod.WOD) CreateWODResultDTO {
 	stages := aggregate.Stages()
 	return CreateWODResultDTO{
-		ID:         aggregate.ID().String(),
-		Name:       string(aggregate.Name()),
-		Status:     aggregate.Status(),
-		StageCount: len(stages),
-		Stages:     stagesToSummaryDTO(stages),
+		ID:            aggregate.ID().String(),
+		Name:          string(aggregate.Name()),
+		Status:        aggregate.Status(),
+		StageCount:    len(stages),
+		Stages:        stagesToSummaryDTO(stages),
+		ScheduledDate: aggregate.ScheduledDate(),
 	}
 }
 
 func toSummaryDTO(aggregate wod.WOD) WODSummaryDTO {
 	stages := aggregate.Stages()
 	return WODSummaryDTO{
-		ID:         aggregate.ID().String(),
-		Name:       string(aggregate.Name()),
-		Status:     aggregate.Status(),
-		StageCount: len(stages),
-		Stages:     stagesToSummaryDTO(stages),
-		CreatedAt:  aggregate.CreatedAt(),
-		UpdatedAt:  aggregate.UpdatedAt(),
+		ID:            aggregate.ID().String(),
+		Name:          string(aggregate.Name()),
+		Status:        aggregate.Status(),
+		StageCount:    len(stages),
+		Stages:        stagesToSummaryDTO(stages),
+		CreatedBy:     aggregate.CreatedBy().String(),
+		ScheduledDate: aggregate.ScheduledDate(),
+		PublishedAt:   aggregate.PublishedAt(),
+		CreatedAt:     aggregate.CreatedAt(),
+		UpdatedAt:     aggregate.UpdatedAt(),
 	}
 }
 
@@ -291,13 +406,16 @@ func toDetailDTO(aggregate wod.WOD) WODDetailDTO {
 	}
 
 	return WODDetailDTO{
-		ID:          aggregate.ID().String(),
-		Name:        string(aggregate.Name()),
-		Description: string(aggregate.Description()),
-		Status:      aggregate.Status(),
-		Stages:      stageDTOs,
-		CreatedAt:   aggregate.CreatedAt(),
-		UpdatedAt:   aggregate.UpdatedAt(),
+		ID:            aggregate.ID().String(),
+		Name:          string(aggregate.Name()),
+		Description:   string(aggregate.Description()),
+		Status:        aggregate.Status(),
+		Stages:        stageDTOs,
+		CreatedBy:     aggregate.CreatedBy().String(),
+		ScheduledDate: aggregate.ScheduledDate(),
+		PublishedAt:   aggregate.PublishedAt(),
+		CreatedAt:     aggregate.CreatedAt(),
+		UpdatedAt:     aggregate.UpdatedAt(),
 	}
 }
 

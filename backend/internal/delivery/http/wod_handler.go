@@ -3,6 +3,7 @@ package http
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	appauth "github.com/rxwod/backend/internal/application/auth"
@@ -43,7 +44,13 @@ func (h *WODHandler) Create(c echo.Context) error {
 }
 
 func (h *WODHandler) List(c echo.Context) error {
-	items, err := h.service.List(c.Request().Context())
+	var statusFilter *domainwod.WODStatus
+	if status := c.QueryParam("status"); status != "" {
+		value := domainwod.WODStatus(status)
+		statusFilter = &value
+	}
+
+	items, err := h.service.List(c.Request().Context(), statusFilter)
 	if err != nil {
 		return mapError(c, err)
 	}
@@ -53,6 +60,36 @@ func (h *WODHandler) List(c echo.Context) error {
 		responses = append(responses, toSummaryResponse(item))
 	}
 	return c.JSON(http.StatusOK, responses)
+}
+
+func (h *WODHandler) Calendar(c echo.Context) error {
+	from, err := parseRequiredDate(c.QueryParam("from"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid from date"})
+	}
+	to, err := parseRequiredDate(c.QueryParam("to"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid to date"})
+	}
+
+	days, err := h.service.Calendar(c.Request().Context(), from, to)
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, toCalendarResponses(days))
+}
+
+func (h *WODHandler) Publish(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id is required"})
+	}
+
+	result, err := h.service.Publish(c.Request().Context(), id)
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, toDetailResponse(result))
 }
 
 func (h *WODHandler) GetByID(c echo.Context) error {
@@ -97,6 +134,11 @@ func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
 		return appwod.CreateWODCommand{}, domainwod.ErrStageRequired
 	}
 
+	scheduledDate, err := parseOptionalDate(req.ScheduledDate)
+	if err != nil {
+		return appwod.CreateWODCommand{}, err
+	}
+
 	stages := make([]appwod.StageInput, 0, len(req.Stages))
 	for _, stage := range req.Stages {
 		movements := make([]appwod.MovementInput, 0, len(stage.Movements))
@@ -131,10 +173,30 @@ func toCreateCommand(req CreateWODRequest) (appwod.CreateWODCommand, error) {
 	}
 
 	return appwod.CreateWODCommand{
-		Name:        req.Name,
-		Description: req.Description,
-		Stages:      stages,
+		Name:          req.Name,
+		Description:   req.Description,
+		ScheduledDate: scheduledDate,
+		Stages:        stages,
 	}, nil
+}
+
+func parseOptionalDate(value string) (*time.Time, error) {
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := parseRequiredDate(value)
+	if err != nil {
+		return nil, err
+	}
+	return &parsed, nil
+}
+
+func parseRequiredDate(value string) (time.Time, error) {
+	parsed, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.UTC), nil
 }
 
 func mapError(c echo.Context, err error) error {
@@ -181,6 +243,9 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidStageKind),
 		errors.Is(err, domainwod.ErrInvalidStagePosition),
 		errors.Is(err, domainwod.ErrNilConfig),
+		errors.Is(err, domainwod.ErrInvalidStatusTransition),
+		errors.Is(err, domainwod.ErrScheduledDateRequired),
+		errors.Is(err, domainwod.ErrPublishedWODNotEditable),
 		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound),

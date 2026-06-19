@@ -60,31 +60,51 @@ type StageSummaryResponse struct {
 }
 
 type CreateWODResponse struct {
-	ID         string                 `json:"id"`
-	Name       string                 `json:"name"`
-	Status     string                 `json:"status"`
-	StageCount int                    `json:"stageCount"`
-	Stages     []StageSummaryResponse `json:"stages"`
+	ID            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Status        string                 `json:"status"`
+	StageCount    int                    `json:"stageCount"`
+	Stages        []StageSummaryResponse `json:"stages"`
+	ScheduledDate string                 `json:"scheduledDate,omitempty"`
 }
 
 type WODSummaryResponse struct {
-	ID         string                 `json:"id"`
-	Name       string                 `json:"name"`
-	Status     string                 `json:"status"`
-	StageCount int                    `json:"stageCount"`
-	Stages     []StageSummaryResponse `json:"stages"`
-	CreatedAt  time.Time              `json:"createdAt"`
-	UpdatedAt  time.Time              `json:"updatedAt"`
+	ID            string                 `json:"id"`
+	Name          string                 `json:"name"`
+	Status        string                 `json:"status"`
+	StageCount    int                    `json:"stageCount"`
+	Stages        []StageSummaryResponse `json:"stages"`
+	CreatedBy     string                 `json:"createdBy"`
+	ScheduledDate string                 `json:"scheduledDate,omitempty"`
+	PublishedAt   *time.Time             `json:"publishedAt,omitempty"`
+	CreatedAt     time.Time              `json:"createdAt"`
+	UpdatedAt     time.Time              `json:"updatedAt"`
 }
 
 type WODDetailResponse struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	Status      string          `json:"status"`
-	Stages      []StageResponse `json:"stages"`
-	CreatedAt   time.Time       `json:"createdAt"`
-	UpdatedAt   time.Time       `json:"updatedAt"`
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	Description   string          `json:"description"`
+	Status        string          `json:"status"`
+	Stages        []StageResponse `json:"stages"`
+	CreatedBy     string          `json:"createdBy"`
+	ScheduledDate string          `json:"scheduledDate,omitempty"`
+	PublishedAt   *time.Time      `json:"publishedAt,omitempty"`
+	CreatedAt     time.Time       `json:"createdAt"`
+	UpdatedAt     time.Time       `json:"updatedAt"`
+}
+
+type CalendarPlanResponse struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
+type CalendarDayResponse struct {
+	Date           string                 `json:"date"`
+	PublishedCount int                    `json:"publishedCount"`
+	DraftCount     int                    `json:"draftCount"`
+	Plans          []CalendarPlanResponse `json:"plans"`
 }
 
 type StageResponse struct {
@@ -207,25 +227,36 @@ func toStageSummaryResponses(summaries []appwod.StageSummaryDTO) []StageSummaryR
 	return responses
 }
 
+func formatDate(value *time.Time) string {
+	if value == nil {
+		return ""
+	}
+	return value.UTC().Format("2006-01-02")
+}
+
 func toCreateResponse(dto appwod.CreateWODResultDTO) CreateWODResponse {
 	return CreateWODResponse{
-		ID:         dto.ID,
-		Name:       dto.Name,
-		Status:     string(dto.Status),
-		StageCount: dto.StageCount,
-		Stages:     toStageSummaryResponses(dto.Stages),
+		ID:            dto.ID,
+		Name:          dto.Name,
+		Status:        string(dto.Status),
+		StageCount:    dto.StageCount,
+		Stages:        toStageSummaryResponses(dto.Stages),
+		ScheduledDate: formatDate(dto.ScheduledDate),
 	}
 }
 
 func toSummaryResponse(dto appwod.WODSummaryDTO) WODSummaryResponse {
 	return WODSummaryResponse{
-		ID:         dto.ID,
-		Name:       dto.Name,
-		Status:     string(dto.Status),
-		StageCount: dto.StageCount,
-		Stages:     toStageSummaryResponses(dto.Stages),
-		CreatedAt:  dto.CreatedAt,
-		UpdatedAt:  dto.UpdatedAt,
+		ID:            dto.ID,
+		Name:          dto.Name,
+		Status:        string(dto.Status),
+		StageCount:    dto.StageCount,
+		Stages:        toStageSummaryResponses(dto.Stages),
+		CreatedBy:     dto.CreatedBy,
+		ScheduledDate: formatDate(dto.ScheduledDate),
+		PublishedAt:   dto.PublishedAt,
+		CreatedAt:     dto.CreatedAt,
+		UpdatedAt:     dto.UpdatedAt,
 	}
 }
 
@@ -272,12 +303,36 @@ func toDetailResponse(dto appwod.WODDetailDTO) WODDetailResponse {
 	}
 
 	return WODDetailResponse{
-		ID:          dto.ID,
-		Name:        dto.Name,
-		Description: dto.Description,
-		Status:      string(dto.Status),
-		Stages:      stages,
-		CreatedAt:   dto.CreatedAt,
-		UpdatedAt:   dto.UpdatedAt,
+		ID:            dto.ID,
+		Name:          dto.Name,
+		Description:   dto.Description,
+		Status:        string(dto.Status),
+		Stages:        stages,
+		CreatedBy:     dto.CreatedBy,
+		ScheduledDate: formatDate(dto.ScheduledDate),
+		PublishedAt:   dto.PublishedAt,
+		CreatedAt:     dto.CreatedAt,
+		UpdatedAt:     dto.UpdatedAt,
 	}
+}
+
+func toCalendarResponses(days []appwod.CalendarDayDTO) []CalendarDayResponse {
+	responses := make([]CalendarDayResponse, 0, len(days))
+	for _, day := range days {
+		plans := make([]CalendarPlanResponse, 0, len(day.Plans))
+		for _, plan := range day.Plans {
+			plans = append(plans, CalendarPlanResponse{
+				ID:     plan.ID,
+				Name:   plan.Name,
+				Status: string(plan.Status),
+			})
+		}
+		responses = append(responses, CalendarDayResponse{
+			Date:           day.Date,
+			PublishedCount: day.PublishedCount,
+			DraftCount:     day.DraftCount,
+			Plans:          plans,
+		})
+	}
+	return responses
 }

@@ -63,6 +63,32 @@ func (m *memoryRepo) List(_ context.Context, gymID gym.GymID) ([]domainwod.WOD, 
 	return items, nil
 }
 
+func (m *memoryRepo) ListCalendar(_ context.Context, gymID gym.GymID, from, to time.Time, includeDrafts bool) ([]CalendarEntry, error) {
+	items := make([]CalendarEntry, 0)
+	for _, aggregate := range m.items {
+		if aggregate.GymID() != gymID {
+			continue
+		}
+		scheduledDate := aggregate.ScheduledDate()
+		if scheduledDate == nil {
+			continue
+		}
+		if scheduledDate.Before(from) || scheduledDate.After(to) {
+			continue
+		}
+		if !includeDrafts && aggregate.Status() != domainwod.WODStatusPublished {
+			continue
+		}
+		items = append(items, CalendarEntry{
+			ID:            aggregate.ID().String(),
+			Name:          string(aggregate.Name()),
+			Status:        aggregate.Status(),
+			ScheduledDate: *scheduledDate,
+		})
+	}
+	return items, nil
+}
+
 func testContext() context.Context {
 	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
 		UserID: user.UserID("user-1"),
@@ -405,3 +431,137 @@ func TestServiceRejectsCrossGymRead(t *testing.T) {
 }
 
 func intPtr(v int) *int { return &v }
+
+func testContextForRole(role domainauthz.Role, userID user.UserID) context.Context {
+	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
+		UserID: userID,
+		GymID:  gym.GymID("gym-1"),
+		Role:   role,
+	})
+}
+
+func scheduledDate(year int, month time.Month, day int) *time.Time {
+	value := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	return &value
+}
+
+func TestServicePublishRequiresScheduledDate(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContext(), CreateWODCommand{
+		Name: "Draft Program",
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	_, err = service.Publish(testContext(), created.ID)
+	if !errors.Is(err, domainwod.ErrScheduledDateRequired) {
+		t.Fatalf("expected ErrScheduledDateRequired, got %v", err)
+	}
+}
+
+func TestServiceAthleteListExcludesDrafts(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContext(), CreateWODCommand{
+		Name:          "Draft Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+	if _, err := service.Publish(testContext(), created.ID); err != nil {
+		t.Fatalf("publish error: %v", err)
+	}
+
+	_, err = service.Create(testContext(), CreateWODCommand{
+		Name:          "Another Draft",
+		ScheduledDate: scheduledDate(2026, time.June, 21),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Air Squat"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create draft error: %v", err)
+	}
+
+	items, err := service.List(testContextForRole(domainauthz.RoleAthlete, user.UserID("athlete-1")), nil)
+	if err != nil {
+		t.Fatalf("list error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 published item for athlete, got %d", len(items))
+	}
+}
+
+func TestServiceCoachCannotUpdateAnotherCoachDraft(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1")), CreateWODCommand{
+		Name: "Coach One Draft",
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	_, err = service.Update(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-2")), created.ID, CreateWODCommand{
+		Name: "Stolen Draft",
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Air Squat"}},
+		}},
+	})
+	if !errors.Is(err, appauthz.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestServiceCalendarGroupsMultiplePlansPerDate(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	for _, name := range []string{"Morning", "Evening"} {
+		_, err := service.Create(testContext(), CreateWODCommand{
+			Name:          name,
+			ScheduledDate: scheduledDate(2026, time.June, 20),
+			Stages: []StageInput{{
+				Kind:      domainwod.StageWarmup,
+				Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+				Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+			}},
+		})
+		if err != nil {
+			t.Fatalf("create error: %v", err)
+		}
+	}
+
+	days, err := service.Calendar(testContext(), time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("calendar error: %v", err)
+	}
+	if len(days) != 1 || days[0].DraftCount != 2 {
+		t.Fatalf("expected one day with two drafts, got %+v", days)
+	}
+}
