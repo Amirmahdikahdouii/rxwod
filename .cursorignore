@@ -1,0 +1,28 @@
+# Ignore dependency folders (Crucial for performance)
+node_modules/
+bower_components/
+
+# Ignore build outputs and compiled code
+dist/
+build/
+.next/
+out/
+
+# Ignore media, assets, and large binary files
+*.mp4
+*.mov
+*.png
+*.jpg
+*.jpeg
+assets/large-videos/
+
+# Ignore logs and system files
+*.log
+.DS_Store
+.env
+.env.*
+
+# Ignore lockfiles if you don't want the AI reading thousands of package versions
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
