@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { createWOD, getWOD, updateWOD } from '@/features/wod/api/wodApi'
+import { createWOD, getWOD, publishWOD, updateWOD } from '@/features/wod/api/wodApi'
 import {
   defaultConfigForType,
   defaultMovement,
@@ -19,23 +19,43 @@ import type {
 import { defaultTypeForKind } from '@/features/wod/model/wodTypes'
 
 type WODFormMode = 'create' | 'edit'
+type SaveAction = 'draft' | 'publish' | null
 
 export function useWODForm(initialMode: WODFormMode = 'create') {
   const mode = ref<WODFormMode>(initialMode)
   const wodId = ref<string | null>(null)
   const name = ref('')
   const description = ref('')
+  const scheduledDate = ref('')
   const stages = ref<StageFormState[]>([defaultStage()])
   const loading = ref(false)
+  const savingAction = ref<SaveAction>(null)
   const initialLoading = ref(false)
   const error = ref<string | null>(null)
   const result = ref<CreateWODResponse | WODDetail | null>(null)
+  const lastAction = ref<SaveAction>(null)
 
   const payload = computed(() => ({
     name: name.value.trim(),
     description: description.value.trim(),
+    scheduledDate: scheduledDate.value || undefined,
     stages: stages.value.map(stageToPayload),
   }))
+
+  const isDirty = computed(() =>
+    Boolean(
+      name.value.trim() ||
+        description.value.trim() ||
+        scheduledDate.value ||
+        stages.value.some(
+          (stage) =>
+            stage.instructions.trim() ||
+            stage.movements.some(
+              (movement) => movement.name.trim() || movement.prescription?.trim() || movement.label?.trim(),
+            ),
+        ),
+    ),
+  )
 
   function addStage(kind: StageKind = 'METCON') {
     stages.value.push(defaultStage(kind))
@@ -151,8 +171,23 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
     mode.value = 'edit'
     wodId.value = detail.id
     name.value = next.name
-    description.value = next.description
+    description.value = detail.description
+    scheduledDate.value = detail.scheduledDate ?? ''
     stages.value = next.stages.length > 0 ? next.stages : [defaultStage()]
+    result.value = null
+    error.value = null
+  }
+
+  function applyDraftState(draft: {
+    name: string
+    description: string
+    scheduledDate: string
+    stages: StageFormState[]
+  }) {
+    name.value = draft.name
+    description.value = draft.description
+    scheduledDate.value = draft.scheduledDate
+    stages.value = draft.stages.length > 0 ? draft.stages : [defaultStage()]
     result.value = null
     error.value = null
   }
@@ -169,29 +204,75 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
 
     if (!response.ok) {
       error.value = response.error
-      return
+      return null
     }
 
     loadFromDetail(response.value)
+    return response.value
   }
 
-  async function submit() {
+  async function saveDraft() {
+    return persist('draft')
+  }
+
+  async function publishProgram() {
+    if (!scheduledDate.value) {
+      error.value = 'Program date is required before publishing.'
+      return false
+    }
+    return persist('publish')
+  }
+
+  async function persist(action: SaveAction) {
     loading.value = true
+    savingAction.value = action
     error.value = null
     result.value = null
+    lastAction.value = action
 
-    const response =
+    const saveResponse =
       mode.value === 'edit' && wodId.value
         ? await updateWOD(wodId.value, payload.value)
         : await createWOD(payload.value)
-    loading.value = false
 
-    if (!response.ok) {
-      error.value = response.error
-      return
+    if (!saveResponse.ok) {
+      loading.value = false
+      savingAction.value = null
+      error.value = saveResponse.error
+      return false
     }
 
-    result.value = response.value
+    if (action === 'publish') {
+      const targetId = mode.value === 'edit' && wodId.value ? wodId.value : saveResponse.value.id
+      const publishResponse = await publishWOD(targetId)
+      loading.value = false
+      savingAction.value = null
+
+      if (!publishResponse.ok) {
+        error.value = publishResponse.error
+        if (mode.value === 'create') {
+          mode.value = 'edit'
+          wodId.value = saveResponse.value.id
+        }
+        return false
+      }
+
+      result.value = publishResponse.value
+      if (mode.value === 'create') {
+        mode.value = 'edit'
+        wodId.value = publishResponse.value.id
+      }
+      return true
+    }
+
+    loading.value = false
+    savingAction.value = null
+    result.value = saveResponse.value
+    if (mode.value === 'create') {
+      mode.value = 'edit'
+      wodId.value = saveResponse.value.id
+    }
+    return true
   }
 
   return {
@@ -199,11 +280,15 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
     wodId,
     name,
     description,
+    scheduledDate,
     stages,
     loading,
+    savingAction,
     initialLoading,
     error,
     result,
+    lastAction,
+    isDirty,
     payload,
     addStage,
     removeStage,
@@ -218,7 +303,9 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
     removeMovement,
     updateMovement,
     loadFromDetail,
+    applyDraftState,
     initEdit,
-    submit,
+    saveDraft,
+    publishProgram,
   }
 }

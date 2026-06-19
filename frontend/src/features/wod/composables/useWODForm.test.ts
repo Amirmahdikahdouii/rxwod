@@ -49,6 +49,7 @@ describe('useWODForm', () => {
     expect(form.payload.value).toEqual({
       name: 'Monday Session',
       description: 'Full class plan',
+      scheduledDate: undefined,
       stages: [
         {
           kind: 'WARMUP',
@@ -113,6 +114,8 @@ describe('useWODForm', () => {
       name: 'Strength Day',
       description: 'Coach plan',
       status: 'DRAFT',
+      createdBy: 'coach-1',
+      scheduledDate: '2026-06-20',
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
       stages: [{
@@ -140,6 +143,7 @@ describe('useWODForm', () => {
     expect(form.mode.value).toBe('edit')
     expect(form.wodId.value).toBe('wod-1')
     expect(form.name.value).toBe('Strength Day')
+    expect(form.scheduledDate.value).toBe('2026-06-20')
     expect(form.stages.value[0].movements[0].sets).toBe(5)
   })
 

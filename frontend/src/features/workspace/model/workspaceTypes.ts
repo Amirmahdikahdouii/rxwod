@@ -43,8 +43,22 @@ export function canCreateWOD(role: WorkspaceRole | null): boolean {
   return role === 'owner' || role === 'coach'
 }
 
-export function canEditWOD(role: WorkspaceRole | null): boolean {
-  return role === 'owner'
+export function canEditWOD(
+  role: WorkspaceRole | null,
+  wod?: { createdBy: string; status: string },
+  userId?: string | null,
+): boolean {
+  if (role === 'owner') {
+    return true
+  }
+  if (role === 'coach' && wod && userId) {
+    return wod.createdBy === userId && wod.status === 'DRAFT'
+  }
+  return false
+}
+
+export function canPublishWOD(role: WorkspaceRole | null): boolean {
+  return role === 'owner' || role === 'coach'
 }
 
 export function canManageMembers(role: WorkspaceRole | null): boolean {

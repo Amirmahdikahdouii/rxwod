@@ -48,6 +48,7 @@ export interface StagePayload {
 export interface CreateWODPayload {
   name: string
   description: string
+  scheduledDate?: string
   stages: StagePayload[]
 }
 
@@ -64,6 +65,7 @@ export interface CreateWODResponse {
   status: WODStatus
   stageCount: number
   stages: StageSummary[]
+  scheduledDate?: string
 }
 
 export interface WODSummary {
@@ -72,6 +74,9 @@ export interface WODSummary {
   status: WODStatus
   stageCount: number
   stages: StageSummary[]
+  createdBy: string
+  scheduledDate?: string
+  publishedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -89,8 +94,24 @@ export interface WODDetail {
   description: string
   status: WODStatus
   stages: StageDetail[]
+  createdBy: string
+  scheduledDate?: string
+  publishedAt?: string
   createdAt: string
   updatedAt: string
+}
+
+export interface CalendarPlanSummary {
+  id: string
+  name: string
+  status: WODStatus
+}
+
+export interface CalendarDaySummary {
+  date: string
+  publishedCount: number
+  draftCount: number
+  plans: CalendarPlanSummary[]
 }
 
 export const WOD_TYPES: WODType[] = ['OPEN', 'AMRAP', 'FORTIME', 'TABATA', 'EMOM']

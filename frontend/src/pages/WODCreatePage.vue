@@ -2,11 +2,22 @@
 import ProgramOutlinePanel from '@/features/wod/components/ProgramOutlinePanel.vue'
 import StageListEditor from '@/features/wod/components/StageListEditor.vue'
 import { useSession } from '@/features/auth/composables/useSession'
+import {
+  clearStoredDraft,
+  draftStorageKey,
+  draftsMatch,
+  formatDraftAge,
+  hasMeaningfulDraft,
+  loadStoredDraft,
+  saveStoredDraft,
+  type StoredWODDraft,
+} from '@/features/wod/composables/useWODDraftStorage'
 import { useWODForm } from '@/features/wod/composables/useWODForm'
-import { canCreateWOD, canEditWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
+import type { WODDetail } from '@/features/wod/model/wodTypes'
+import { canCreateWOD, canEditWOD, canPublishWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
 import BaseInput from '@/shared/components/BaseInput.vue'
 import BaseTextarea from '@/shared/components/BaseTextarea.vue'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 const route = useRoute()
@@ -18,16 +29,25 @@ function routeWODId() {
 }
 
 const initialWODId = routeWODId()
+const loadedDetail = ref<WODDetail | null>(null)
+const pendingDraft = ref<StoredWODDraft | null>(null)
+const showRecoveryPrompt = ref(false)
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const {
   mode,
+  wodId,
   name,
   description,
+  scheduledDate,
   stages,
   loading,
+  savingAction,
   initialLoading,
   error,
   result,
+  lastAction,
+  isDirty,
   addStage,
   removeStage,
   moveStageUp,
@@ -40,20 +60,31 @@ const {
   addMovement,
   removeMovement,
   updateMovement,
+  applyDraftState,
   initEdit,
-  submit,
+  saveDraft,
+  publishProgram,
 } = useWODForm(initialWODId ? 'edit' : 'create')
+
+const storageKey = computed(() => {
+  const workspaceId = session.activeWorkspaceId.value
+  if (!workspaceId) {
+    return null
+  }
+  return draftStorageKey(workspaceId, initialWODId ?? wodId.value)
+})
 
 const successSummary = computed(() => {
   if (!result.value) {
     return ''
   }
   const stageCount = 'stageCount' in result.value ? result.value.stageCount : result.value.stages.length
-  const stageLabels = result.value.stages
-    .map((stage) => `${stage.kind}/${stage.type}`)
-    .join(' -> ')
-  const action = mode.value === 'edit' ? 'updated' : 'saved'
-  return `${result.value.name} ${action} with ${stageCount} stage(s): ${stageLabels}.`
+  const stageLabels = result.value.stages.map((stage) => `${stage.kind}/${stage.type}`).join(' -> ')
+  if (lastAction.value === 'publish') {
+    const dateLabel = scheduledDate.value || result.value.scheduledDate || 'the selected date'
+    return `${result.value.name} published for ${dateLabel} with ${stageCount} stage(s): ${stageLabels}. Athletes can now see it.`
+  }
+  return `${result.value.name} saved as draft with ${stageCount} stage(s): ${stageLabels}. Only coaches and owners can see it.`
 })
 
 const stageCountLabel = computed(() => `${stages.value.length} stage${stages.value.length === 1 ? '' : 's'}`)
@@ -63,21 +94,115 @@ const pageSubtitle = computed(() =>
     ? 'Update your class plan stages, scoring, and prescriptions.'
     : 'Build your class plan with instructions and free-text prescriptions.',
 )
-const submitLabel = computed(() => (mode.value === 'edit' ? 'Save Changes' : 'Save Program'))
 const isEditMode = computed(() => Boolean(initialWODId))
-const canUseForm = computed(() =>
-  isEditMode.value
-    ? canEditWOD(session.activeWorkspaceRole.value)
-    : canCreateWOD(session.activeWorkspaceRole.value),
-)
+const canUseForm = computed(() => {
+  if (isEditMode.value) {
+    if (!loadedDetail.value) {
+      return false
+    }
+    return canEditWOD(session.activeWorkspaceRole.value, loadedDetail.value, session.currentUser.value?.id)
+  }
+  return canCreateWOD(session.activeWorkspaceRole.value)
+})
+const canPublish = computed(() => canPublishWOD(session.activeWorkspaceRole.value))
 const roleLabel = computed(() =>
   session.activeWorkspaceRole.value ? ROLE_LABELS[session.activeWorkspaceRole.value] : 'Member',
 )
+const recoveryMessage = computed(() =>
+  pendingDraft.value
+    ? `You have an unfinished program from ${formatDraftAge(pendingDraft.value.savedAt)}. Continue where you left off?`
+    : '',
+)
+
+function currentDraftSnapshot(): StoredWODDraft {
+  return {
+    name: name.value,
+    description: description.value,
+    scheduledDate: scheduledDate.value,
+    stages: stages.value,
+    mode: mode.value,
+    wodId: wodId.value,
+    savedAt: new Date().toISOString(),
+  }
+}
+
+function queueAutosave() {
+  if (!canUseForm.value || !storageKey.value || !isDirty.value) {
+    return
+  }
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer)
+  }
+  autosaveTimer = setTimeout(() => {
+    if (storageKey.value) {
+      saveStoredDraft(storageKey.value, currentDraftSnapshot())
+    }
+  }, 2000)
+}
+
+function clearDraftStorage() {
+  if (storageKey.value) {
+    clearStoredDraft(storageKey.value)
+  }
+}
+
+function maybeOfferRecovery() {
+  if (!storageKey.value) {
+    return
+  }
+  const stored = loadStoredDraft(storageKey.value)
+  if (!stored || !hasMeaningfulDraft(stored)) {
+    return
+  }
+  if (draftsMatch(stored, currentDraftSnapshot())) {
+    return
+  }
+  pendingDraft.value = stored
+  showRecoveryPrompt.value = true
+}
+
+function continueDraftRecovery() {
+  if (!pendingDraft.value) {
+    return
+  }
+  applyDraftState(pendingDraft.value)
+  showRecoveryPrompt.value = false
+  pendingDraft.value = null
+}
+
+function dismissDraftRecovery() {
+  clearDraftStorage()
+  showRecoveryPrompt.value = false
+  pendingDraft.value = null
+}
+
+async function handleSaveDraft() {
+  const ok = await saveDraft()
+  if (ok) {
+    clearDraftStorage()
+  }
+}
+
+async function handlePublish() {
+  const ok = await publishProgram()
+  if (ok) {
+    clearDraftStorage()
+  }
+}
+
+watch([name, description, scheduledDate, stages], queueAutosave, { deep: true })
+
+watch(result, (value) => {
+  if (value && (lastAction.value === 'draft' || lastAction.value === 'publish')) {
+    clearDraftStorage()
+  }
+})
 
 onMounted(async () => {
   if (initialWODId) {
-    await initEdit(initialWODId)
+    loadedDetail.value = await initEdit(initialWODId)
   }
+  maybeOfferRecovery()
 })
 </script>
 
@@ -92,11 +217,19 @@ onMounted(async () => {
       </p>
     </header>
 
-    <div v-if="!canUseForm" class="card empty-state">
+    <div v-if="showRecoveryPrompt" class="confirmation-panel" role="alertdialog" aria-live="polite">
+      <p class="confirmation-panel__text">{{ recoveryMessage }}</p>
+      <div class="confirmation-panel__actions">
+        <button type="button" class="btn" @click="continueDraftRecovery">Continue editing</button>
+        <button type="button" class="btn secondary" @click="dismissDraftRecovery">Start fresh</button>
+      </div>
+    </div>
+
+    <div v-if="!canUseForm && !initialLoading" class="card empty-state">
       <h2 class="empty-state__title">This workspace is read-only for your role</h2>
       <p class="empty-state__text">
         {{ roleLabel }} access
-        {{ isEditMode ? 'cannot edit saved programs.' : 'cannot create programs.' }}
+        {{ isEditMode ? 'cannot edit this saved program.' : 'cannot create programs.' }}
         You can still review saved plans for this gym.
       </p>
       <RouterLink to="/wods" class="empty-state__link">View Programs</RouterLink>
@@ -106,7 +239,7 @@ onMounted(async () => {
 
     <div v-else class="create-layout">
       <div class="create-layout__main">
-        <form id="wod-create-form" class="card stack-lg" @submit.prevent="submit">
+        <form id="wod-create-form" class="card stack-lg" @submit.prevent="handlePublish">
           <section class="card-section stack">
             <div class="section-heading-row">
               <h2 class="section-title">Basics</h2>
@@ -119,6 +252,16 @@ onMounted(async () => {
               placeholder="Full class plan notes"
               :rows="3"
             />
+            <div class="date-field">
+              <label class="date-field__label" for="program-date">Program date</label>
+              <input
+                id="program-date"
+                v-model="scheduledDate"
+                class="date-field__input"
+                type="date"
+              />
+              <p class="date-field__hint">The date this class plan is scheduled for.</p>
+            </div>
           </section>
 
           <section class="card-section stack">
@@ -148,9 +291,24 @@ onMounted(async () => {
           <div class="program-outline__mobile-actions stack">
             <div v-if="error" class="alert alert--error" role="alert">{{ error }}</div>
             <div v-if="result" class="alert alert--success" role="status">{{ successSummary }}</div>
-            <button type="submit" class="btn-full" :disabled="loading">
-              {{ loading ? 'Saving...' : submitLabel }}
-            </button>
+            <div class="program-outline__actions-row">
+              <button
+                type="button"
+                class="btn secondary btn-full"
+                :disabled="loading"
+                @click="handleSaveDraft"
+              >
+                {{ savingAction === 'draft' ? 'Saving draft...' : 'Save as Draft' }}
+              </button>
+              <button
+                v-if="canPublish"
+                type="submit"
+                class="btn-full"
+                :disabled="loading"
+              >
+                {{ savingAction === 'publish' ? 'Publishing...' : 'Publish Program' }}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -159,11 +317,15 @@ onMounted(async () => {
         <ProgramOutlinePanel
           :name="name"
           :description="description"
+          :scheduled-date="scheduledDate"
           :stages="stages"
           :loading="loading"
+          :saving-action="savingAction"
           :error="error"
           :success-summary="successSummary"
-          :submit-label="submitLabel"
+          :can-publish="canPublish"
+          @save-draft="handleSaveDraft"
+          @publish="handlePublish"
         />
       </div>
     </div>
