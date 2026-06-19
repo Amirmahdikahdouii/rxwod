@@ -1,6 +1,7 @@
 # Ignore dependency folders (Crucial for performance)
 node_modules/
 bower_components/
+backend/vendor/
 
 # Ignore build outputs and compiled code
 dist/
