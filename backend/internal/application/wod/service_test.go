@@ -538,6 +538,135 @@ func TestServiceCoachCannotUpdateAnotherCoachDraft(t *testing.T) {
 	}
 }
 
+func TestServiceOwnerCanUpdatePublishedWOD(t *testing.T) {
+	now := time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{})
+
+	created, err := service.Create(testContext(), CreateWODCommand{
+		Name:          "Published Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	published, err := service.Publish(testContext(), created.ID)
+	if err != nil {
+		t.Fatalf("publish error: %v", err)
+	}
+	if published.PublishedAt == nil {
+		t.Fatal("expected publishedAt to be set")
+	}
+
+	updatedAt := now.Add(2 * time.Hour)
+	updateService := NewService(repo, fixedClock{now: updatedAt}, &sequentialIDGen{})
+	updated, err := updateService.Update(testContext(), created.ID, CreateWODCommand{
+		Name:          "Updated Published Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Air Squat"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("update error: %v", err)
+	}
+	if updated.Status != domainwod.WODStatusPublished {
+		t.Fatalf("expected published status, got %s", updated.Status)
+	}
+	if updated.Name != "Updated Published Program" {
+		t.Fatalf("unexpected name: %s", updated.Name)
+	}
+	if updated.PublishedAt == nil || !updated.PublishedAt.Equal(*published.PublishedAt) {
+		t.Fatalf("expected publishedAt to remain %v, got %v", published.PublishedAt, updated.PublishedAt)
+	}
+	if !updated.UpdatedAt.Equal(updatedAt) {
+		t.Fatalf("expected updatedAt %s, got %s", updatedAt, updated.UpdatedAt)
+	}
+}
+
+func TestServiceCoachCanUpdateOwnPublishedWOD(t *testing.T) {
+	now := time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{})
+
+	created, err := service.Create(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1")), CreateWODCommand{
+		Name:          "Coach Published Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+	if _, err := service.Publish(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1")), created.ID); err != nil {
+		t.Fatalf("publish error: %v", err)
+	}
+
+	updated, err := service.Update(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1")), created.ID, CreateWODCommand{
+		Name:          "Coach Updated Published",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Burpees"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("update error: %v", err)
+	}
+	if updated.Status != domainwod.WODStatusPublished {
+		t.Fatalf("expected published status, got %s", updated.Status)
+	}
+	if updated.Name != "Coach Updated Published" {
+		t.Fatalf("unexpected name: %s", updated.Name)
+	}
+}
+
+func TestServiceCoachCannotUpdateAnotherCoachPublishedWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1")), CreateWODCommand{
+		Name:          "Coach One Published",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+	if _, err := service.Publish(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1")), created.ID); err != nil {
+		t.Fatalf("publish error: %v", err)
+	}
+
+	_, err = service.Update(testContextForRole(domainauthz.RoleCoach, user.UserID("coach-2")), created.ID, CreateWODCommand{
+		Name:          "Stolen Published",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Air Squat"}},
+		}},
+	})
+	if !errors.Is(err, appauthz.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+}
+
 func TestServiceCalendarGroupsMultiplePlansPerDate(t *testing.T) {
 	repo := newMemoryRepo()
 	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})

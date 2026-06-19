@@ -245,7 +245,6 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrNilConfig),
 		errors.Is(err, domainwod.ErrInvalidStatusTransition),
 		errors.Is(err, domainwod.ErrScheduledDateRequired),
-		errors.Is(err, domainwod.ErrPublishedWODNotEditable),
 		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound),

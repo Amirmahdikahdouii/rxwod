@@ -77,9 +77,6 @@ func (s *Service) Update(ctx context.Context, id string, cmd CreateWODCommand) (
 	if err := ensureCanModifyWOD(principal, existing); err != nil {
 		return WODDetailDTO{}, err
 	}
-	if existing.Status() != wod.WODStatusDraft {
-		return WODDetailDTO{}, wod.ErrPublishedWODNotEditable
-	}
 
 	stages, err := s.buildStages(cmd.Stages)
 	if err != nil {
@@ -218,7 +215,7 @@ func ensureCanModifyWOD(principal appauthz.Principal, aggregate wod.WOD) error {
 	}
 	if principal.Role == domainauthz.RoleCoach &&
 		aggregate.CreatedBy() == principal.UserID &&
-		aggregate.Status() == wod.WODStatusDraft {
+		(aggregate.Status() == wod.WODStatusDraft || aggregate.Status() == wod.WODStatusPublished) {
 		return nil
 	}
 	return appauthz.ErrForbidden
