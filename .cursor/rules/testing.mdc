@@ -1,0 +1,42 @@
+---
+description: Testing patterns for Go backend and Vue frontend
+globs: "**/*.{go,ts,vue}"
+alwaysApply: false
+---
+
+# Testing
+
+## Backend (Go stdlib)
+
+| Layer | What to test | Location |
+|-------|--------------|----------|
+| Domain | Invariants, transitions, scoring | `domain/*/*_test.go` |
+| Application | Orchestration, authz rejection | `application/*/*_test.go` |
+| Delivery | HTTP status codes, binding | `delivery/http/*_test.go` |
+| Infrastructure | Mappers, JWT, config | `infrastructure/**/*_test.go` |
+
+**Patterns:**
+- Hand-rolled fakes (`memoryRepo`, `fakeGymRepo`) — no mock frameworks
+- Inject `clock.Clock` and `idgen.Generator` for determinism
+- Table-driven tests for permission matrices
+- Integration tests gate on `DATABASE_URL`: `t.Skip("DATABASE_URL not set")`
+- Assertions: `t.Fatalf`, `errors.Is` — no assert libraries
+
+```bash
+cd backend && go test ./...
+```
+
+## Frontend (Vitest + Vue Test Utils)
+
+- Colocate as `*.test.ts` next to source
+- Prioritize `model/` schemas and composables over snapshot tests
+- Composable tests: mount a null-render wrapper to invoke composable in `setup()`
+
+```bash
+cd frontend && npm run test:unit
+cd frontend && npm run typecheck
+```
+
+## When to Add Tests
+
+Add tests for new domain rules, authz paths, payload mappers, and HTTP error mapping. Skip trivial getter/setter coverage.

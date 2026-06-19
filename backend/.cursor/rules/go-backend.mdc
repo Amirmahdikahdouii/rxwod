@@ -1,0 +1,50 @@
+---
+description: Go backend DDD conventions for RXWOD API
+globs: backend/**/*.go
+alwaysApply: false
+---
+
+# Go Backend (DDD)
+
+## Layer Rules
+
+**Domain (`internal/domain/*`):**
+- No Echo, pgx, JSON tags, or DB tags
+- Aggregates with unexported fields; expose via accessor methods
+- Provide `New*` (creation) and `Reconstruct*` (persistence rehydration)
+- Validation invariants in `New*` / methods; errors as `var ErrX = errors.New(...)`
+
+**Application (`internal/application/*`):**
+- Services coordinate use cases; define repository interfaces here
+- Map domain → `*DTO`; accept `*Command` / `*Input`
+- Auth checks: `appauthz.Require(ctx, domainauthz.PermissionX)`
+- Wrap IO errors only: `fmt.Errorf("operation: %w", err)`
+
+**Delivery (`internal/delivery/http/`):**
+- Thin handlers: bind `*Request` → `*Command`, call service, map `*DTO` → `*Response`
+- Add new domain/app errors to `mapError()` in handler files
+- No business logic in handlers
+
+**Infrastructure (`internal/infrastructure/`):**
+- Implements application interfaces
+- DB mapping in `*_mapper.go` with private record types (`wodRecord`)
+- Multi-table writes use explicit transactions with `defer Rollback`
+
+## Auth Context
+
+- `Principal` lives in `context.Context` via `application/authz`
+- Pass `ctx` through all service and repository methods
+- Repositories always scope by `gymID` from principal
+
+## Testability
+
+Inject `platform/clock.Clock` and `platform/idgen.Generator` — never call `time.Now()` or `uuid.New()` in services.
+
+## Adding Features Checklist
+
+1. Domain types + errors + aggregate methods
+2. Application command/DTO + service method + authz
+3. Postgres repo + mapper
+4. HTTP handler + request/response types + `mapError` entry
+5. Router middleware group with `RequirePermission`
+6. Unit tests with hand-rolled fakes

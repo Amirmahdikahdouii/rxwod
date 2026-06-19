@@ -1,0 +1,59 @@
+---
+description: Commands, env vars, and API quick reference for RXWOD
+alwaysApply: false
+---
+
+# Quick Reference
+
+## Local Development
+
+```bash
+docker compose up -d postgres   # start DB
+make migrate-up                 # apply migrations
+cd backend && go run ./cmd/api  # API on :8080
+cd frontend && npm install && npm run dev  # UI on :5173
+```
+
+## Make Targets
+
+| Command | Purpose |
+|---------|---------|
+| `make test` | Backend + frontend unit tests |
+| `make migrate-up` | Apply all SQL migrations |
+| `make migrate-down` | Revert all migrations |
+| `make migrate-up-docker` | Migrations via Docker exec |
+
+## Environment Variables
+
+| Variable | Used by |
+|----------|---------|
+| `DATABASE_URL` | Backend Postgres connection |
+| `AUTH_JWT_SECRET` | JWT signing |
+| `AUTH_ACCESS_TOKEN_TTL` | Access token lifetime |
+| `AUTH_REFRESH_TOKEN_TTL` | Refresh token lifetime |
+| `HTTP_PORT` | API listen port |
+| `APP_ENV` | Runtime environment |
+| `VITE_API_BASE_URL` | Frontend API base URL |
+
+## Key API Routes
+
+```text
+POST /api/v1/auth/register|login|refresh
+GET  /api/v1/me
+POST /api/v1/gyms
+GET  /api/v1/gyms/:gymId/members
+POST /api/v1/wods          (requires auth + X-Gym-ID)
+GET  /api/v1/wods/:id
+PUT  /api/v1/wods/:id      (owner only)
+```
+
+## Important Paths
+
+| Path | Purpose |
+|------|---------|
+| `backend/cmd/api/main.go` | Composition root |
+| `backend/internal/delivery/http/router.go` | Route + middleware wiring |
+| `backend/internal/delivery/http/wod_handler.go` | HTTP error mapping |
+| `frontend/src/shared/api/httpClient.ts` | Fetch client + auth headers |
+| `frontend/src/features/wod/model/wodSchemas.ts` | Form ↔ API payload mapping |
+| `docs/EXTENDING_WOD_TYPES.md` | Guide for new workout types |

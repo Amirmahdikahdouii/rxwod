@@ -1,0 +1,57 @@
+---
+description: RXWOD project context — full-stack CrossFit WOD creator
+alwaysApply: true
+---
+
+# RXWOD — Project Context
+
+Full-stack CrossFit WOD creator: **Go API** (Echo, PostgreSQL, Viper) + **Vue 3 UI** (Composition API, Vite).
+
+## Repository Layout
+
+```text
+frontend/   Vue 3 UI (feature-sliced)
+backend/    Go API (Clean Architecture + DDD)
+db/         PostgreSQL migrations (numbered *.up.sql / *.down.sql)
+docs/       Architecture guides (e.g. EXTENDING_WOD_TYPES.md)
+```
+
+## Tech Stack
+
+| Layer | Stack |
+|-------|-------|
+| Backend | Go 1.22+, Echo, pgx, Viper, JWT auth |
+| Frontend | Vue 3.5, Vue Router 4, TypeScript (strict), Vite 6, Vitest |
+| Database | PostgreSQL via Docker Compose |
+| Auth | JWT access/refresh tokens + `X-Gym-ID` gym workspace header |
+
+## Domain Concepts
+
+- **WOD** — multi-stage program (WARMUP, STRENGTH, CORE, METCON, COOLDOWN)
+- **Workout types** — AMRAP, FORTIME, TABATA, EMOM, OPEN
+- **Gyms** — multi-tenant workspaces with owner/coach/athlete roles
+
+## Quality Gates
+
+```bash
+make test                              # backend + frontend unit tests
+cd backend && go test ./...
+cd frontend && npm run typecheck && npm run test:unit && npm run build
+```
+
+## Rule Index
+
+- Architecture: `.cursor/rules/architecture.mdc`
+- Code style: `.cursor/rules/code-style.mdc`
+- Git workflow: `.cursor/rules/git-workflow.mdc`
+- Testing: `.cursor/rules/testing.mdc`
+- Security: `.cursor/rules/security.mdc`
+- Quick reference: `.cursor/quick-reference.mdc`
+- Backend (Go): `backend/.cursor/rules/go-backend.mdc`
+- Frontend (Vue): `frontend/.cursor/rules/vue-frontend.mdc`
+
+## Scope Discipline
+
+- Minimize diff scope; match existing patterns in the touched layer.
+- Do not add tests, docs, or abstractions unless requested or clearly needed.
+- Never commit secrets (`.env`, JWT secrets, credentials).

@@ -1,0 +1,56 @@
+---
+description: Vue 3 + TypeScript frontend conventions for RXWOD
+globs: frontend/**/*.{ts,vue}
+alwaysApply: false
+---
+
+# Vue 3 Frontend
+
+## Feature Structure
+
+```text
+features/{name}/
+  api/          Thin httpClient wrappers (one function per endpoint)
+  composables/  State + orchestration (return Result<T>)
+  model/        Types, schemas, pure domain helpers
+  components/   Feature UI (presentational)
+pages/          Route views — thin orchestrators only
+shared/         httpClient, Base* inputs, utilities
+```
+
+## Component Patterns
+
+- Always `<script setup lang="ts">` — no Options API
+- Typed `defineProps` / `defineEmits`; emit events up, never mutate props
+- Shared form components use `modelValue` + `update:modelValue`
+- Reuse `BaseInput`, `BaseTextarea`, `BaseNumberInput`, `BaseSelect`
+
+## State & API
+
+- Cross-route state: module-level singleton composables (see `useSession`)
+- HTTP only via `shared/api/httpClient.ts` — feature `api/` modules are thin wrappers
+- Configure auth once: `httpClient.configure({ tokenProvider, workspaceProvider })`
+- Gym-scoped calls: `{ auth: true, workspace: true }`
+
+## Data Mapping
+
+- UI form types in `model/wodTypes.ts` (discriminated unions for config)
+- API ↔ form mapping in `model/wodSchemas.ts` (`detailToFormState`, `stageToPayload`)
+- Permission checks as pure functions: `canCreateWOD()`, `canEditWOD()`
+
+## Styling
+
+- **No** `<style scoped>` blocks — global CSS in `src/styles/` + `style.css`
+- Use CSS custom properties from `tokens.css`; theme via `[data-theme='light'|'dark']`
+- Badge/class mapping in TS (`wodTheme.ts`) → CSS classes like `badge-amrap`
+
+## TypeScript
+
+- Strict mode; `@/` imports; `import type` for types
+- Use `Result<T>` — check `.ok` before accessing `.value`
+- No `any`; prefer discriminated unions over loose objects
+
+## Router
+
+- Guards in `app/router.ts` using `useSession()` — no inline fetch in guards
+- Pages handle loading/error UI; composables return `Result<T>`

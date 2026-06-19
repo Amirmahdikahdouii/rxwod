@@ -1,0 +1,32 @@
+---
+description: Cross-cutting naming, error handling, and commit conventions
+alwaysApply: false
+---
+
+# Code Style
+
+## Naming
+
+| Area | Convention | Example |
+|------|------------|---------|
+| Go packages | Bounded context | `domain/wod`, `application/gym` |
+| Go types | PascalCase; typed IDs | `WODID`, `StageKind` |
+| Go errors | `Err*` sentinels | `ErrInvalidName`, `ErrForbidden` |
+| Go files | Role-based | `aggregate.go`, `service.go`, `*_handler.go` |
+| TS/Vue files | camelCase modules, PascalCase components | `wodSchemas.ts`, `StageEditor.vue` |
+| CSS classes | BEM-like | `.stage-editor__header`, `.alert--error` |
+
+## Error Handling
+
+**Backend:** Domain/app sentinel errors propagate unchanged. Wrap only at IO boundaries: `fmt.Errorf("save wod: %w", err)`. Map to HTTP in `delivery/http` via `errors.Is` — never leak internals on 500.
+
+**Frontend:** Return `Result<T>` from API/composables; check `.ok` before using `.value`.
+
+## Imports
+
+- Go: alias by layer (`appwod`, `domainwod`, `appauthz`)
+- TS: `@/` path alias; use `import type` for type-only imports
+
+## Documentation
+
+Code should be self-explanatory. Add comments only for non-obvious domain rules. Update `docs/` when changing extensibility contracts.

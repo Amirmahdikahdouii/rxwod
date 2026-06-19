@@ -1,0 +1,35 @@
+---
+description: Branch strategy and commit message conventions for RXWOD
+alwaysApply: false
+---
+
+# Git Workflow
+
+## Branch Strategy
+
+Trunk-based on `master`. Use short-lived feature branches when needed.
+
+## Commit Messages
+
+Prefer Conventional Commits (already used in recent history):
+
+```text
+feat: add gym workspace filtering to WOD list
+fix: reject invalid stage transitions on update
+chore: extract config models into a separated file
+docs: update EXTENDING_WOD_TYPES guide
+test: cover authz permission matrix edge cases
+```
+
+Use `feat:` for new behavior, `fix:` for bugs, `chore:` for tooling/config, `test:` for test-only changes.
+
+## Migrations
+
+- Numbered files in `db/migrations/` with paired `.up.sql` / `.down.sql`
+- Apply locally: `make migrate-up` (requires running Postgres)
+- Docker variant: `make migrate-up-docker`
+
+## Pull Requests
+
+- Run quality gates before opening: `make test`, frontend typecheck + build
+- Keep PRs focused; split frontend/backend changes when they are independently reviewable

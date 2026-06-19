@@ -1,0 +1,42 @@
+---
+description: Full-stack architecture and layer boundaries for RXWOD
+alwaysApply: false
+---
+
+# Architecture
+
+## Split Layout
+
+Frontend and backend are separate apps sharing a REST API at `/api/v1/`. Database schema lives in `db/migrations/`; backend wiring in `backend/cmd/api/main.go`.
+
+## Backend Layers (`backend/internal/`)
+
+```text
+domain/         Pure business rules — no Echo, pgx, JSON/DB tags
+application/    Use cases, port interfaces, DTOs, commands
+delivery/http/  Echo handlers, middleware, HTTP request/response types
+infrastructure/ Postgres repos, JWT, bcrypt, Viper config
+platform/       Cross-cutting abstractions (clock, idgen)
+```
+
+**Dependency flow:** `delivery` → `application` → `domain`; `infrastructure` implements `application` interfaces.
+
+## Frontend Layers (`frontend/src/`)
+
+```text
+pages/          Thin route views — compose composables + components
+features/       auth, wod, workspace — each with api/, composables/, model/
+shared/         httpClient, Base* form components, utilities
+app/            App shell + router
+styles/         Global CSS tokens (no component-scoped styles)
+```
+
+## Multi-Tenancy & Auth
+
+- Authenticated requests: `Authorization: Bearer <accessToken>`
+- Gym-scoped requests: also send `X-Gym-ID: <gymId>`
+- RBAC enforced in both HTTP middleware and application services
+
+## Extending the Domain
+
+Follow `docs/EXTENDING_WOD_TYPES.md` — domain config interface → application DTOs → postgres mapper → HTTP handler → frontend schemas.
