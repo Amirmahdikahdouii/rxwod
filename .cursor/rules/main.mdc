@@ -39,17 +39,6 @@ cd backend && go test ./...
 cd frontend && npm run typecheck && npm run test:unit && npm run build
 ```
 
-## Rule Index
-
-- Architecture: `.cursor/rules/architecture.mdc`
-- Code style: `.cursor/rules/code-style.mdc`
-- Git workflow: `.cursor/rules/git-workflow.mdc`
-- Testing: `.cursor/rules/testing.mdc`
-- Security: `.cursor/rules/security.mdc`
-- Quick reference: `.cursor/quick-reference.mdc`
-- Backend (Go): `backend/.cursor/rules/go-backend.mdc`
-- Frontend (Vue): `frontend/.cursor/rules/vue-frontend.mdc`
-
 ## Scope Discipline
 
 - Minimize diff scope; match existing patterns in the touched layer.
