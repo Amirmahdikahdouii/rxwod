@@ -33,6 +33,8 @@ type fakeGymRepo struct {
 	invitations []domaingym.Invitation
 	memberships []domaingym.Membership
 	memberDTOs  map[user.UserID]MemberDTO
+	users       map[user.UserID]user.User
+	tokenHashes map[string]string
 }
 
 func (f *fakeGymRepo) findMembership(gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error) {
@@ -96,6 +98,14 @@ func (f *fakeGymRepo) FindUserByEmail(context.Context, user.Email) (user.User, e
 	return user.User{}, ErrInviteeNotFound
 }
 
+func (f *fakeGymRepo) FindUserByID(_ context.Context, userID user.UserID) (user.User, error) {
+	found, ok := f.users[userID]
+	if !ok {
+		return user.User{}, ErrInviteeNotFound
+	}
+	return found, nil
+}
+
 func (f *fakeGymRepo) UpsertMembership(_ context.Context, membership domaingym.Membership) error {
 	for i, existing := range f.memberships {
 		if existing.GymID() == membership.GymID() && existing.UserID() == membership.UserID() {
@@ -107,7 +117,12 @@ func (f *fakeGymRepo) UpsertMembership(_ context.Context, membership domaingym.M
 	return nil
 }
 
-func (f *fakeGymRepo) SaveInvitation(context.Context, domaingym.Invitation) error {
+func (f *fakeGymRepo) SaveInvitation(_ context.Context, invitation domaingym.Invitation, tokenHash string) error {
+	if f.tokenHashes == nil {
+		f.tokenHashes = map[string]string{}
+	}
+	f.tokenHashes[invitation.ID().String()] = tokenHash
+	f.invitations = append(f.invitations, invitation)
 	return nil
 }
 
@@ -119,6 +134,18 @@ func (f *fakeGymRepo) FindPendingInvitationsByEmail(_ context.Context, email use
 		}
 	}
 	return matches, nil
+}
+
+func (f *fakeGymRepo) FindPendingInvitationByTokenHash(_ context.Context, gymID domaingym.GymID, tokenHash string) (domaingym.Invitation, error) {
+	for _, invitation := range f.invitations {
+		if invitation.GymID() != gymID || invitation.Status() != domaingym.InvitationStatusPending {
+			continue
+		}
+		if f.tokenHashes[invitation.ID().String()] == tokenHash {
+			return invitation, nil
+		}
+	}
+	return domaingym.Invitation{}, ErrInvitationNotFound
 }
 
 func (f *fakeGymRepo) AcceptInvitationWithMembership(_ context.Context, invitation domaingym.Invitation, membership domaingym.Membership) error {
@@ -156,6 +183,137 @@ func TestAcceptInvitesForEmailCreatesActiveMembership(t *testing.T) {
 	}
 	if repo.invitations[0].Status() != domaingym.InvitationStatusAccepted {
 		t.Fatalf("expected invitation accepted, got %s", repo.invitations[0].Status())
+	}
+}
+
+func acceptorContext() context.Context {
+	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
+		UserID: user.UserID("athlete-1"),
+	})
+}
+
+func TestAcceptInvitationSuccess(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	invitation, err := domaingym.NewInvitation(
+		domaingym.InvitationID("invite-1"),
+		domaingym.GymID("gym-1"),
+		user.Email("athlete@example.com"),
+		domainauthz.RoleAthlete,
+		user.UserID("owner-1"),
+		now.Add(time.Hour),
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new invitation: %v", err)
+	}
+	athlete, err := user.NewUser(user.UserID("athlete-1"), user.Email("athlete@example.com"), "hash", "Athlete", now)
+	if err != nil {
+		t.Fatalf("new user: %v", err)
+	}
+
+	repo := &fakeGymRepo{
+		invitations: []domaingym.Invitation{invitation},
+		tokenHashes: map[string]string{"invite-1": hashInvitationToken("secret-token")},
+		users:       map[user.UserID]user.User{"athlete-1": athlete},
+		memberDTOs: map[user.UserID]MemberDTO{
+			user.UserID("athlete-1"): {
+				UserID:      "athlete-1",
+				Email:       "athlete@example.com",
+				DisplayName: "Athlete",
+			},
+		},
+	}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{next: "membership-1"}, time.Hour)
+
+	result, err := service.AcceptInvitation(acceptorContext(), "gym-1", "secret-token")
+	if err != nil {
+		t.Fatalf("accept invitation: %v", err)
+	}
+	if result.Role != domainauthz.RoleAthlete || result.Status != domaingym.MembershipStatusActive {
+		t.Fatalf("unexpected member result: %+v", result)
+	}
+	if len(repo.memberships) != 1 || repo.memberships[0].Status() != domaingym.MembershipStatusActive {
+		t.Fatalf("expected one active membership, got %+v", repo.memberships)
+	}
+	if repo.invitations[0].Status() != domaingym.InvitationStatusAccepted {
+		t.Fatalf("expected invitation accepted, got %s", repo.invitations[0].Status())
+	}
+}
+
+func TestAcceptInvitationInvalidToken(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	athlete, err := user.NewUser(user.UserID("athlete-1"), user.Email("athlete@example.com"), "hash", "Athlete", now)
+	if err != nil {
+		t.Fatalf("new user: %v", err)
+	}
+	repo := &fakeGymRepo{users: map[user.UserID]user.User{"athlete-1": athlete}}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	_, err = service.AcceptInvitation(acceptorContext(), "gym-1", "unknown-token")
+	if !errors.Is(err, ErrInvitationNotFound) {
+		t.Fatalf("expected ErrInvitationNotFound, got %v", err)
+	}
+}
+
+func TestAcceptInvitationExpired(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	invitation, err := domaingym.NewInvitation(
+		domaingym.InvitationID("invite-1"),
+		domaingym.GymID("gym-1"),
+		user.Email("athlete@example.com"),
+		domainauthz.RoleAthlete,
+		user.UserID("owner-1"),
+		now.Add(-time.Hour),
+		now.Add(-2*time.Hour),
+	)
+	if err != nil {
+		t.Fatalf("new invitation: %v", err)
+	}
+	athlete, err := user.NewUser(user.UserID("athlete-1"), user.Email("athlete@example.com"), "hash", "Athlete", now)
+	if err != nil {
+		t.Fatalf("new user: %v", err)
+	}
+	repo := &fakeGymRepo{
+		invitations: []domaingym.Invitation{invitation},
+		tokenHashes: map[string]string{"invite-1": hashInvitationToken("secret-token")},
+		users:       map[user.UserID]user.User{"athlete-1": athlete},
+	}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	_, err = service.AcceptInvitation(acceptorContext(), "gym-1", "secret-token")
+	if !errors.Is(err, domaingym.ErrInvitationExpired) {
+		t.Fatalf("expected ErrInvitationExpired, got %v", err)
+	}
+}
+
+func TestAcceptInvitationEmailMismatch(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	invitation, err := domaingym.NewInvitation(
+		domaingym.InvitationID("invite-1"),
+		domaingym.GymID("gym-1"),
+		user.Email("someone-else@example.com"),
+		domainauthz.RoleAthlete,
+		user.UserID("owner-1"),
+		now.Add(time.Hour),
+		now,
+	)
+	if err != nil {
+		t.Fatalf("new invitation: %v", err)
+	}
+	athlete, err := user.NewUser(user.UserID("athlete-1"), user.Email("athlete@example.com"), "hash", "Athlete", now)
+	if err != nil {
+		t.Fatalf("new user: %v", err)
+	}
+	repo := &fakeGymRepo{
+		invitations: []domaingym.Invitation{invitation},
+		tokenHashes: map[string]string{"invite-1": hashInvitationToken("secret-token")},
+		users:       map[user.UserID]user.User{"athlete-1": athlete},
+	}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	_, err = service.AcceptInvitation(acceptorContext(), "gym-1", "secret-token")
+	if !errors.Is(err, ErrInvitationEmailMismatch) {
+		t.Fatalf("expected ErrInvitationEmailMismatch, got %v", err)
 	}
 }
 

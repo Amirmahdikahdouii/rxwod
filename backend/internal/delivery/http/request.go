@@ -23,6 +23,10 @@ type InviteMemberRequest struct {
 	Email string `json:"email"`
 }
 
+type AcceptInvitationRequest struct {
+	Token string `json:"token"`
+}
+
 type UpdateMemberRoleRequest struct {
 	Role string `json:"role"`
 }

@@ -76,6 +76,18 @@ func (h *GymHandler) InviteAthlete(c echo.Context) error {
 	return c.JSON(http.StatusCreated, toInvitationResponse(result))
 }
 
+func (h *GymHandler) AcceptInvitation(c echo.Context) error {
+	var req AcceptInvitationRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	result, err := h.service.AcceptInvitation(c.Request().Context(), c.Param("gymId"), req.Token)
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, toMemberResponse(result))
+}
+
 func (h *GymHandler) UpdateMemberRole(c echo.Context) error {
 	var req UpdateMemberRoleRequest
 	if err := c.Bind(&req); err != nil {

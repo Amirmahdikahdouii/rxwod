@@ -96,3 +96,13 @@ func (i Invitation) CreatedAt() time.Time {
 func (i Invitation) UpdatedAt() time.Time {
 	return i.updatedAt
 }
+
+func (i Invitation) Accept(now time.Time) (Invitation, error) {
+	if i.status != InvitationStatusPending {
+		return Invitation{}, ErrInvitationNotPending
+	}
+	if !i.expiresAt.After(now) {
+		return Invitation{}, ErrInvitationExpired
+	}
+	return ReconstructInvitation(i.id, i.gymID, i.email, i.role, InvitationStatusAccepted, i.invitedBy, i.expiresAt, i.createdAt, now)
+}

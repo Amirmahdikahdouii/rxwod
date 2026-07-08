@@ -210,6 +210,8 @@ func mapError(c echo.Context, err error) error {
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission denied"})
 	case errors.Is(err, appauthz.ErrGymMismatch):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
+	case errors.Is(err, appgym.ErrInvitationEmailMismatch):
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission denied"})
 	case errors.Is(err, appauth.ErrInvalidCredentials),
 		errors.Is(err, appauth.ErrRefreshTokenInvalid):
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
@@ -222,6 +224,8 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domaingym.ErrInvalidMembershipStatus),
 		errors.Is(err, domaingym.ErrInvalidInvitationStatus),
 		errors.Is(err, domaingym.ErrInvalidInvitationRole),
+		errors.Is(err, domaingym.ErrInvitationNotPending),
+		errors.Is(err, domaingym.ErrInvitationExpired),
 		errors.Is(err, appgym.ErrRoleNotAssignable),
 		errors.Is(err, appgym.ErrOwnerMembershipProtected),
 		errors.Is(err, domainwod.ErrInvalidTimeCap),
@@ -248,7 +252,8 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound),
-		errors.Is(err, appgym.ErrMemberNotFound):
+		errors.Is(err, appgym.ErrMemberNotFound),
+		errors.Is(err, appgym.ErrInvitationNotFound):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
 	default:
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})

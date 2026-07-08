@@ -29,6 +29,7 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	authenticated.GET("/me", authHandler.Me)
 	authenticated.POST("/gyms", gymHandler.Create)
 	authenticated.GET("/gyms", gymHandler.List)
+	authenticated.POST("/gyms/:gymId/members/accept", gymHandler.AcceptInvitation)
 
 	gymContext := authenticated.Group("", GymContextMiddleware(authorizer))
 	gymContext.GET("/gyms/:gymId", gymHandler.Get, RequirePermission(domainauthz.PermissionGymRead))

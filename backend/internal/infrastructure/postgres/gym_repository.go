@@ -190,6 +190,22 @@ func (r *GymRepository) FindUserByEmail(ctx context.Context, email user.Email) (
 	return aggregate, nil
 }
 
+func (r *GymRepository) FindUserByID(ctx context.Context, userID user.UserID) (user.User, error) {
+	row := r.db.pool.QueryRow(ctx, `
+		SELECT id, email, password_hash, display_name, created_at, updated_at
+		FROM users
+		WHERE id = $1
+	`, userID.String())
+	aggregate, err := scanUser(row)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return user.User{}, appgym.ErrInviteeNotFound
+		}
+		return user.User{}, err
+	}
+	return aggregate, nil
+}
+
 func (r *GymRepository) UpsertMembership(ctx context.Context, membership domaingym.Membership) error {
 	invitedBy := membership.InvitedBy()
 	_, err := r.db.pool.Exec(ctx, `
@@ -207,16 +223,17 @@ func (r *GymRepository) UpsertMembership(ctx context.Context, membership domaing
 	return nil
 }
 
-func (r *GymRepository) SaveInvitation(ctx context.Context, invitation domaingym.Invitation) error {
+func (r *GymRepository) SaveInvitation(ctx context.Context, invitation domaingym.Invitation, tokenHash string) error {
 	_, err := r.db.pool.Exec(ctx, `
-		INSERT INTO gym_invitations (id, gym_id, email, role, status, invited_by, expires_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO gym_invitations (id, gym_id, email, role, status, invited_by, expires_at, created_at, updated_at, token_hash)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		ON CONFLICT (gym_id, email, role) WHERE status = 'pending'
 		DO UPDATE SET
 			invited_by = EXCLUDED.invited_by,
 			expires_at = EXCLUDED.expires_at,
-			updated_at = EXCLUDED.updated_at
-	`, invitation.ID().String(), invitation.GymID().String(), invitation.Email(), invitation.Role(), invitation.Status(), invitation.InvitedBy().String(), invitation.ExpiresAt(), invitation.CreatedAt(), invitation.UpdatedAt())
+			updated_at = EXCLUDED.updated_at,
+			token_hash = EXCLUDED.token_hash
+	`, invitation.ID().String(), invitation.GymID().String(), invitation.Email(), invitation.Role(), invitation.Status(), invitation.InvitedBy().String(), invitation.ExpiresAt(), invitation.CreatedAt(), invitation.UpdatedAt(), tokenHash)
 	if err != nil {
 		return fmt.Errorf("save gym invitation: %w", err)
 	}
@@ -247,6 +264,22 @@ func (r *GymRepository) FindPendingInvitationsByEmail(ctx context.Context, email
 		return nil, fmt.Errorf("iterate invitations: %w", err)
 	}
 	return invitations, nil
+}
+
+func (r *GymRepository) FindPendingInvitationByTokenHash(ctx context.Context, gymID domaingym.GymID, tokenHash string) (domaingym.Invitation, error) {
+	row := r.db.pool.QueryRow(ctx, `
+		SELECT id, gym_id, email, role, status, invited_by, expires_at, created_at, updated_at
+		FROM gym_invitations
+		WHERE gym_id = $1 AND token_hash = $2 AND status = 'pending'
+	`, gymID.String(), tokenHash)
+	invitation, err := scanInvitation(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domaingym.Invitation{}, appgym.ErrInvitationNotFound
+		}
+		return domaingym.Invitation{}, err
+	}
+	return invitation, nil
 }
 
 func (r *GymRepository) AcceptInvitationWithMembership(ctx context.Context, invitation domaingym.Invitation, membership domaingym.Membership) error {

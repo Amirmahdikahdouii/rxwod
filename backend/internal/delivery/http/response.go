@@ -50,6 +50,7 @@ type InvitationResponse struct {
 	GymID string `json:"gymId"`
 	Email string `json:"email"`
 	Role  string `json:"role"`
+	Token string `json:"token,omitempty"`
 }
 
 type StageSummaryResponse struct {
@@ -211,6 +212,7 @@ func toInvitationResponse(dto appgym.InvitationDTO) InvitationResponse {
 		GymID: dto.GymID,
 		Email: dto.Email,
 		Role:  string(dto.Role),
+		Token: dto.Token,
 	}
 }
 

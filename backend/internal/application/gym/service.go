@@ -2,6 +2,8 @@ package gym
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -160,40 +162,60 @@ func (s *Service) AcceptInvitesForEmail(ctx context.Context, email user.Email, u
 	}
 	now := s.clock.Now()
 	for _, invitation := range invitations {
-		if !invitation.ExpiresAt().After(now) {
-			continue
-		}
-		membership, err := domaingym.NewMembership(
-			domaingym.MembershipID(s.idgen.NewID()),
-			invitation.GymID(),
-			userID,
-			invitation.Role(),
-			domaingym.MembershipStatusActive,
-			userIDPtr(invitation.InvitedBy()),
-			now,
-		)
-		if err != nil {
+		if _, err := s.acceptInvitation(ctx, invitation, userID, now); err != nil {
+			if errors.Is(err, domaingym.ErrInvitationExpired) {
+				continue
+			}
 			return err
-		}
-		accepted, err := domaingym.ReconstructInvitation(
-			invitation.ID(),
-			invitation.GymID(),
-			invitation.Email(),
-			invitation.Role(),
-			domaingym.InvitationStatusAccepted,
-			invitation.InvitedBy(),
-			invitation.ExpiresAt(),
-			invitation.CreatedAt(),
-			now,
-		)
-		if err != nil {
-			return err
-		}
-		if err := s.repo.AcceptInvitationWithMembership(ctx, accepted, membership); err != nil {
-			return fmt.Errorf("accept invitation: %w", err)
 		}
 	}
 	return nil
+}
+
+func (s *Service) AcceptInvitation(ctx context.Context, gymID string, token string) (MemberDTO, error) {
+	userID, err := appauthz.CurrentUserID(ctx)
+	if err != nil {
+		return MemberDTO{}, err
+	}
+	currentUser, err := s.repo.FindUserByID(ctx, userID)
+	if err != nil {
+		return MemberDTO{}, err
+	}
+	invitation, err := s.repo.FindPendingInvitationByTokenHash(ctx, domaingym.GymID(gymID), hashInvitationToken(token))
+	if err != nil {
+		return MemberDTO{}, err
+	}
+	if invitation.Email() != currentUser.Email() {
+		return MemberDTO{}, ErrInvitationEmailMismatch
+	}
+	now := s.clock.Now()
+	if _, err := s.acceptInvitation(ctx, invitation, userID, now); err != nil {
+		return MemberDTO{}, err
+	}
+	return s.repo.FindMember(ctx, invitation.GymID(), userID)
+}
+
+func (s *Service) acceptInvitation(ctx context.Context, invitation domaingym.Invitation, userID user.UserID, now time.Time) (domaingym.Membership, error) {
+	accepted, err := invitation.Accept(now)
+	if err != nil {
+		return domaingym.Membership{}, err
+	}
+	membership, err := domaingym.NewMembership(
+		domaingym.MembershipID(s.idgen.NewID()),
+		accepted.GymID(),
+		userID,
+		accepted.Role(),
+		domaingym.MembershipStatusActive,
+		userIDPtr(accepted.InvitedBy()),
+		now,
+	)
+	if err != nil {
+		return domaingym.Membership{}, err
+	}
+	if err := s.repo.AcceptInvitationWithMembership(ctx, accepted, membership); err != nil {
+		return domaingym.Membership{}, fmt.Errorf("accept invitation: %w", err)
+	}
+	return membership, nil
 }
 
 func (s *Service) invite(ctx context.Context, gymID string, cmd InviteCommand, permission domainauthz.Permission) (InvitationDTO, error) {
@@ -223,28 +245,8 @@ func (s *Service) invite(ctx context.Context, gymID string, cmd InviteCommand, p
 		return InvitationDTO{}, err
 	}
 
-	existingUser, findErr := s.repo.FindUserByEmail(ctx, email)
-	if findErr == nil {
-		membership, err := domaingym.NewMembership(
-			domaingym.MembershipID(s.idgen.NewID()),
-			principal.GymID,
-			existingUser.ID(),
-			cmd.Role,
-			domaingym.MembershipStatusActive,
-			&principal.UserID,
-			now,
-		)
-		if err != nil {
-			return InvitationDTO{}, err
-		}
-		if err := s.repo.UpsertMembership(ctx, membership); err != nil {
-			return InvitationDTO{}, fmt.Errorf("upsert membership: %w", err)
-		}
-	} else if !errors.Is(findErr, ErrInviteeNotFound) {
-		return InvitationDTO{}, fmt.Errorf("find invitee: %w", findErr)
-	}
-
-	if err := s.repo.SaveInvitation(ctx, invitation); err != nil {
+	token := s.idgen.NewID()
+	if err := s.repo.SaveInvitation(ctx, invitation, hashInvitationToken(token)); err != nil {
 		return InvitationDTO{}, fmt.Errorf("save invitation: %w", err)
 	}
 	return InvitationDTO{
@@ -252,7 +254,13 @@ func (s *Service) invite(ctx context.Context, gymID string, cmd InviteCommand, p
 		GymID: invitation.GymID().String(),
 		Email: string(invitation.Email()),
 		Role:  invitation.Role(),
+		Token: token,
 	}, nil
+}
+
+func hashInvitationToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func toGymDTO(aggregate domaingym.Gym) GymDTO {

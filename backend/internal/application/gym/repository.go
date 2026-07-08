@@ -18,9 +18,11 @@ type Repository interface {
 	ListMembers(ctx context.Context, gymID domaingym.GymID) ([]MemberDTO, error)
 	DeleteMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) error
 	FindUserByEmail(ctx context.Context, email user.Email) (user.User, error)
+	FindUserByID(ctx context.Context, userID user.UserID) (user.User, error)
 	UpsertMembership(ctx context.Context, membership domaingym.Membership) error
-	SaveInvitation(ctx context.Context, invitation domaingym.Invitation) error
+	SaveInvitation(ctx context.Context, invitation domaingym.Invitation, tokenHash string) error
 	FindPendingInvitationsByEmail(ctx context.Context, email user.Email) ([]domaingym.Invitation, error)
+	FindPendingInvitationByTokenHash(ctx context.Context, gymID domaingym.GymID, tokenHash string) (domaingym.Invitation, error)
 	AcceptInvitationWithMembership(ctx context.Context, invitation domaingym.Invitation, membership domaingym.Membership) error
 }
 
@@ -58,4 +60,5 @@ type InvitationDTO struct {
 	GymID string
 	Email string
 	Role  domainauthz.Role
+	Token string
 }
