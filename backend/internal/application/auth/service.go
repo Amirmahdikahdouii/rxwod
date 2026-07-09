@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -91,6 +92,7 @@ func (s *Service) Register(ctx context.Context, cmd RegisterCommand) (TokenDTO, 
 	if err := s.users.Save(ctx, aggregate); err != nil {
 		return TokenDTO{}, fmt.Errorf("save user: %w", err)
 	}
+	slog.Info("user registered", "event", "auth.user_registered", "userId", aggregate.ID().String())
 	if s.invites != nil {
 		if err := s.invites.AcceptInvitesForEmail(ctx, email, aggregate.ID()); err != nil {
 			return TokenDTO{}, fmt.Errorf("accept invitations: %w", err)
@@ -106,9 +108,11 @@ func (s *Service) Login(ctx context.Context, cmd LoginCommand) (TokenDTO, error)
 	email := user.NormalizeEmail(cmd.Email)
 	aggregate, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
+		slog.Warn("login failed", "event", "auth.login_failed", "email", email)
 		return TokenDTO{}, ErrInvalidCredentials
 	}
 	if err := s.hasher.Verify(cmd.Password, string(aggregate.PasswordHash())); err != nil {
+		slog.Warn("login failed", "event", "auth.login_failed", "email", email)
 		return TokenDTO{}, ErrInvalidCredentials
 	}
 	return s.issueTokens(ctx, aggregate.ID(), s.clock.Now())
@@ -189,6 +193,7 @@ func (s *Service) RequestPasswordReset(ctx context.Context, email string) error 
 	if err := s.email.SendPasswordReset(ctx, string(aggregate.Email()), resetURL); err != nil {
 		return fmt.Errorf("send password reset email: %w", err)
 	}
+	slog.Info("password reset requested", "event", "auth.password_reset_requested", "userId", aggregate.ID().String())
 	return nil
 }
 
@@ -237,6 +242,7 @@ func (s *Service) ResetPassword(ctx context.Context, token, password string) err
 	if err := s.refreshTokens.RevokeAllForUser(ctx, stored.UserID, now); err != nil {
 		return fmt.Errorf("revoke refresh tokens: %w", err)
 	}
+	slog.Info("password reset completed", "event", "auth.password_reset_completed", "userId", stored.UserID.String())
 	return nil
 }
 
@@ -268,6 +274,7 @@ func (s *Service) VerifyEmail(ctx context.Context, token string) error {
 	if err := s.emailVerifications.MarkUsed(ctx, stored.ID, now); err != nil {
 		return fmt.Errorf("mark verification token used: %w", err)
 	}
+	slog.Info("email verified", "event", "auth.email_verified", "userId", updated.ID().String())
 	return nil
 }
 

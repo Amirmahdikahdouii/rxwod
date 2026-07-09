@@ -2,7 +2,7 @@ package email
 
 import (
 	"context"
-	"log"
+	"log/slog"
 )
 
 type LogSender struct{}
@@ -12,11 +12,11 @@ func NewLogSender() LogSender {
 }
 
 func (LogSender) SendPasswordReset(_ context.Context, toEmail, resetURL string) error {
-	log.Printf("password reset for %s: %s", toEmail, resetURL)
+	slog.Info("password reset email sent", "event", "email.password_reset_sent", "toEmail", toEmail, "resetURL", resetURL)
 	return nil
 }
 
 func (LogSender) SendEmailVerification(_ context.Context, toEmail, verifyURL string) error {
-	log.Printf("email verification for %s: %s", toEmail, verifyURL)
+	slog.Info("email verification sent", "event", "email.verification_sent", "toEmail", toEmail, "verifyURL", verifyURL)
 	return nil
 }
