@@ -10,9 +10,11 @@ import {
 } from '@/features/workspace/api/workspaceApi'
 import type { InvitationResponse, MemberResponse } from '@/features/workspace/model/workspaceTypes'
 import { canManageMembers } from '@/features/workspace/model/workspaceTypes'
+import type { PaginationMeta } from '@/shared/model/paginationTypes'
 import { err, ok, type Result } from '@/shared/utils/result'
 
 const members = ref<MemberResponse[]>([])
+const membersMeta = ref<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 })
 const loadingMembers = ref(false)
 const updatingMemberId = ref<string | null>(null)
 const removingMemberId = ref<string | null>(null)
@@ -45,7 +47,7 @@ export function useWorkspaces() {
   const session = useSession()
   const canManageActiveWorkspace = computed(() => canManageMembers(session.activeWorkspaceRole.value))
 
-  async function refreshMembers(): Promise<Result<MemberResponse[]>> {
+  async function refreshMembers(page = membersMeta.value.page): Promise<Result<MemberResponse[]>> {
     const workspaceID = session.activeWorkspaceId.value
     if (!workspaceID) {
       return err('Choose a workspace first')
@@ -53,7 +55,10 @@ export function useWorkspaces() {
 
     loadingMembers.value = true
     workspaceError.value = null
-    const response = await listMembersRequest(workspaceID)
+    const response = await listMembersRequest(workspaceID, {
+      page,
+      limit: membersMeta.value.limit,
+    })
     loadingMembers.value = false
 
     if (!response.ok) {
@@ -61,8 +66,9 @@ export function useWorkspaces() {
       return err(response.error)
     }
 
-    members.value = response.value
-    return ok(response.value)
+    members.value = response.value.data
+    membersMeta.value = response.value.meta
+    return ok(response.value.data)
   }
 
   async function createGym(name: string): Promise<Result<void>> {
@@ -175,6 +181,7 @@ export function useWorkspaces() {
 
   return {
     members,
+    membersMeta,
     loadingMembers,
     updatingMemberId,
     removingMemberId,

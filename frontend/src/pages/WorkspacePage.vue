@@ -10,6 +10,7 @@ import {
   ROLE_LABELS,
 } from '@/features/workspace/model/workspaceTypes'
 import BaseInput from '@/shared/components/BaseInput.vue'
+import BasePagination from '@/shared/components/BasePagination.vue'
 
 const session = useSession()
 const workspaces = useWorkspaces()
@@ -71,7 +72,7 @@ const canCreate = computed(() => canCreateWOD(session.activeWorkspaceRole.value)
 
 onMounted(async () => {
   if (canManage.value) {
-    await workspaces.refreshMembers()
+    await workspaces.refreshMembers(1)
   }
 })
 
@@ -79,7 +80,7 @@ watch(
   () => session.activeWorkspaceId.value,
   async () => {
     if (canManage.value) {
-      await workspaces.refreshMembers()
+      await workspaces.refreshMembers(1)
     }
   },
 )
@@ -179,7 +180,7 @@ watch(
       <article class="card stack">
         <div class="section-heading-row">
           <h2 class="section-title">Members</h2>
-          <button type="button" class="secondary compact-button" @click="workspaces.refreshMembers">
+          <button type="button" class="secondary compact-button" @click="workspaces.refreshMembers()">
             Refresh
           </button>
         </div>
@@ -203,6 +204,15 @@ watch(
             </div>
           </article>
         </div>
+
+        <BasePagination
+          :page="workspaces.membersMeta.value.page"
+          :total-pages="workspaces.membersMeta.value.totalPages"
+          :total="workspaces.membersMeta.value.total"
+          :limit="workspaces.membersMeta.value.limit"
+          :disabled="workspaces.loadingMembers.value"
+          @update:page="workspaces.refreshMembers"
+        />
       </article>
     </section>
   </div>
