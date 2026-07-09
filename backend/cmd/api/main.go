@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 	"github.com/rxwod/backend/internal/platform/clock"
 	"github.com/rxwod/backend/internal/platform/idgen"
+	"github.com/rxwod/backend/internal/platform/logger"
 )
 
 func main() {
@@ -29,12 +31,19 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 
+	appLogger, err := logger.Setup(cfg.LogLevel())
+	if err != nil {
+		log.Fatalf("setup logger: %v", err)
+	}
+	slog.SetDefault(appLogger)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	db, err := postgres.NewDB(ctx, cfg.DatabaseURL())
 	if err != nil {
-		log.Fatalf("connect database: %v", err)
+		slog.Error("connect database failed", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
@@ -73,9 +82,9 @@ func main() {
 
 	go func() {
 		address := fmt.Sprintf(":%d", cfg.HTTPPort())
-		log.Printf("starting api on %s", address)
+		slog.Info("starting api", "event", "app.starting", "address", address, "env", cfg.AppEnv())
 		if err := router.Start(address); err != nil {
-			log.Printf("server stopped: %v", err)
+			slog.Error("server stopped unexpectedly", "event", "app.server_stopped", "error", err)
 			cancel()
 		}
 	}()
@@ -87,6 +96,6 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	if err := router.Shutdown(shutdownCtx); err != nil {
-		log.Printf("shutdown error: %v", err)
+		slog.Error("shutdown error", "event", "app.shutdown_error", "error", err)
 	}
 }
