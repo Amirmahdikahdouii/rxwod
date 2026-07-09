@@ -90,15 +90,34 @@ func (s *Service) Get(ctx context.Context, gymID string) (GymDTO, error) {
 	return toGymDTO(aggregate), nil
 }
 
-func (s *Service) ListMembers(ctx context.Context, gymID string) ([]MemberDTO, error) {
+func (s *Service) ListMembers(ctx context.Context, gymID string, page, limit int) (PaginatedMembersDTO, error) {
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionMemberList)
 	if err != nil {
-		return nil, err
+		return PaginatedMembersDTO{}, err
 	}
 	if principal.GymID.String() != gymID {
-		return nil, appauthz.ErrGymMismatch
+		return PaginatedMembersDTO{}, appauthz.ErrGymMismatch
 	}
-	return s.repo.ListMembers(ctx, principal.GymID)
+
+	result, err := s.repo.ListMembers(ctx, principal.GymID, ListMembersFilter{Page: page, Limit: limit})
+	if err != nil {
+		return PaginatedMembersDTO{}, err
+	}
+
+	totalPages := 0
+	if result.Total > 0 && limit > 0 {
+		totalPages = (result.Total + limit - 1) / limit
+	}
+
+	return PaginatedMembersDTO{
+		Data: result.Items,
+		Meta: PaginationMetaDTO{
+			Page:       page,
+			Limit:      limit,
+			Total:      result.Total,
+			TotalPages: totalPages,
+		},
+	}, nil
 }
 
 func (s *Service) UpdateMemberRole(ctx context.Context, gymID string, userID string, role domainauthz.Role) (MemberDTO, error) {
