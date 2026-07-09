@@ -23,10 +23,11 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret        string `mapstructure:"jwtSecret"`
-	AccessTokenTTL   string `mapstructure:"accessTokenTTL"`
-	RefreshTokenTTL  string `mapstructure:"refreshTokenTTL"`
-	PasswordResetTTL string `mapstructure:"passwordResetTTL"`
+	JWTSecret            string `mapstructure:"jwtSecret"`
+	AccessTokenTTL       string `mapstructure:"accessTokenTTL"`
+	RefreshTokenTTL      string `mapstructure:"refreshTokenTTL"`
+	PasswordResetTTL     string `mapstructure:"passwordResetTTL"`
+	EmailVerificationTTL string `mapstructure:"emailVerificationTTL"`
 }
 
 func parseDuration(value string) time.Duration {

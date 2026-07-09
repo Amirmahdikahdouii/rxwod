@@ -176,7 +176,7 @@ func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID) 
 
 func (r *GymRepository) FindUserByEmail(ctx context.Context, email user.Email) (user.User, error) {
 	row := r.db.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, display_name, created_at, updated_at
+		SELECT id, email, password_hash, display_name, email_verified_at, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`, email)
@@ -192,7 +192,7 @@ func (r *GymRepository) FindUserByEmail(ctx context.Context, email user.Email) (
 
 func (r *GymRepository) FindUserByID(ctx context.Context, userID user.UserID) (user.User, error) {
 	row := r.db.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, display_name, created_at, updated_at
+		SELECT id, email, password_hash, display_name, email_verified_at, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`, userID.String())

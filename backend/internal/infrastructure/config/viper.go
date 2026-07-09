@@ -32,6 +32,7 @@ func load(configPaths ...string) (Config, error) {
 	mustBindEnv(v, "auth.accessTokenTTL", "AUTH_ACCESS_TOKEN_TTL")
 	mustBindEnv(v, "auth.refreshTokenTTL", "AUTH_REFRESH_TOKEN_TTL")
 	mustBindEnv(v, "auth.passwordResetTTL", "AUTH_PASSWORD_RESET_TTL")
+	mustBindEnv(v, "auth.emailVerificationTTL", "AUTH_EMAIL_VERIFICATION_TTL")
 
 	v.SetDefault("app.env", "development")
 	v.SetDefault("app.frontendURL", "http://localhost:5173")
@@ -41,6 +42,7 @@ func load(configPaths ...string) (Config, error) {
 	v.SetDefault("auth.accessTokenTTL", "15m")
 	v.SetDefault("auth.refreshTokenTTL", "168h")
 	v.SetDefault("auth.passwordResetTTL", "1h")
+	v.SetDefault("auth.emailVerificationTTL", "24h")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -102,6 +104,10 @@ func (c Config) Validate() error {
 		return fmt.Errorf("auth.passwordResetTTL must be a valid positive duration")
 	}
 
+	if c.EmailVerificationTTL() <= 0 {
+		return fmt.Errorf("auth.emailVerificationTTL must be a valid positive duration")
+	}
+
 	return nil
 }
 
@@ -135,4 +141,8 @@ func (c Config) RefreshTokenTTL() time.Duration {
 
 func (c Config) PasswordResetTTL() time.Duration {
 	return parseDuration(c.Auth.PasswordResetTTL)
+}
+
+func (c Config) EmailVerificationTTL() time.Duration {
+	return parseDuration(c.Auth.EmailVerificationTTL)
 }

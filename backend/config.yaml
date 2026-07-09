@@ -13,3 +13,4 @@ auth:
   accessTokenTTL: "15m"
   refreshTokenTTL: "168h"
   passwordResetTTL: "1h"
+  emailVerificationTTL: "24h"
