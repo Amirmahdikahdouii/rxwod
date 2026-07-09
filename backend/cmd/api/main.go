@@ -78,7 +78,7 @@ func main() {
 	)
 	authorizer := appauthz.NewAuthorizer(gymRepo)
 	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)
-	router := deliveryhttp.NewRouter(authService, gymService, wodService, authorizer)
+	router := deliveryhttp.NewRouter(authService, gymService, wodService, authorizer, cfg.AllowedOrigins())
 
 	go func() {
 		address := fmt.Sprintf(":%d", cfg.HTTPPort())

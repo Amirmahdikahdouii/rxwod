@@ -30,6 +30,10 @@ func TestLoadUsesDefaultsWhenConfigFileIsMissing(t *testing.T) {
 	if got, want := cfg.LogLevel(), "info"; got != want {
 		t.Fatalf("LogLevel() = %q, want %q", got, want)
 	}
+
+	if got, want := cfg.AllowedOrigins(), []string{"http://localhost:5173"}; len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("AllowedOrigins() = %v, want %v", got, want)
+	}
 }
 
 func TestLoadReadsYAMLConfigFile(t *testing.T) {
@@ -170,6 +174,7 @@ logging:
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("APP_ENV", "")
+	t.Setenv("APP_ALLOWED_ORIGINS", "")
 	t.Setenv("HTTP_PORT", "")
 	t.Setenv("DATABASE_URL", "")
 	t.Setenv("AUTH_JWT_SECRET", "")

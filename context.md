@@ -98,7 +98,6 @@ No inline `TODO`/`FIXME`/`HACK` comments exist anywhere in the codebase. Gaps id
 ## 7. Production Readiness Checklist
 
 **Security**
-- Hardcoded default JWT secret (`dev-secret-change-me` in `backend/config.yaml`) — needs a mandatory, validated override per environment.
 - `middleware.CORS()` used with no config — defaults to allowing all origins; must be locked to real frontend origin(s) per environment.
 - No rate limiting anywhere, especially `auth/login|register|refresh` — brute-force/credential-stuffing exposure.
 - No security headers middleware (HSTS/CSP/X-Frame-Options).

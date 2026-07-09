@@ -11,8 +11,9 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env         string `mapstructure:"env"`
-	FrontendURL string `mapstructure:"frontendURL"`
+	Env            string `mapstructure:"env"`
+	FrontendURL    string `mapstructure:"frontendURL"`
+	AllowedOrigins []string `mapstructure:"allowedOrigins"`
 }
 
 type LoggingConfig struct {

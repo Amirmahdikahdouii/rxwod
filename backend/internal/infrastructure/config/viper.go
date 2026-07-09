@@ -27,6 +27,7 @@ func load(configPaths ...string) (Config, error) {
 	v.AutomaticEnv()
 	mustBindEnv(v, "app.env", "APP_ENV")
 	mustBindEnv(v, "app.frontendURL", "APP_FRONTEND_URL")
+	mustBindEnv(v, "app.allowedOrigins", "APP_ALLOWED_ORIGINS")
 	mustBindEnv(v, "http.port", "HTTP_PORT")
 	mustBindEnv(v, "database.url", "DATABASE_URL")
 	mustBindEnv(v, "auth.jwtSecret", "AUTH_JWT_SECRET")
@@ -38,6 +39,7 @@ func load(configPaths ...string) (Config, error) {
 
 	v.SetDefault("app.env", "development")
 	v.SetDefault("app.frontendURL", "http://localhost:5173")
+	v.SetDefault("app.allowedOrigins", "http://localhost:5173")
 	v.SetDefault("http.port", 8080)
 	v.SetDefault("database.url", "postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable")
 	v.SetDefault("auth.jwtSecret", "dev-secret-change-me")
@@ -115,6 +117,19 @@ func (c Config) Validate() error {
 		return fmt.Errorf("logging.level must be one of info, warn, error: %w", err)
 	}
 
+	if len(c.AllowedOrigins()) == 0 {
+		return fmt.Errorf("app.allowedOrigins is required")
+	}
+
+	env := strings.ToLower(strings.TrimSpace(c.App.Env))
+	if env == "production" || env == "staging" {
+		for _, origin := range c.AllowedOrigins() {
+			if origin == "*" {
+				return fmt.Errorf("app.allowedOrigins must not contain wildcard in %s", env)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -124,6 +139,10 @@ func (c Config) AppEnv() string {
 
 func (c Config) FrontendURL() string {
 	return c.App.FrontendURL
+}
+
+func (c Config) AllowedOrigins() []string {
+	return c.App.AllowedOrigins
 }
 
 func (c Config) HTTPPort() int {

@@ -33,6 +33,7 @@ make migrate-up
 1. Run the API:
 
 ```bash
+export AUTH_JWT_SECRET=your-local-dev-secret
 cd backend && go run ./cmd/api
 ```
 
@@ -48,7 +49,8 @@ npm run dev
 
 Backend defaults live in [`backend/config.yaml`](backend/config.yaml). Environment
 variables from [`.env.example`](.env.example) can override matching YAML values
-when exported in the shell before starting the API.
+when exported in the shell before starting the API. `AUTH_JWT_SECRET` is required
+and has no default — the API will not start without it.
 
 ## API Endpoints
 

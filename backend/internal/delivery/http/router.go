@@ -10,11 +10,14 @@ import (
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 )
 
-func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer) *echo.Echo {
+func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer, allowedOrigins []string) *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.Use(middleware.CORS())
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: allowedOrigins,
+		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization, gymIDHeader},
+	}))
 
 	authHandler := NewAuthHandler(authService, gymService)
 	gymHandler := NewGymHandler(gymService)

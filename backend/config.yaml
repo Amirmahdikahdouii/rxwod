@@ -1,6 +1,7 @@
 app:
   env: development
   frontendURL: "http://localhost:5173"
+  allowedOrigins: "http://localhost:5173"
 
 http:
   port: 1324
