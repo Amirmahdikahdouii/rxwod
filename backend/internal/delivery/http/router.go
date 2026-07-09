@@ -45,6 +45,8 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymContext.GET("/wods/:id", wodHandler.GetByID, RequirePermission(domainauthz.PermissionWODRead))
 	gymContext.PUT("/wods/:id", wodHandler.Update, RequirePermission(domainauthz.PermissionWODUpdate))
 	gymContext.POST("/wods/:id/publish", wodHandler.Publish, RequirePermission(domainauthz.PermissionWODPublish))
+	gymContext.DELETE("/wods/:id", wodHandler.Delete, RequirePermission(domainauthz.PermissionWODDelete))
+	gymContext.POST("/wods/:id/archive", wodHandler.Archive, RequirePermission(domainauthz.PermissionWODDelete))
 
 	return e
 }
