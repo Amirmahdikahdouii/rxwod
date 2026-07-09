@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rxwod/backend/internal/application/authz"
 	"github.com/rxwod/backend/internal/domain/user"
 )
 
@@ -96,7 +97,8 @@ func (f *fakePasswordResets) tokensByID() map[string]PasswordResetToken {
 }
 
 type fakeEmailSender struct {
-	calls []emailCall
+	resetCalls       []emailCall
+	verificationCalls []verificationCall
 }
 
 type emailCall struct {
@@ -104,8 +106,55 @@ type emailCall struct {
 	resetURL string
 }
 
+type verificationCall struct {
+	email     string
+	verifyURL string
+}
+
 func (f *fakeEmailSender) SendPasswordReset(_ context.Context, toEmail, resetURL string) error {
-	f.calls = append(f.calls, emailCall{email: toEmail, resetURL: resetURL})
+	f.resetCalls = append(f.resetCalls, emailCall{email: toEmail, resetURL: resetURL})
+	return nil
+}
+
+func (f *fakeEmailSender) SendEmailVerification(_ context.Context, toEmail, verifyURL string) error {
+	f.verificationCalls = append(f.verificationCalls, verificationCall{email: toEmail, verifyURL: verifyURL})
+	return nil
+}
+
+type fakeEmailVerifications struct {
+	tokens   map[string]EmailVerificationToken
+	markedID string
+}
+
+func (f *fakeEmailVerifications) Save(_ context.Context, token EmailVerificationToken) error {
+	if f.tokens == nil {
+		f.tokens = make(map[string]EmailVerificationToken)
+	}
+	f.tokens[token.TokenHash] = token
+	return nil
+}
+
+func (f *fakeEmailVerifications) FindByHash(_ context.Context, tokenHash string) (EmailVerificationToken, error) {
+	token, ok := f.tokens[tokenHash]
+	if !ok {
+		return EmailVerificationToken{}, errors.New("not found")
+	}
+	return token, nil
+}
+
+func (fakeEmailVerifications) InvalidateUnusedForUser(context.Context, user.UserID, time.Time) error {
+	return nil
+}
+
+func (f *fakeEmailVerifications) MarkUsed(_ context.Context, id string, now time.Time) error {
+	f.markedID = id
+	for hash, token := range f.tokens {
+		if token.ID == id {
+			token.UsedAt = &now
+			f.tokens[hash] = token
+			break
+		}
+	}
 	return nil
 }
 
@@ -162,15 +211,19 @@ func testUser(t *testing.T, now time.Time) user.User {
 	return aggregate
 }
 
-func newTestService(t *testing.T, users *fakeUsers, resets *fakePasswordResets, refresh *fakeRefreshTokens, email *fakeEmailSender, hasher *fakeHasher, now time.Time, ids ...string) *Service {
+func newTestService(t *testing.T, users *fakeUsers, resets *fakePasswordResets, verifications *fakeEmailVerifications, refresh *fakeRefreshTokens, email *fakeEmailSender, hasher *fakeHasher, now time.Time, ids ...string) *Service {
 	t.Helper()
 	if len(ids) == 0 {
 		ids = []string{"reset-token", "reset-record"}
+	}
+	if verifications == nil {
+		verifications = &fakeEmailVerifications{}
 	}
 	return NewService(
 		users,
 		refresh,
 		resets,
+		verifications,
 		hasher,
 		fakeIssuer{},
 		nil,
@@ -179,6 +232,7 @@ func newTestService(t *testing.T, users *fakeUsers, resets *fakePasswordResets, 
 		&sequentialIDGen{ids: ids},
 		time.Hour,
 		"http://localhost:5173",
+		time.Hour,
 		time.Hour,
 	)
 }
@@ -189,7 +243,7 @@ func hashTestToken(token string) string {
 }
 
 func TestRegisterRejectsShortPassword(t *testing.T) {
-	service := newTestService(t, &fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}}, &fakePasswordResets{}, &fakeRefreshTokens{}, &fakeEmailSender{}, &fakeHasher{}, time.Now().UTC())
+	service := newTestService(t, &fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}}, &fakePasswordResets{}, &fakeEmailVerifications{}, &fakeRefreshTokens{}, &fakeEmailSender{}, &fakeHasher{}, time.Now().UTC())
 
 	_, err := service.Register(context.Background(), RegisterCommand{
 		Email:       "owner@example.com",
@@ -207,6 +261,7 @@ func TestRequestPasswordResetUnknownEmail(t *testing.T) {
 		t,
 		&fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}},
 		&fakePasswordResets{},
+		&fakeEmailVerifications{},
 		&fakeRefreshTokens{},
 		emailSender,
 		&fakeHasher{},
@@ -216,8 +271,8 @@ func TestRequestPasswordResetUnknownEmail(t *testing.T) {
 	if err := service.RequestPasswordReset(context.Background(), "missing@example.com"); err != nil {
 		t.Fatalf("RequestPasswordReset() error = %v, want nil", err)
 	}
-	if len(emailSender.calls) != 0 {
-		t.Fatalf("expected no email calls, got %d", len(emailSender.calls))
+	if len(emailSender.resetCalls) != 0 {
+		t.Fatalf("expected no email calls, got %d", len(emailSender.resetCalls))
 	}
 }
 
@@ -230,7 +285,7 @@ func TestRequestPasswordResetCreatesToken(t *testing.T) {
 	}
 	resets := &fakePasswordResets{}
 	emailSender := &fakeEmailSender{}
-	service := newTestService(t, users, resets, &fakeRefreshTokens{}, emailSender, &fakeHasher{}, now)
+	service := newTestService(t, users, resets, &fakeEmailVerifications{}, &fakeRefreshTokens{}, emailSender, &fakeHasher{}, now)
 
 	if err := service.RequestPasswordReset(context.Background(), string(aggregate.Email())); err != nil {
 		t.Fatalf("RequestPasswordReset() error = %v", err)
@@ -238,14 +293,14 @@ func TestRequestPasswordResetCreatesToken(t *testing.T) {
 	if len(resets.tokens) != 1 {
 		t.Fatalf("expected 1 reset token, got %d", len(resets.tokens))
 	}
-	if len(emailSender.calls) != 1 {
-		t.Fatalf("expected 1 email call, got %d", len(emailSender.calls))
+	if len(emailSender.resetCalls) != 1 {
+		t.Fatalf("expected 1 email call, got %d", len(emailSender.resetCalls))
 	}
-	if emailSender.calls[0].email != string(aggregate.Email()) {
-		t.Fatalf("email = %q, want %q", emailSender.calls[0].email, aggregate.Email())
+	if emailSender.resetCalls[0].email != string(aggregate.Email()) {
+		t.Fatalf("email = %q, want %q", emailSender.resetCalls[0].email, aggregate.Email())
 	}
-	if !strings.Contains(emailSender.calls[0].resetURL, "/reset-password/reset-token") {
-		t.Fatalf("reset URL = %q, want token path", emailSender.calls[0].resetURL)
+	if !strings.Contains(emailSender.resetCalls[0].resetURL, "/reset-password/reset-token") {
+		t.Fatalf("reset URL = %q, want token path", emailSender.resetCalls[0].resetURL)
 	}
 }
 
@@ -268,7 +323,7 @@ func TestResetPasswordUpdatesHash(t *testing.T) {
 		},
 	}
 	hasher := &fakeHasher{}
-	service := newTestService(t, users, resets, &fakeRefreshTokens{}, &fakeEmailSender{}, hasher, now)
+	service := newTestService(t, users, resets, &fakeEmailVerifications{}, &fakeRefreshTokens{}, &fakeEmailSender{}, hasher, now)
 
 	if err := service.ResetPassword(context.Background(), "reset-token", "new-password"); err != nil {
 		t.Fatalf("ResetPassword() error = %v", err)
@@ -290,6 +345,7 @@ func TestResetPasswordRejectsInvalidToken(t *testing.T) {
 		t,
 		&fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}},
 		&fakePasswordResets{},
+		&fakeEmailVerifications{},
 		&fakeRefreshTokens{},
 		&fakeEmailSender{},
 		&fakeHasher{},
@@ -308,6 +364,7 @@ func TestResetPasswordRejectsShortPassword(t *testing.T) {
 		t,
 		&fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}},
 		&fakePasswordResets{},
+		&fakeEmailVerifications{},
 		&fakeRefreshTokens{},
 		&fakeEmailSender{},
 		&fakeHasher{},
@@ -339,12 +396,150 @@ func TestResetPasswordRevokesRefreshTokens(t *testing.T) {
 		},
 	}
 	refresh := &fakeRefreshTokens{}
-	service := newTestService(t, users, resets, refresh, &fakeEmailSender{}, &fakeHasher{}, now)
+	service := newTestService(t, users, resets, &fakeEmailVerifications{}, refresh, &fakeEmailSender{}, &fakeHasher{}, now)
 
 	if err := service.ResetPassword(context.Background(), "reset-token", "new-password"); err != nil {
 		t.Fatalf("ResetPassword() error = %v", err)
 	}
 	if refresh.revokedUser != aggregate.ID() {
 		t.Fatalf("revoked user = %q, want %q", refresh.revokedUser, aggregate.ID())
+	}
+}
+
+func TestRegisterSendsVerificationEmail(t *testing.T) {
+	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	users := &fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}}
+	verifications := &fakeEmailVerifications{}
+	emailSender := &fakeEmailSender{}
+	service := newTestService(
+		t,
+		users,
+		&fakePasswordResets{},
+		verifications,
+		&fakeRefreshTokens{},
+		emailSender,
+		&fakeHasher{},
+		now,
+		"user-id", "verify-token", "verify-record", "refresh-token", "refresh-record",
+	)
+
+	_, err := service.Register(context.Background(), RegisterCommand{
+		Email:       "owner@example.com",
+		Password:    "password123",
+		DisplayName: "Owner",
+	})
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	if len(verifications.tokens) != 1 {
+		t.Fatalf("expected 1 verification token, got %d", len(verifications.tokens))
+	}
+	if len(emailSender.verificationCalls) != 1 {
+		t.Fatalf("expected 1 verification email, got %d", len(emailSender.verificationCalls))
+	}
+	if !strings.Contains(emailSender.verificationCalls[0].verifyURL, "/verify-email/verify-token") {
+		t.Fatalf("verify URL = %q, want token path", emailSender.verificationCalls[0].verifyURL)
+	}
+}
+
+func TestVerifyEmailMarksUserVerified(t *testing.T) {
+	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	aggregate := testUser(t, now)
+	users := &fakeUsers{
+		byEmail: map[user.Email]user.User{aggregate.Email(): aggregate},
+		byID:    map[user.UserID]user.User{aggregate.ID(): aggregate},
+	}
+	verifications := &fakeEmailVerifications{
+		tokens: map[string]EmailVerificationToken{
+			hashTestToken("verify-token"): {
+				ID:        "verify-record",
+				UserID:    aggregate.ID(),
+				TokenHash: hashTestToken("verify-token"),
+				ExpiresAt: now.Add(time.Hour),
+				CreatedAt: now,
+			},
+		},
+	}
+	service := newTestService(t, users, &fakePasswordResets{}, verifications, &fakeRefreshTokens{}, &fakeEmailSender{}, &fakeHasher{}, now)
+
+	if err := service.VerifyEmail(context.Background(), "verify-token"); err != nil {
+		t.Fatalf("VerifyEmail() error = %v", err)
+	}
+	if len(users.saved) != 1 || !users.saved[0].IsEmailVerified() {
+		t.Fatalf("expected verified user save")
+	}
+	if verifications.markedID != "verify-record" {
+		t.Fatalf("marked token id = %q, want verify-record", verifications.markedID)
+	}
+}
+
+func TestVerifyEmailRejectsInvalidToken(t *testing.T) {
+	now := time.Now().UTC()
+	service := newTestService(
+		t,
+		&fakeUsers{byEmail: map[user.Email]user.User{}, byID: map[user.UserID]user.User{}},
+		&fakePasswordResets{},
+		&fakeEmailVerifications{},
+		&fakeRefreshTokens{},
+		&fakeEmailSender{},
+		&fakeHasher{},
+		now,
+	)
+
+	err := service.VerifyEmail(context.Background(), "missing-token")
+	if !errors.Is(err, ErrVerificationTokenInvalid) {
+		t.Fatalf("expected ErrVerificationTokenInvalid, got %v", err)
+	}
+}
+
+func TestResendVerificationSkipsVerifiedUser(t *testing.T) {
+	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	aggregate := testUser(t, now).MarkEmailVerified(now)
+	users := &fakeUsers{
+		byEmail: map[user.Email]user.User{aggregate.Email(): aggregate},
+		byID:    map[user.UserID]user.User{aggregate.ID(): aggregate},
+	}
+	emailSender := &fakeEmailSender{}
+	service := newTestService(t, users, &fakePasswordResets{}, &fakeEmailVerifications{}, &fakeRefreshTokens{}, emailSender, &fakeHasher{}, now)
+
+	ctx := authz.WithPrincipal(context.Background(), authz.Principal{UserID: aggregate.ID()})
+	if err := service.ResendVerificationEmail(ctx); err != nil {
+		t.Fatalf("ResendVerificationEmail() error = %v", err)
+	}
+	if len(emailSender.verificationCalls) != 0 {
+		t.Fatalf("expected no verification email, got %d", len(emailSender.verificationCalls))
+	}
+}
+
+func TestResendVerificationSendsForUnverified(t *testing.T) {
+	now := time.Date(2026, 7, 9, 12, 0, 0, 0, time.UTC)
+	aggregate := testUser(t, now)
+	users := &fakeUsers{
+		byEmail: map[user.Email]user.User{aggregate.Email(): aggregate},
+		byID:    map[user.UserID]user.User{aggregate.ID(): aggregate},
+	}
+	verifications := &fakeEmailVerifications{}
+	emailSender := &fakeEmailSender{}
+	service := newTestService(
+		t,
+		users,
+		&fakePasswordResets{},
+		verifications,
+		&fakeRefreshTokens{},
+		emailSender,
+		&fakeHasher{},
+		now,
+		"verify-token", "verify-record",
+	)
+
+	ctx := authz.WithPrincipal(context.Background(), authz.Principal{UserID: aggregate.ID()})
+	if err := service.ResendVerificationEmail(ctx); err != nil {
+		t.Fatalf("ResendVerificationEmail() error = %v", err)
+	}
+	if len(verifications.tokens) != 1 {
+		t.Fatalf("expected 1 verification token, got %d", len(verifications.tokens))
+	}
+	if len(emailSender.verificationCalls) != 1 {
+		t.Fatalf("expected 1 verification email, got %d", len(emailSender.verificationCalls))
 	}
 }

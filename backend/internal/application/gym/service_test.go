@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	appauth "github.com/rxwod/backend/internal/application/auth"
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 	domaingym "github.com/rxwod/backend/internal/domain/gym"
@@ -27,6 +28,30 @@ func (s *sequentialIDGen) NewID() string {
 		s.next = "generated-id"
 	}
 	return s.next
+}
+
+type fakeAuthUsers struct {
+	byID map[user.UserID]user.User
+}
+
+func (fakeAuthUsers) Save(context.Context, user.User) error { return nil }
+
+func (fakeAuthUsers) FindByEmail(context.Context, user.Email) (user.User, error) {
+	return user.User{}, appauth.ErrUserNotFound
+}
+
+func (f *fakeAuthUsers) FindByID(_ context.Context, id user.UserID) (user.User, error) {
+	if aggregate, ok := f.byID[id]; ok {
+		return aggregate, nil
+	}
+	return user.User{}, appauth.ErrUserNotFound
+}
+
+func newGymService(repo Repository, clock fixedClock, idgen *sequentialIDGen, users *fakeAuthUsers, inviteTTL time.Duration) *Service {
+	if users == nil {
+		users = &fakeAuthUsers{byID: map[user.UserID]user.User{}}
+	}
+	return NewService(repo, users, clock, idgen, inviteTTL)
 }
 
 type fakeGymRepo struct {
@@ -191,7 +216,7 @@ func TestGetInvitationPreviewPending(t *testing.T) {
 			},
 		},
 	}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, nil, time.Hour)
 
 	preview, err := service.GetInvitationPreview(context.Background(), token)
 	if err != nil {
@@ -217,7 +242,7 @@ func TestGetInvitationPreviewExpiredByClock(t *testing.T) {
 			},
 		},
 	}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, nil, time.Hour)
 
 	preview, err := service.GetInvitationPreview(context.Background(), token)
 	if err != nil {
@@ -231,7 +256,7 @@ func TestGetInvitationPreviewExpiredByClock(t *testing.T) {
 func TestGetInvitationPreviewNotFound(t *testing.T) {
 	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	repo := &fakeGymRepo{}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, nil, time.Hour)
 
 	_, err := service.GetInvitationPreview(context.Background(), "unknown-token")
 	if !errors.Is(err, ErrInvitationNotFound) {
@@ -255,7 +280,7 @@ func TestAcceptInvitesForEmailCreatesActiveMembership(t *testing.T) {
 	}
 
 	repo := &fakeGymRepo{invitations: []domaingym.Invitation{invitation}}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{next: "membership-1"}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{next: "membership-1"}, nil, time.Hour)
 
 	if err := service.AcceptInvitesForEmail(context.Background(), user.Email("athlete@example.com"), user.UserID("athlete-1")); err != nil {
 		t.Fatalf("accept invites: %v", err)
@@ -308,7 +333,7 @@ func TestAcceptInvitationSuccess(t *testing.T) {
 			},
 		},
 	}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{next: "membership-1"}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{next: "membership-1"}, nil, time.Hour)
 
 	result, err := service.AcceptInvitation(acceptorContext(), "gym-1", "secret-token")
 	if err != nil {
@@ -332,7 +357,7 @@ func TestAcceptInvitationInvalidToken(t *testing.T) {
 		t.Fatalf("new user: %v", err)
 	}
 	repo := &fakeGymRepo{users: map[user.UserID]user.User{"athlete-1": athlete}}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, nil, time.Hour)
 
 	_, err = service.AcceptInvitation(acceptorContext(), "gym-1", "unknown-token")
 	if !errors.Is(err, ErrInvitationNotFound) {
@@ -363,7 +388,7 @@ func TestAcceptInvitationExpired(t *testing.T) {
 		tokenHashes: map[string]string{"invite-1": hashInvitationToken("secret-token")},
 		users:       map[user.UserID]user.User{"athlete-1": athlete},
 	}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, nil, time.Hour)
 
 	_, err = service.AcceptInvitation(acceptorContext(), "gym-1", "secret-token")
 	if !errors.Is(err, domaingym.ErrInvitationExpired) {
@@ -394,7 +419,7 @@ func TestAcceptInvitationEmailMismatch(t *testing.T) {
 		tokenHashes: map[string]string{"invite-1": hashInvitationToken("secret-token")},
 		users:       map[user.UserID]user.User{"athlete-1": athlete},
 	}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, nil, time.Hour)
 
 	_, err = service.AcceptInvitation(acceptorContext(), "gym-1", "secret-token")
 	if !errors.Is(err, ErrInvitationEmailMismatch) {
@@ -408,6 +433,26 @@ func ownerContext(gymID string) context.Context {
 		GymID:  domaingym.GymID(gymID),
 		Role:   domainauthz.RoleOwner,
 	})
+}
+
+func verifiedOwnerUsers(t *testing.T, now time.Time) *fakeAuthUsers {
+	t.Helper()
+	owner, err := user.NewUser(user.UserID("owner-1"), user.Email("owner@example.com"), "hash", "Owner", now)
+	if err != nil {
+		t.Fatalf("new owner user: %v", err)
+	}
+	return &fakeAuthUsers{byID: map[user.UserID]user.User{
+		owner.ID(): owner.MarkEmailVerified(now),
+	}}
+}
+
+func unverifiedOwnerUsers(t *testing.T, now time.Time) *fakeAuthUsers {
+	t.Helper()
+	owner, err := user.NewUser(user.UserID("owner-1"), user.Email("owner@example.com"), "hash", "Owner", now)
+	if err != nil {
+		t.Fatalf("new owner user: %v", err)
+	}
+	return &fakeAuthUsers{byID: map[user.UserID]user.User{owner.ID(): owner}}
 }
 
 func TestUpdateMemberRoleCoachToAthlete(t *testing.T) {
@@ -437,7 +482,7 @@ func TestUpdateMemberRoleCoachToAthlete(t *testing.T) {
 			},
 		},
 	}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, verifiedOwnerUsers(t, now), time.Hour)
 
 	result, err := service.UpdateMemberRole(ownerContext("gym-1"), "gym-1", "coach-1", domainauthz.RoleAthlete)
 	if err != nil {
@@ -464,7 +509,7 @@ func TestUpdateMemberRoleRejectsOwner(t *testing.T) {
 	}
 
 	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, verifiedOwnerUsers(t, now), time.Hour)
 
 	_, err = service.UpdateMemberRole(ownerContext("gym-1"), "gym-1", "owner-1", domainauthz.RoleCoach)
 	if !errors.Is(err, ErrOwnerMembershipProtected) {
@@ -488,7 +533,7 @@ func TestUpdateMemberRoleRejectsInvalidRole(t *testing.T) {
 	}
 
 	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, verifiedOwnerUsers(t, now), time.Hour)
 
 	_, err = service.UpdateMemberRole(ownerContext("gym-1"), "gym-1", "coach-1", domainauthz.RoleOwner)
 	if !errors.Is(err, ErrRoleNotAssignable) {
@@ -512,7 +557,7 @@ func TestRemoveMemberRemovesCoach(t *testing.T) {
 	}
 
 	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, verifiedOwnerUsers(t, now), time.Hour)
 
 	if err := service.RemoveMember(ownerContext("gym-1"), "gym-1", "coach-1"); err != nil {
 		t.Fatalf("remove member: %v", err)
@@ -535,10 +580,48 @@ func TestRemoveMemberRejectsOwner(t *testing.T) {
 	}
 
 	repo := &fakeGymRepo{memberships: []domaingym.Membership{membership}}
-	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, verifiedOwnerUsers(t, now), time.Hour)
 
 	err = service.RemoveMember(ownerContext("gym-1"), "gym-1", "owner-1")
 	if !errors.Is(err, ErrOwnerMembershipProtected) {
 		t.Fatalf("expected ErrOwnerMembershipProtected, got %v", err)
+	}
+}
+
+func TestCreateRejectsUnverifiedUser(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	repo := &fakeGymRepo{}
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, unverifiedOwnerUsers(t, now), time.Hour)
+
+	ctx := appauthz.WithPrincipal(context.Background(), appauthz.Principal{UserID: user.UserID("owner-1")})
+	_, err := service.Create(ctx, CreateGymCommand{Name: "Test Gym"})
+	if !errors.Is(err, appauth.ErrEmailNotVerified) {
+		t.Fatalf("expected ErrEmailNotVerified, got %v", err)
+	}
+}
+
+func TestCreateAllowsVerifiedUser(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	repo := &fakeGymRepo{}
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{next: "gym-1"}, verifiedOwnerUsers(t, now), time.Hour)
+
+	ctx := appauthz.WithPrincipal(context.Background(), appauthz.Principal{UserID: user.UserID("owner-1")})
+	result, err := service.Create(ctx, CreateGymCommand{Name: "Test Gym"})
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if result.Name != "Test Gym" {
+		t.Fatalf("gym name = %q, want Test Gym", result.Name)
+	}
+}
+
+func TestInviteCoachRejectsUnverifiedUser(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	repo := &fakeGymRepo{}
+	service := newGymService(repo, fixedClock{now: now}, &sequentialIDGen{}, unverifiedOwnerUsers(t, now), time.Hour)
+
+	_, err := service.InviteCoach(ownerContext("gym-1"), "gym-1", "coach@example.com")
+	if !errors.Is(err, appauth.ErrEmailNotVerified) {
+		t.Fatalf("expected ErrEmailNotVerified, got %v", err)
 	}
 }
