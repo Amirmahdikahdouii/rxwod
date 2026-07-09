@@ -23,6 +23,10 @@ func NewDB(ctx context.Context, databaseURL string) (*DB, error) {
 	return &DB{pool: pool}, nil
 }
 
+func (db *DB) Ping(ctx context.Context) error {
+	return db.pool.Ping(ctx)
+}
+
 func (db *DB) Pool() *pgxpool.Pool {
 	return db.pool
 }

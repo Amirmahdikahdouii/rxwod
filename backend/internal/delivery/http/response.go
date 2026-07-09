@@ -171,6 +171,10 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type HealthResponse struct {
+	Status string `json:"status"`
+}
+
 func toTokenResponse(dto appauth.TokenDTO) TokenResponse {
 	return TokenResponse{
 		AccessToken:  dto.AccessToken,

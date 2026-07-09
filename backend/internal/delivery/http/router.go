@@ -11,7 +11,7 @@ import (
 	"github.com/rxwod/backend/internal/infrastructure/config"
 )
 
-func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer, allowedOrigins []string, cfg config.Config) *echo.Echo {
+func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer, db dbPinger, allowedOrigins []string, cfg config.Config) *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -23,6 +23,9 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	authHandler := NewAuthHandler(authService, gymService)
 	gymHandler := NewGymHandler(gymService)
 	wodHandler := NewWODHandler(wodService)
+	healthHandler := NewHealthHandler(db)
+
+	e.GET("/healthz", healthHandler.Check)
 
 	ipLimit := authIPRateLimiter(cfg)
 	identifierLimit := authIdentifierRateLimiter(cfg)
