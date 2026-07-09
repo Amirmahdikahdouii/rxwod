@@ -14,13 +14,14 @@ import {
 } from '@/features/wod/composables/useWODDraftStorage'
 import { useWODForm } from '@/features/wod/composables/useWODForm'
 import type { WODDetail } from '@/features/wod/model/wodTypes'
-import { canCreateWOD, canEditWOD, canPublishWOD, canViewWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
+import { canCreateWOD, canDeleteWOD, canEditWOD, canPublishWOD, canViewWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
 import BaseInput from '@/shared/components/BaseInput.vue'
 import BaseTextarea from '@/shared/components/BaseTextarea.vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const session = useSession()
 
 function routeWODId() {
@@ -32,6 +33,8 @@ const initialWODId = routeWODId()
 const loadedDetail = ref<WODDetail | null>(null)
 const pendingDraft = ref<StoredWODDraft | null>(null)
 const showRecoveryPrompt = ref(false)
+const pendingArchive = ref(false)
+const pendingDelete = ref(false)
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null
 
 const {
@@ -43,6 +46,7 @@ const {
   stages,
   loading,
   savingAction,
+  destructiveAction,
   initialLoading,
   error,
   result,
@@ -64,6 +68,8 @@ const {
   initEdit,
   saveDraft,
   publishProgram,
+  archiveProgram,
+  deleteProgram,
 } = useWODForm(initialWODId ? 'edit' : 'create')
 
 const storageKey = computed(() => {
@@ -112,6 +118,8 @@ const canViewProgram = computed(() => {
 })
 const isViewOnly = computed(() => canViewProgram.value && !canEditProgram.value)
 const isPublished = computed(() => loadedDetail.value?.status === 'PUBLISHED')
+const isArchived = computed(() => loadedDetail.value?.status === 'ARCHIVED')
+const canManageProgram = computed(() => canDeleteWOD(session.activeWorkspaceRole.value))
 const pageTitle = computed(() => {
   if (isViewOnly.value) {
     return 'View WOD Program'
@@ -127,7 +135,11 @@ const pageSubtitle = computed(() => {
     : 'Build your class plan with instructions and free-text prescriptions.'
 })
 const canPublishProgram = computed(
-  () => canPublishWOD(session.activeWorkspaceRole.value) && !isPublished.value && !isViewOnly.value,
+  () =>
+    canPublishWOD(session.activeWorkspaceRole.value) &&
+    !isPublished.value &&
+    !isArchived.value &&
+    !isViewOnly.value,
 )
 const saveButtonLabel = computed(() => {
   if (savingAction.value === 'draft') {
@@ -218,6 +230,43 @@ async function handlePublish() {
   if (ok) {
     clearDraftStorage()
   }
+}
+
+function requestArchive() {
+  pendingDelete.value = false
+  pendingArchive.value = true
+}
+
+function requestDelete() {
+  pendingArchive.value = false
+  pendingDelete.value = true
+}
+
+function cancelArchive() {
+  pendingArchive.value = false
+}
+
+function cancelDelete() {
+  pendingDelete.value = false
+}
+
+async function handleArchive() {
+  const detail = await archiveProgram()
+  if (!detail) {
+    return
+  }
+  loadedDetail.value = detail
+  pendingArchive.value = false
+  clearDraftStorage()
+}
+
+async function handleDelete() {
+  const ok = await deleteProgram()
+  if (!ok) {
+    return
+  }
+  clearDraftStorage()
+  await router.push('/wods')
 }
 
 watch([name, description, scheduledDate, stages], queueAutosave, { deep: true })
@@ -371,5 +420,86 @@ onMounted(async () => {
         />
       </div>
     </div>
+
+    <article
+      v-if="isEditMode && canManageProgram && loadedDetail"
+      class="card stack member-danger-zone"
+    >
+      <h2 class="section-title">Program management</h2>
+      <p class="page-subtitle page-subtitle--flush">
+        Archive published programs to hide them from athletes, or permanently delete drafts and archived programs.
+      </p>
+
+      <template v-if="loadedDetail.status === 'PUBLISHED'">
+        <button
+          v-if="!pendingArchive"
+          type="button"
+          class="secondary danger-button"
+          :disabled="loading || destructiveAction !== null"
+          @click="requestArchive"
+        >
+          Archive program
+        </button>
+        <div
+          v-else
+          class="confirmation-panel confirmation-panel--danger"
+          role="alertdialog"
+          aria-live="polite"
+        >
+          <p class="confirmation-panel__text">
+            Archive {{ loadedDetail.name }}? Athletes will no longer see this program.
+          </p>
+          <div class="confirmation-panel__actions">
+            <button type="button" class="secondary" @click="cancelArchive">Cancel</button>
+            <button
+              type="button"
+              class="danger-button"
+              :disabled="destructiveAction === 'archive'"
+              @click="handleArchive"
+            >
+              {{ destructiveAction === 'archive' ? 'Archiving...' : 'Confirm archive' }}
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="loadedDetail.status === 'DRAFT' || loadedDetail.status === 'ARCHIVED'">
+        <button
+          v-if="!pendingDelete"
+          type="button"
+          class="secondary danger-button"
+          :disabled="loading || destructiveAction !== null"
+          @click="requestDelete"
+        >
+          Delete program
+        </button>
+        <div
+          v-else
+          class="confirmation-panel confirmation-panel--danger"
+          role="alertdialog"
+          aria-live="polite"
+        >
+          <p class="confirmation-panel__text">
+            <template v-if="loadedDetail.status === 'DRAFT'">
+              Delete {{ loadedDetail.name }}? This draft cannot be recovered.
+            </template>
+            <template v-else>
+              Delete {{ loadedDetail.name }}? This archived program will be permanently removed.
+            </template>
+          </p>
+          <div class="confirmation-panel__actions">
+            <button type="button" class="secondary" @click="cancelDelete">Cancel</button>
+            <button
+              type="button"
+              class="danger-button"
+              :disabled="destructiveAction === 'delete'"
+              @click="handleDelete"
+            >
+              {{ destructiveAction === 'delete' ? 'Deleting...' : 'Confirm delete' }}
+            </button>
+          </div>
+        </div>
+      </template>
+    </article>
   </div>
 </template>
