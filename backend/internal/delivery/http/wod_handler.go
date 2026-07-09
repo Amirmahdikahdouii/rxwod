@@ -92,6 +92,31 @@ func (h *WODHandler) Publish(c echo.Context) error {
 	return c.JSON(http.StatusOK, toDetailResponse(result))
 }
 
+func (h *WODHandler) Archive(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id is required"})
+	}
+
+	result, err := h.service.Archive(c.Request().Context(), id)
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, toDetailResponse(result))
+}
+
+func (h *WODHandler) Delete(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id is required"})
+	}
+
+	if err := h.service.Delete(c.Request().Context(), id); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (h *WODHandler) GetByID(c echo.Context) error {
 	id := c.Param("id")
 	if id == "" {
@@ -248,6 +273,7 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidStagePosition),
 		errors.Is(err, domainwod.ErrNilConfig),
 		errors.Is(err, domainwod.ErrInvalidStatusTransition),
+		errors.Is(err, domainwod.ErrCannotDeletePublished),
 		errors.Is(err, domainwod.ErrScheduledDateRequired),
 		errors.Is(err, appwod.ErrMissingConfigField):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
