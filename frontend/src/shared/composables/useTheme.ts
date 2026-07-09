@@ -1,32 +1,20 @@
 import { computed, ref } from 'vue'
-import {
-  applyTheme,
-  persistTheme,
-  resolveInitialTheme,
-  type ThemeMode,
-} from '@/shared/composables/themeUtils'
+import { applyTheme, persistTheme, type ThemeMode } from '@/shared/composables/themeUtils'
 
-function readThemeFromDOM(): ThemeMode | null {
-  const attr = document.documentElement.getAttribute('data-theme')
-  if (attr === 'light' || attr === 'dark') {
-    return attr
-  }
-  return null
-}
+const theme = ref<ThemeMode>('dark')
 
-const theme = ref<ThemeMode>(readThemeFromDOM() ?? resolveInitialTheme())
+applyTheme('dark')
 
 export function useTheme() {
-  const isDark = computed(() => theme.value === 'dark')
+  const isDark = computed(() => true)
 
-  function setTheme(mode: ThemeMode) {
-    theme.value = mode
-    applyTheme(mode)
-    persistTheme(mode)
+  function setTheme(_mode: ThemeMode) {
+    applyTheme('dark')
+    persistTheme('dark')
   }
 
   function toggleTheme() {
-    setTheme(theme.value === 'dark' ? 'light' : 'dark')
+    // Dark-only theme; no-op for backwards compatibility.
   }
 
   return {

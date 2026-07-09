@@ -55,7 +55,7 @@ onMounted(() => {
       Set your preferred class days and times for automatic booking when sessions are created.
     </p>
 
-    <div v-if="loading" class="helper-text">Loading preferences...</div>
+    <p v-if="loading" class="loading-state">Loading preferences...</p>
     <div v-else-if="error && defaultSessions.length === 0" class="alert alert--error" role="alert">
       {{ error }}
     </div>
@@ -66,7 +66,7 @@ onMounted(() => {
         :key="session.id"
         class="default-session-list__item"
       >
-        <span>{{ DAY_OF_WEEK_LABELS[session.dayOfWeek] }} at {{ session.timeSlot }}</span>
+        <span class="default-session-list__label">{{ DAY_OF_WEEK_LABELS[session.dayOfWeek] }} at {{ session.timeSlot }}</span>
         <button
           type="button"
           class="secondary"
@@ -96,18 +96,3 @@ onMounted(() => {
     </form>
   </article>
 </template>
-
-<style scoped>
-.default-session-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.default-session-list__item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-</style>

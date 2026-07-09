@@ -3,6 +3,7 @@ import {
   applyTheme,
   getStoredTheme,
   getSystemTheme,
+  initTheme,
   persistTheme,
   resolveInitialTheme,
   THEME_STORAGE_KEY,
@@ -14,18 +15,20 @@ describe('themeUtils', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
-  it('persists and reads theme from localStorage', () => {
+  it('persists and reads dark theme from localStorage', () => {
     persistTheme('dark')
     expect(getStoredTheme()).toBe('dark')
   })
 
-  it('resolves stored theme over system default', () => {
-    persistTheme('light')
-    expect(resolveInitialTheme()).toBe('light')
+  it('always resolves to dark theme', () => {
+    persistTheme('dark')
+    expect(resolveInitialTheme()).toBe('dark')
+    localStorage.clear()
+    expect(resolveInitialTheme()).toBe('dark')
   })
 
-  it('falls back to system theme when nothing stored', () => {
-    expect(resolveInitialTheme()).toBe(getSystemTheme())
+  it('always reports dark as system theme', () => {
+    expect(getSystemTheme()).toBe('dark')
   })
 
   it('applies data-theme attribute to html', () => {
@@ -37,6 +40,13 @@ describe('themeUtils', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'invalid')
     expect(getStoredTheme()).toBeNull()
   })
+
+  it('initTheme forces dark and persists preference', () => {
+    localStorage.setItem(THEME_STORAGE_KEY, 'light')
+    expect(initTheme()).toBe('dark')
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark')
+  })
 })
 
 describe('useTheme', () => {
@@ -45,15 +55,17 @@ describe('useTheme', () => {
     document.documentElement.removeAttribute('data-theme')
   })
 
-  it('toggles theme and persists preference', async () => {
+  it('always exposes dark theme', async () => {
     const { useTheme } = await import('@/shared/composables/useTheme')
-    const { theme, toggleTheme } = useTheme()
+    const { theme, isDark, toggleTheme } = useTheme()
 
-    const initial = theme.value
+    expect(theme.value).toBe('dark')
+    expect(isDark.value).toBe(true)
+
     toggleTheme()
 
-    expect(theme.value).not.toBe(initial)
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe(theme.value)
-    expect(document.documentElement.getAttribute('data-theme')).toBe(theme.value)
+    expect(theme.value).toBe('dark')
+    expect(isDark.value).toBe(true)
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
   })
 })

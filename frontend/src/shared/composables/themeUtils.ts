@@ -1,15 +1,9 @@
-export type ThemeMode = 'light' | 'dark'
+export type ThemeMode = 'dark'
 
 export const THEME_STORAGE_KEY = 'rxwod-theme'
 
 export function getSystemTheme(): ThemeMode {
-  if (typeof window === 'undefined') {
-    return 'light'
-  }
-  if (typeof window.matchMedia !== 'function') {
-    return 'light'
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'dark'
 }
 
 export function getStoredTheme(): ThemeMode | null {
@@ -17,26 +11,27 @@ export function getStoredTheme(): ThemeMode | null {
     return null
   }
   const stored = localStorage.getItem(THEME_STORAGE_KEY)
-  if (stored === 'light' || stored === 'dark') {
+  if (stored === 'dark') {
     return stored
   }
   return null
 }
 
 export function resolveInitialTheme(): ThemeMode {
-  return getStoredTheme() ?? getSystemTheme()
+  return 'dark'
 }
 
-export function applyTheme(theme: ThemeMode): void {
+export function applyTheme(theme: ThemeMode = 'dark'): void {
   document.documentElement.setAttribute('data-theme', theme)
 }
 
-export function persistTheme(theme: ThemeMode): void {
+export function persistTheme(theme: ThemeMode = 'dark'): void {
   localStorage.setItem(THEME_STORAGE_KEY, theme)
 }
 
 export function initTheme(): ThemeMode {
   const theme = resolveInitialTheme()
   applyTheme(theme)
+  persistTheme(theme)
   return theme
 }

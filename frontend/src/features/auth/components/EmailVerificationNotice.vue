@@ -46,34 +46,3 @@ async function resend() {
     </button>
   </div>
 </template>
-
-<style scoped>
-.email-verification-notice {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin: 0;
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-}
-
-.email-verification-notice__content p {
-  margin: 0.35rem 0 0;
-}
-
-.email-verification-notice__feedback {
-  color: var(--color-success, #166534);
-}
-
-.email-verification-notice__error {
-  color: var(--color-danger, #991b1b);
-}
-
-@media (max-width: 640px) {
-  .email-verification-notice {
-    flex-direction: column;
-  }
-}
-</style>

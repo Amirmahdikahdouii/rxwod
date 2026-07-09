@@ -123,7 +123,7 @@ watch(selectedDate, () => {
       @dismiss="dismissClassFullMessage"
     />
 
-    <div class="field">
+    <div class="field class-schedule__filter">
       <label for="schedule-date">Date</label>
       <input id="schedule-date" v-model="selectedDate" type="date" />
     </div>
@@ -132,17 +132,17 @@ watch(selectedDate, () => {
 
     <p v-if="loading" class="loading-state">Loading sessions...</p>
     <div v-else-if="error" class="alert alert--error" role="alert">{{ error }}</div>
-
     <div v-else-if="sortedSessions.length === 0" class="card empty-state">
       <h2 class="empty-state__title">No classes scheduled</h2>
       <p class="empty-state__text">There are no sessions on this date.</p>
     </div>
-
-    <div v-else class="wod-list">
-      <article v-for="item in sortedSessions" :key="item.id" class="card card--hover stack">
+    <template v-else>
+      <div v-if="actionError" class="alert alert--error" role="alert">{{ actionError }}</div>
+      <div class="wod-list">
+      <article v-for="item in sortedSessions" :key="item.id" class="card card--hover stack class-schedule__session">
         <div class="row row--align-center row--between">
           <div class="stack">
-            <strong>{{ formatTimeRange(item) }}</strong>
+            <strong class="class-schedule__time">{{ formatTimeRange(item) }}</strong>
             <p class="wod-card__meta">{{ coachName(item.coachId) }}</p>
             <p class="wod-card__meta">{{ item.bookedCount }}/{{ item.capacity }} Booked</p>
           </div>
@@ -181,10 +181,8 @@ watch(selectedDate, () => {
             </button>
           </div>
         </div>
-        <p v-if="actionError" class="alert alert--error" role="alert">
-          {{ actionError }}
-        </p>
       </article>
-    </div>
+      </div>
+    </template>
   </div>
 </template>

@@ -75,10 +75,13 @@ export function draftsMatch(
   draft: StoredWODDraft,
   current: Pick<StoredWODDraft, 'name' | 'description' | 'scheduledDate' | 'stages'>,
 ): boolean {
-  return JSON.stringify({
-    name: draft.name,
-    description: draft.description,
-    scheduledDate: draft.scheduledDate,
-    stages: draft.stages,
-  }) === JSON.stringify(current)
+  const snapshot = (value: Pick<StoredWODDraft, 'name' | 'description' | 'scheduledDate' | 'stages'>) =>
+    JSON.stringify({
+      name: value.name,
+      description: value.description,
+      scheduledDate: value.scheduledDate,
+      stages: value.stages,
+    })
+
+  return snapshot(draft) === snapshot(current)
 }

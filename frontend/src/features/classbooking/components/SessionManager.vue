@@ -233,7 +233,7 @@ watch(selectedDate, () => {
 
 <template>
   <div class="session-manager stack-lg">
-    <article class="card stack">
+    <article class="card stack session-manager__create">
       <h2 class="section-title">Create Session</h2>
       <form class="stack" @submit.prevent="handleCreate">
         <div class="field">
@@ -254,7 +254,7 @@ watch(selectedDate, () => {
       </form>
     </article>
 
-    <div class="field">
+    <div class="field session-manager__filter">
       <label for="manage-schedule-date">Date</label>
       <input id="manage-schedule-date" v-model="selectedDate" type="date" />
     </div>
@@ -279,7 +279,7 @@ watch(selectedDate, () => {
         >
           <div class="row row--align-center row--between">
             <div class="stack session-manager__session-summary">
-              <strong>{{ formatTimeRange(item) }}</strong>
+              <strong class="session-manager__time">{{ formatTimeRange(item) }}</strong>
               <p class="wod-card__meta">{{ item.bookedCount }}/{{ item.capacity }} Booked</p>
             </div>
             <span class="wod-card__link">{{ expandedSessionId === item.id ? 'Hide roster' : 'View roster' }}</span>
@@ -295,9 +295,9 @@ watch(selectedDate, () => {
             <li
               v-for="booking in roster"
               :key="booking.id"
-              class="row row--align-center row--between"
+              class="session-manager__roster-item"
             >
-              <span>{{ memberName(booking.gymMembershipId) }}</span>
+              <span class="session-manager__roster-name">{{ memberName(booking.gymMembershipId) }}</span>
               <span :class="bookingStatusClass(booking.status)">{{ booking.status.toLowerCase() }}</span>
             </li>
           </ul>
@@ -326,34 +326,3 @@ watch(selectedDate, () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.session-manager__session-toggle {
-  width: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.session-manager__session-summary {
-  text-align: left;
-}
-
-.session-manager__roster {
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-}
-
-.session-manager__roster-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.section-title--small {
-  font-size: 1rem;
-}
-</style>

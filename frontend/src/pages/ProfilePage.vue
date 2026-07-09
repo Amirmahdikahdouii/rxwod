@@ -36,19 +36,19 @@ async function logout() {
     </header>
 
     <section class="dashboard-grid">
-      <article class="card stack">
+      <article class="card stack profile-card">
         <h2 class="section-title">Account</h2>
         <div class="profile-row">
-          <span class="profile-avatar">{{ session.currentUser.value?.displayName?.charAt(0) || 'U' }}</span>
-          <div>
-            <strong>{{ session.currentUser.value?.displayName || 'RXWOD User' }}</strong>
+          <span class="profile-avatar" aria-hidden="true">{{ session.currentUser.value?.displayName?.charAt(0) || 'U' }}</span>
+          <div class="profile-card__details">
+            <strong class="profile-card__name">{{ session.currentUser.value?.displayName || 'RXWOD User' }}</strong>
             <p class="page-subtitle page-subtitle--flush">{{ session.currentUser.value?.email }}</p>
           </div>
         </div>
-        <button type="button" class="secondary" @click="logout">Logout</button>
+        <button type="button" class="secondary profile-card__logout" @click="logout">Logout</button>
       </article>
 
-      <article class="card stack">
+      <article class="card stack profile-card">
         <h2 class="section-title">Active Workspace</h2>
         <div v-if="session.workspaces.value.length > 0" class="stack">
           <BaseSelect

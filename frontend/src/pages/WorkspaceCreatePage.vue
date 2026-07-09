@@ -34,9 +34,9 @@ async function submit() {
           <strong>{{ session.currentUser.value?.email }}</strong>.
           Verify your email before creating a gym workspace.
         </p>
-      </div>
-      <div class="empty-state empty-state--compact">
-        <p class="empty-state__text">Use the banner above to resend the confirmation email.</p>
+        <div class="empty-state empty-state--compact">
+          <p class="empty-state__text">Use the banner above to resend the confirmation email.</p>
+        </div>
       </div>
     </section>
 

@@ -22,7 +22,10 @@ defineProps<{
 
     <ol v-else class="leaderboard__list">
       <li v-for="entry in entries" :key="entry.gymMembershipId" class="card leaderboard__row">
-        <span class="leaderboard__rank">{{ entry.rank }}</span>
+        <span
+          class="leaderboard__rank"
+          :class="{ 'leaderboard__rank--top': entry.rank === 1 }"
+        >{{ entry.rank }}</span>
         <div class="leaderboard__info">
           <div class="leaderboard__name-row">
             <span class="leaderboard__name">{{ entry.displayName }}</span>

@@ -1,111 +1,114 @@
+/*
+ * RXWOD design tokens — Spotify-inspired dark palette (DESIGN.md).
+ * Single dark theme.
+ */
+
 :root,
-[data-theme='light'] {
-  --color-bg: #f5f3f0;
-  --color-surface: #ffffff;
-  --color-surface-elevated: #ffffff;
-  --color-text: #1c1917;
-  --color-text-muted: #78716c;
-  --color-accent: #ea580c;
-  --color-accent-hover: #c2410c;
-  --color-accent-muted: rgba(234, 88, 12, 0.12);
-  --color-border: #e7e5e4;
-  --color-border-strong: #d6d3d1;
-  --color-input-bg: #ffffff;
-  --color-success: #047857;
-  --color-success-bg: rgba(4, 120, 87, 0.1);
-  --color-error: #b91c1c;
-  --color-error-bg: rgba(185, 28, 28, 0.1);
-  --color-nav-active-bg: rgba(234, 88, 12, 0.14);
-  --shadow-card: 0 1px 3px rgba(28, 25, 23, 0.06), 0 4px 12px rgba(28, 25, 23, 0.04);
-  --shadow-card-hover: 0 4px 16px rgba(28, 25, 23, 0.1);
-  --shadow-header: 0 1px 0 var(--color-border);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
-  --focus-ring: 0 0 0 3px rgba(234, 88, 12, 0.35);
-
-  --badge-amrap-bg: rgba(234, 88, 12, 0.15);
-  --badge-amrap-text: #c2410c;
-  --badge-fortime-bg: rgba(37, 99, 235, 0.15);
-  --badge-fortime-text: #1d4ed8;
-  --badge-tabata-bg: rgba(220, 38, 38, 0.15);
-  --badge-tabata-text: #b91c1c;
-  --badge-emom-bg: rgba(5, 150, 105, 0.15);
-  --badge-emom-text: #047857;
-
-  --badge-open-bg: rgba(87, 83, 78, 0.15);
-  --badge-open-text: #57534e;
-
-  --badge-stage-warmup-bg: rgba(120, 113, 108, 0.15);
-  --badge-stage-warmup-text: #57534e;
-  --badge-stage-strength-bg: rgba(79, 70, 229, 0.12);
-  --badge-stage-strength-text: #4338ca;
-  --badge-stage-core-bg: rgba(14, 165, 233, 0.12);
-  --badge-stage-core-text: #0369a1;
-  --badge-stage-metcon-bg: rgba(234, 88, 12, 0.12);
-  --badge-stage-metcon-text: #c2410c;
-  --badge-stage-cooldown-bg: rgba(107, 114, 128, 0.15);
-  --badge-stage-cooldown-text: #4b5563;
-
-  --color-surface-muted: #e7e5e4;
-  --color-calendar-plan: #bbf7d0;
-  --color-calendar-grid: rgba(28, 25, 23, 0.08);
-  --color-draft-ring: #d97706;
-}
-
 [data-theme='dark'] {
-  --color-bg: #0f1115;
-  --color-surface: #1a1d24;
-  --color-surface-elevated: #22262f;
-  --color-text: #f5f5f4;
-  --color-text-muted: #a8a29e;
-  --color-accent: #f97316;
-  --color-accent-hover: #fb923c;
-  --color-accent-muted: rgba(249, 115, 22, 0.18);
-  --color-border: #2d323d;
-  --color-border-strong: #3d4451;
-  --color-input-bg: #14171d;
-  --color-success: #34d399;
-  --color-success-bg: rgba(52, 211, 153, 0.12);
-  --color-error: #f87171;
-  --color-error-bg: rgba(248, 113, 113, 0.12);
-  --color-nav-active-bg: rgba(249, 115, 22, 0.2);
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
-  --shadow-card-hover: 0 4px 24px rgba(0, 0, 0, 0.45);
+  /* Surfaces */
+  --color-bg: #121212;
+  --color-surface: #181818;
+  --color-surface-2: #1f1f1f;
+  --color-surface-elevated: #252525;
+  --color-surface-muted: #1f1f1f;
+
+  /* Text */
+  --color-text: #ffffff;
+  --color-text-muted: #b3b3b3;
+  --color-text-secondary: #cbcbcb;
+  --color-text-emphasis: #fdfdfd;
+
+  /* Brand accent — functional only (CTAs, active nav, primary actions) */
+  --color-accent: #1ed760;
+  --color-accent-hover: #1db954;
+  --color-accent-muted: rgba(30, 215, 96, 0.15);
+  --color-accent-border: #1db954;
+
+  /* Borders */
+  --color-border: #4d4d4d;
+  --color-border-strong: #7c7c7c;
+
+  /* Inputs */
+  --color-input-bg: #1f1f1f;
+
+  /* Semantic */
+  --color-success: #1ed760;
+  --color-success-bg: rgba(30, 215, 96, 0.12);
+  --color-error: #f3727f;
+  --color-error-bg: rgba(243, 114, 127, 0.12);
+  --color-warning: #ffa42b;
+  --color-warning-bg: rgba(255, 164, 43, 0.12);
+  --color-info: #539df5;
+  --color-info-bg: rgba(83, 157, 245, 0.12);
+
+  /* Navigation shell */
+  --nav-width: 240px;
+  --nav-mobile-height: 4rem;
+  --header-guest-height: 3.5rem;
+  --color-nav-active-bg: rgba(255, 255, 255, 0.08);
+
+  /* DESIGN.md responsive breakpoints */
+  --bp-mobile-sm: 425px;
+  --bp-mobile: 576px;
+  --bp-tablet: 768px;
+  --bp-tablet-lg: 896px;
+  --bp-desktop-sm: 1024px;
+  --bp-desktop: 1280px;
+
+  /* Shadows */
+  --shadow-card: rgba(0, 0, 0, 0.3) 0 8px 8px;
+  --shadow-card-hover: rgba(0, 0, 0, 0.4) 0 12px 16px;
+  --shadow-dialog: rgba(0, 0, 0, 0.5) 0 8px 24px;
+  --shadow-inset-border: rgb(18, 18, 18) 0 1px 0, rgb(124, 124, 124) 0 0 0 1px inset;
   --shadow-header: 0 1px 0 var(--color-border);
-  --focus-ring: 0 0 0 3px rgba(249, 115, 22, 0.4);
 
-  --badge-amrap-bg: rgba(249, 115, 22, 0.2);
-  --badge-amrap-text: #fb923c;
-  --badge-fortime-bg: rgba(96, 165, 250, 0.2);
-  --badge-fortime-text: #93c5fd;
-  --badge-tabata-bg: rgba(248, 113, 113, 0.2);
-  --badge-tabata-text: #fca5a5;
-  --badge-emom-bg: rgba(52, 211, 153, 0.2);
-  --badge-emom-text: #6ee7b7;
+  /* Focus */
+  --focus-ring: 0 0 0 3px rgba(30, 215, 96, 0.4);
 
-  --badge-open-bg: rgba(168, 162, 158, 0.2);
-  --badge-open-text: #d6d3d1;
+  /* Radius (DESIGN.md scale) */
+  --radius-xs: 2px;
+  --radius-subtle: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-pill-lg: 500px;
+  --radius-pill: 9999px;
 
-  --badge-stage-warmup-bg: rgba(168, 162, 158, 0.2);
-  --badge-stage-warmup-text: #d6d3d1;
-  --badge-stage-strength-bg: rgba(129, 140, 248, 0.2);
-  --badge-stage-strength-text: #a5b4fc;
-  --badge-stage-core-bg: rgba(56, 189, 248, 0.2);
-  --badge-stage-core-text: #7dd3fc;
-  --badge-stage-metcon-bg: rgba(249, 115, 22, 0.2);
-  --badge-stage-metcon-text: #fdba74;
-  --badge-stage-cooldown-bg: rgba(156, 163, 175, 0.2);
-  --badge-stage-cooldown-text: #d1d5db;
+  /*
+   * WOD / stage badges — functional data-viz exception.
+   * Dark chips with subtle hue on text only (DESIGN.md achromatic UI + green discipline).
+   */
+  --badge-amrap-bg: #1f1f1f;
+  --badge-amrap-text: #ffa42b;
+  --badge-fortime-bg: #1f1f1f;
+  --badge-fortime-text: #539df5;
+  --badge-tabata-bg: #1f1f1f;
+  --badge-tabata-text: #f3727f;
+  --badge-emom-bg: #1f1f1f;
+  --badge-emom-text: #1ed760;
+  --badge-open-bg: #1f1f1f;
+  --badge-open-text: #b3b3b3;
 
-  --color-surface-muted: #14171d;
-  --color-calendar-plan: #22c55e;
-  --color-calendar-grid: rgba(245, 245, 244, 0.12);
-  --color-heatmap-0: #1a1d24;
-  --color-heatmap-1: #14532d;
-  --color-heatmap-2: #15803d;
-  --color-heatmap-3: #22c55e;
-  --color-heatmap-4: #86efac;
-  --color-draft-ring: #fbbf24;
+  --badge-stage-warmup-bg: #1f1f1f;
+  --badge-stage-warmup-text: #cbcbcb;
+  --badge-stage-strength-bg: #1f1f1f;
+  --badge-stage-strength-text: #a78bfa;
+  --badge-stage-core-bg: #1f1f1f;
+  --badge-stage-core-text: #67e8f9;
+  --badge-stage-metcon-bg: #1f1f1f;
+  --badge-stage-metcon-text: #ffa42b;
+  --badge-stage-cooldown-bg: #1f1f1f;
+  --badge-stage-cooldown-text: #b3b3b3;
+
+  /* Calendar & program planning */
+  --color-calendar-plan: rgba(30, 215, 96, 0.22);
+  --color-calendar-grid: rgba(255, 255, 255, 0.08);
+  --color-draft-ring: #ffa42b;
+
+  /* Activity heatmap — Spotify green intensity scale */
+  --color-heatmap-0: #181818;
+  --color-heatmap-1: #0d3320;
+  --color-heatmap-2: #146b3a;
+  --color-heatmap-3: #1db954;
+  --color-heatmap-4: #1ed760;
 }

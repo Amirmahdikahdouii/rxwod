@@ -2,7 +2,6 @@
 import { RouterLink, useRouter } from 'vue-router'
 import { useSession } from '@/features/auth/composables/useSession'
 import { ROLE_LABELS, canManageClassSessions } from '@/features/workspace/model/workspaceTypes'
-import ThemeToggle from '@/shared/components/ThemeToggle.vue'
 
 const router = useRouter()
 const session = useSession()
@@ -19,7 +18,10 @@ async function updateWorkspace(value: string) {
 </script>
 
 <template>
-  <header class="app-header">
+  <header
+    class="app-header"
+    :class="{ 'app-header--guest': !session.isAuthenticated.value }"
+  >
     <div class="app-header__inner">
       <RouterLink to="/" class="app-header__brand">RXWOD</RouterLink>
 
@@ -31,11 +33,13 @@ async function updateWorkspace(value: string) {
           <RouterLink
             v-if="canManageClassSessions(session.activeWorkspaceRole.value)"
             to="/schedule/manage"
-            class="app-header__link"
+            class="app-header__link app-header__link--desktop-only"
           >
             Manage
           </RouterLink>
-          <RouterLink to="/workspace" class="app-header__link">Workspace</RouterLink>
+          <RouterLink to="/workspace" class="app-header__link app-header__link--desktop-only">
+            Workspace
+          </RouterLink>
           <RouterLink to="/profile" class="app-header__link">Profile</RouterLink>
         </template>
         <template v-else>
@@ -44,8 +48,8 @@ async function updateWorkspace(value: string) {
         </template>
       </nav>
 
-      <div class="app-header__actions">
-        <div v-if="session.isAuthenticated.value" class="workspace-switcher">
+      <div v-if="session.isAuthenticated.value" class="app-header__footer">
+        <div class="workspace-switcher">
           <select
             v-if="session.workspaces.value.length > 0"
             class="workspace-switcher__select"
@@ -60,12 +64,11 @@ async function updateWorkspace(value: string) {
           <RouterLink v-else to="/workspace/new" class="app-header__link app-header__link--accent">
             Create Gym
           </RouterLink>
-          <span v-if="session.activeWorkspaceRole.value" class="role-pill">
+          <span v-if="session.activeWorkspaceRole.value" class="role-pill app-header__role-pill">
             {{ ROLE_LABELS[session.activeWorkspaceRole.value] }}
           </span>
         </div>
-        <ThemeToggle />
-        <button v-if="session.isAuthenticated.value" type="button" class="secondary app-header__button" @click="logout">
+        <button type="button" class="secondary app-header__button" @click="logout">
           Logout
         </button>
       </div>

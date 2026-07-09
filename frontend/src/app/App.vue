@@ -7,9 +7,11 @@ import { RouterView } from 'vue-router'
 <template>
   <div class="app-shell">
     <AppHeader />
-    <EmailVerificationNotice />
-    <main class="app-main">
-      <RouterView />
-    </main>
+    <div class="app-content">
+      <EmailVerificationNotice />
+      <main class="app-main">
+        <RouterView />
+      </main>
+    </div>
   </div>
 </template>

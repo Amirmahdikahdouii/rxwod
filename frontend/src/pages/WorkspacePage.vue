@@ -190,9 +190,14 @@ watch(
         </div>
         <div v-else class="member-list">
           <article v-for="member in workspaces.members.value" :key="member.userId" class="member-card">
-            <strong class="member-card__name">{{ member.displayName || member.email }}</strong>
-            <div class="member-card__meta">
+            <span class="member-card__avatar" aria-hidden="true">
+              {{ (member.displayName || member.email).charAt(0) }}
+            </span>
+            <div class="member-card__body">
+              <strong class="member-card__name">{{ member.displayName || member.email }}</strong>
               <span class="member-card__email">{{ member.email }}</span>
+            </div>
+            <div class="member-card__actions">
               <span class="role-pill">{{ ROLE_LABELS[member.role] }}</span>
               <RouterLink
                 v-if="canManageVerified && canManageMemberTarget(member.role)"

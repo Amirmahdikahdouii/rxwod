@@ -213,10 +213,10 @@ onMounted(async () => {
     </div>
 
     <div v-else class="wod-list">
-      <article v-for="item in filteredItems" :key="item.id" class="card card--hover stack">
-        <div class="row row--align-center row--between">
-          <div class="stack">
-            <strong>{{ item.name }}</strong>
+      <article v-for="item in filteredItems" :key="item.id" class="card card--hover wod-card">
+        <div class="wod-card__header">
+          <div class="wod-card__info">
+            <h2 class="wod-card__title">{{ item.name }}</h2>
             <p class="wod-card__date">{{ formatScheduledDate(item.scheduledDate) }}</p>
           </div>
           <div class="wod-card__actions">
@@ -238,7 +238,7 @@ onMounted(async () => {
             <button
               v-if="canEditItem(item) && item.status === 'DRAFT' && canPublishWOD(session.activeWorkspaceRole.value)"
               type="button"
-              class="wod-card__link btn secondary compact-button"
+              class="secondary compact-button"
               :disabled="publishingId === item.id"
               @click="handlePublish(item)"
             >
@@ -248,7 +248,7 @@ onMounted(async () => {
               <button
                 v-if="pendingArchiveId !== item.id"
                 type="button"
-                class="wod-card__link btn secondary danger-button compact-button"
+                class="secondary danger-button compact-button"
                 :disabled="archivingId === item.id"
                 @click="requestArchive(item.id)"
               >
@@ -280,7 +280,7 @@ onMounted(async () => {
               <button
                 v-if="pendingDeleteId !== item.id"
                 type="button"
-                class="wod-card__link btn secondary danger-button compact-button"
+                class="secondary danger-button compact-button"
                 :disabled="deletingId === item.id"
                 @click="requestDelete(item.id)"
               >

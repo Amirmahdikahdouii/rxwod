@@ -38,6 +38,10 @@ const roleChanged = computed(
   () => member.value && selectedRole.value !== member.value.role,
 )
 
+function memberStatusClass(status: 'pending' | 'active') {
+  return status === 'active' ? 'status-pill status-pill--member-active' : 'status-pill status-pill--member-pending'
+}
+
 async function loadMember() {
   if (!session.isEmailVerified.value || !canManage.value) {
     await router.replace('/workspace')
@@ -114,8 +118,8 @@ watch(
 <template>
   <div class="container stack-lg">
     <header class="page-header">
-      <RouterLink to="/workspace" class="empty-state__link empty-state__link--secondary">
-        Back to workspace
+      <RouterLink to="/workspace" class="page-header__back">
+        ← Back to workspace
       </RouterLink>
       <p class="eyebrow">Member</p>
       <h1 class="page-title">{{ memberLabel }}</h1>
@@ -136,7 +140,7 @@ watch(
         </div>
         <div class="member-detail-meta">
           <span class="role-pill">{{ ROLE_LABELS[member.role as WorkspaceRole] }}</span>
-          <span class="status-pill">{{ member.status }}</span>
+          <span :class="memberStatusClass(member.status)">{{ member.status }}</span>
         </div>
       </article>
 
