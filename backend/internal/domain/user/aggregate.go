@@ -3,12 +3,13 @@ package user
 import "time"
 
 type User struct {
-	id           UserID
-	email        Email
-	passwordHash PasswordHash
-	displayName  DisplayName
-	createdAt    time.Time
-	updatedAt    time.Time
+	id              UserID
+	email           Email
+	passwordHash    PasswordHash
+	displayName     DisplayName
+	emailVerifiedAt *time.Time
+	createdAt       time.Time
+	updatedAt       time.Time
 }
 
 func NewUser(id UserID, email Email, passwordHash PasswordHash, displayName DisplayName, now time.Time) (User, error) {
@@ -31,11 +32,12 @@ func NewUser(id UserID, email Email, passwordHash PasswordHash, displayName Disp
 	}, nil
 }
 
-func ReconstructUser(id UserID, email Email, passwordHash PasswordHash, displayName DisplayName, createdAt time.Time, updatedAt time.Time) (User, error) {
+func ReconstructUser(id UserID, email Email, passwordHash PasswordHash, displayName DisplayName, emailVerifiedAt *time.Time, createdAt time.Time, updatedAt time.Time) (User, error) {
 	user, err := NewUser(id, email, passwordHash, displayName, createdAt)
 	if err != nil {
 		return User{}, err
 	}
+	user.emailVerifiedAt = emailVerifiedAt
 	user.updatedAt = updatedAt
 	return user, nil
 }
@@ -62,4 +64,18 @@ func (u User) CreatedAt() time.Time {
 
 func (u User) UpdatedAt() time.Time {
 	return u.updatedAt
+}
+
+func (u User) EmailVerifiedAt() *time.Time {
+	return u.emailVerifiedAt
+}
+
+func (u User) IsEmailVerified() bool {
+	return u.emailVerifiedAt != nil
+}
+
+func (u User) MarkEmailVerified(now time.Time) User {
+	u.emailVerifiedAt = &now
+	u.updatedAt = now
+	return u
 }
