@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	appauth "github.com/rxwod/backend/internal/application/auth"
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 	domaingym "github.com/rxwod/backend/internal/domain/gym"
@@ -18,16 +19,35 @@ import (
 
 type Service struct {
 	repo      Repository
+	users     appauth.UserRepository
 	clock     clock.Clock
 	idgen     idgen.Generator
 	inviteTTL time.Duration
 }
 
-func NewService(repo Repository, clock clock.Clock, idgen idgen.Generator, inviteTTL time.Duration) *Service {
-	return &Service{repo: repo, clock: clock, idgen: idgen, inviteTTL: inviteTTL}
+func NewService(repo Repository, users appauth.UserRepository, clock clock.Clock, idgen idgen.Generator, inviteTTL time.Duration) *Service {
+	return &Service{repo: repo, users: users, clock: clock, idgen: idgen, inviteTTL: inviteTTL}
+}
+
+func (s *Service) requireVerifiedEmail(ctx context.Context) error {
+	userID, err := appauthz.CurrentUserID(ctx)
+	if err != nil {
+		return err
+	}
+	aggregate, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if !aggregate.IsEmailVerified() {
+		return appauth.ErrEmailNotVerified
+	}
+	return nil
 }
 
 func (s *Service) Create(ctx context.Context, cmd CreateGymCommand) (GymDTO, error) {
+	if err := s.requireVerifiedEmail(ctx); err != nil {
+		return GymDTO{}, err
+	}
 	userID, err := appauthz.CurrentUserID(ctx)
 	if err != nil {
 		return GymDTO{}, err
@@ -82,6 +102,9 @@ func (s *Service) ListMembers(ctx context.Context, gymID string) ([]MemberDTO, e
 }
 
 func (s *Service) UpdateMemberRole(ctx context.Context, gymID string, userID string, role domainauthz.Role) (MemberDTO, error) {
+	if err := s.requireVerifiedEmail(ctx); err != nil {
+		return MemberDTO{}, err
+	}
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionMemberUpdateRole)
 	if err != nil {
 		return MemberDTO{}, err
@@ -119,6 +142,9 @@ func (s *Service) UpdateMemberRole(ctx context.Context, gymID string, userID str
 }
 
 func (s *Service) RemoveMember(ctx context.Context, gymID string, userID string) error {
+	if err := s.requireVerifiedEmail(ctx); err != nil {
+		return err
+	}
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionMemberRemove)
 	if err != nil {
 		return err
@@ -230,6 +256,9 @@ func (s *Service) acceptInvitation(ctx context.Context, invitation domaingym.Inv
 }
 
 func (s *Service) invite(ctx context.Context, gymID string, cmd InviteCommand, permission domainauthz.Permission) (InvitationDTO, error) {
+	if err := s.requireVerifiedEmail(ctx); err != nil {
+		return InvitationDTO{}, err
+	}
 	principal, err := appauthz.Require(ctx, permission)
 	if err != nil {
 		return InvitationDTO{}, err
