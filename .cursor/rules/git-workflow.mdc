@@ -23,6 +23,25 @@ test: cover authz permission matrix edge cases
 
 Use `feat:` for new behavior, `fix:` for bugs, `chore:` for tooling/config, `test:` for test-only changes.
 
+## Plan Execution Commits
+
+When implementing a multi-step plan, **commit after each completed plan task** — not in one batch at the end.
+
+- One commit per plan todo/task (or per logical layer when the plan groups by layer)
+- Stage only files touched by that task; do not mix unrelated changes (e.g. vendor, `.env`, other features)
+- Run relevant tests for the task before committing
+- Use a focused message that states what that task delivered
+
+Example for a three-task plan:
+
+```text
+feat: add WOD Archive and CanDelete domain methods
+feat: add WOD Archive/Delete service methods with wod:delete auth
+fix: implement handler test repo Delete for WOD repository interface
+```
+
+If the user explicitly asks for a single commit, follow their instruction instead.
+
 ## Migrations
 
 - Numbered files in `db/migrations/` with paired `.up.sql` / `.down.sql`
