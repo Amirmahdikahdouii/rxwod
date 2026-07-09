@@ -26,10 +26,12 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	v1.POST("/auth/refresh", authHandler.Refresh)
 	v1.POST("/auth/forgot-password", authHandler.ForgotPassword)
 	v1.POST("/auth/reset-password", authHandler.ResetPassword)
+	v1.POST("/auth/verify-email", authHandler.VerifyEmail)
 	v1.GET("/invitations/:token", gymHandler.GetInvitationPreview)
 
 	authenticated := v1.Group("", AuthMiddleware(authService))
 	authenticated.GET("/me", authHandler.Me)
+	authenticated.POST("/auth/resend-verification", authHandler.ResendVerification)
 	authenticated.POST("/gyms", gymHandler.Create)
 	authenticated.GET("/gyms", gymHandler.List)
 	authenticated.POST("/gyms/:gymId/members/accept", gymHandler.AcceptInvitation)

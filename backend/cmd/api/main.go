@@ -44,16 +44,18 @@ func main() {
 	userRepo := postgres.NewUserRepository(db)
 	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
 	resetTokenRepo := postgres.NewPasswordResetTokenRepository(db)
+	verificationTokenRepo := postgres.NewEmailVerificationTokenRepository(db)
 	gymRepo := postgres.NewGymRepository(db)
 	wodRepo := postgres.NewWODRepository(db)
 
-	gymService := appgym.NewService(gymRepo, systemClock, uuidGenerator, 7*24*time.Hour)
+	gymService := appgym.NewService(gymRepo, userRepo, systemClock, uuidGenerator, 7*24*time.Hour)
 	accessTokenIssuer := infrajwt.NewAccessTokenIssuer(cfg.JWTSecret(), cfg.AccessTokenTTL())
 	emailSender := email.NewLogSender()
 	authService := appauth.NewService(
 		userRepo,
 		refreshTokenRepo,
 		resetTokenRepo,
+		verificationTokenRepo,
 		password.NewBcryptHasher(),
 		accessTokenIssuer,
 		gymService,
@@ -63,6 +65,7 @@ func main() {
 		cfg.RefreshTokenTTL(),
 		cfg.FrontendURL(),
 		cfg.PasswordResetTTL(),
+		cfg.EmailVerificationTTL(),
 	)
 	authorizer := appauthz.NewAuthorizer(gymRepo)
 	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)

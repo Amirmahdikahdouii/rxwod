@@ -24,6 +24,10 @@ type ResetPasswordRequest struct {
 	Password string `json:"password"`
 }
 
+type VerifyEmailRequest struct {
+	Token string `json:"token"`
+}
+
 type CreateGymRequest struct {
 	Name string `json:"name"`
 }

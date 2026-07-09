@@ -82,6 +82,24 @@ func (h *AuthHandler) ResetPassword(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+func (h *AuthHandler) VerifyEmail(c echo.Context) error {
+	var req VerifyEmailRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	if err := h.auth.VerifyEmail(c.Request().Context(), req.Token); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *AuthHandler) ResendVerification(c echo.Context) error {
+	if err := h.auth.ResendVerificationEmail(c.Request().Context()); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (h *AuthHandler) Me(c echo.Context) error {
 	currentUser, err := h.auth.CurrentUser(c.Request().Context())
 	if err != nil {

@@ -20,9 +20,10 @@ type MeResponse struct {
 }
 
 type UserResponse struct {
-	ID          string `json:"id"`
-	Email       string `json:"email"`
-	DisplayName string `json:"displayName"`
+	ID            string `json:"id"`
+	Email         string `json:"email"`
+	DisplayName   string `json:"displayName"`
+	EmailVerified bool   `json:"emailVerified"`
 }
 
 type GymResponse struct {
@@ -170,9 +171,10 @@ func toAccessTokenResponse(dto appauth.AccessTokenDTO) TokenResponse {
 
 func toUserResponse(dto appauth.UserDTO) UserResponse {
 	return UserResponse{
-		ID:          dto.ID,
-		Email:       dto.Email,
-		DisplayName: dto.DisplayName,
+		ID:            dto.ID,
+		Email:         dto.Email,
+		DisplayName:   dto.DisplayName,
+		EmailVerified: dto.EmailVerified,
 	}
 }
 

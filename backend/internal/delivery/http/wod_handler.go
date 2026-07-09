@@ -233,6 +233,8 @@ func mapError(c echo.Context, err error) error {
 	case errors.Is(err, appauthz.ErrActiveMembershipMissing),
 		errors.Is(err, appauthz.ErrForbidden):
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "permission denied"})
+	case errors.Is(err, appauth.ErrEmailNotVerified):
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, appauthz.ErrGymMismatch):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
 	case errors.Is(err, appgym.ErrInvitationEmailMismatch):
@@ -243,6 +245,7 @@ func mapError(c echo.Context, err error) error {
 	case errors.Is(err, domainwod.ErrInvalidName),
 		errors.Is(err, appauth.ErrPasswordTooShort),
 		errors.Is(err, appauth.ErrResetTokenInvalid),
+		errors.Is(err, appauth.ErrVerificationTokenInvalid),
 		errors.Is(err, domainuser.ErrInvalidEmail),
 		errors.Is(err, domainuser.ErrInvalidDisplayName),
 		errors.Is(err, domainuser.ErrPasswordHashEmpty),
