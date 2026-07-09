@@ -16,7 +16,7 @@ type Repository interface {
 	FindActiveMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error)
 	FindMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error)
 	FindMember(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (MemberDTO, error)
-	ListMembers(ctx context.Context, gymID domaingym.GymID) ([]MemberDTO, error)
+	ListMembers(ctx context.Context, gymID domaingym.GymID, filter ListMembersFilter) (ListMembersResult, error)
 	DeleteMembership(ctx context.Context, gymID domaingym.GymID, userID user.UserID) error
 	FindUserByEmail(ctx context.Context, email user.Email) (user.User, error)
 	FindUserByID(ctx context.Context, userID user.UserID) (user.User, error)
@@ -49,6 +49,28 @@ type MemberDTO struct {
 	DisplayName string
 	Role        domainauthz.Role
 	Status      domaingym.MembershipStatus
+}
+
+type ListMembersFilter struct {
+	Page  int
+	Limit int
+}
+
+type ListMembersResult struct {
+	Items []MemberDTO
+	Total int
+}
+
+type PaginationMetaDTO struct {
+	Page       int
+	Limit      int
+	Total      int
+	TotalPages int
+}
+
+type PaginatedMembersDTO struct {
+	Data []MemberDTO
+	Meta PaginationMetaDTO
 }
 
 type GymDTO struct {
