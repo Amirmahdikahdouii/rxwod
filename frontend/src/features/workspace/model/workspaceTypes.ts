@@ -57,6 +57,9 @@ export function canEditWOD(
   wod?: { createdBy: string; status: string },
   userId?: string | null,
 ): boolean {
+  if (wod?.status === 'ARCHIVED') {
+    return false
+  }
   if (role === 'owner') {
     return true
   }
@@ -81,6 +84,10 @@ export function canViewWOD(
 
 export function canPublishWOD(role: WorkspaceRole | null): boolean {
   return role === 'owner' || role === 'coach'
+}
+
+export function canDeleteWOD(role: WorkspaceRole | null): boolean {
+  return role === 'owner'
 }
 
 export function canManageMembers(role: WorkspaceRole | null): boolean {
