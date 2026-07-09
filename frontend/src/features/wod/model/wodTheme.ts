@@ -15,3 +15,15 @@ export const STAGE_KIND_BADGE_CLASS: Record<StageKind, string> = {
   METCON: 'badge-stage-metcon',
   COOLDOWN: 'badge-stage-cooldown',
 }
+
+export const STAGE_KIND_LABEL: Record<StageKind, string> = {
+  WARMUP: 'Warm-up',
+  STRENGTH: 'Strength',
+  CORE: 'Core',
+  METCON: 'Metcon',
+  COOLDOWN: 'Cooldown',
+}
+
+export function stageDisplayLabel(stage: { kind: StageKind; type: WODType }): string {
+  return `${STAGE_KIND_LABEL[stage.kind]} (${stage.type})`
+}

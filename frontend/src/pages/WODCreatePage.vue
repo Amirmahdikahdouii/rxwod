@@ -13,11 +13,15 @@ import {
   type StoredWODDraft,
 } from '@/features/wod/composables/useWODDraftStorage'
 import { useWODForm } from '@/features/wod/composables/useWODForm'
-import type { WODDetail } from '@/features/wod/model/wodTypes'
+import type { ScoringKind, WODDetail } from '@/features/wod/model/wodTypes'
+import { stageDisplayLabel } from '@/features/wod/model/wodTheme'
+import Leaderboard from '@/features/wodresult/components/Leaderboard.vue'
+import ScoreSubmissionForm from '@/features/wodresult/components/ScoreSubmissionForm.vue'
+import { useWODResults } from '@/features/wodresult/composables/useWODResults'
 import { canCreateWOD, canDeleteWOD, canEditWOD, canPublishWOD, canViewWOD, ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
 import BaseInput from '@/shared/components/BaseInput.vue'
 import BaseTextarea from '@/shared/components/BaseTextarea.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -35,7 +39,10 @@ const pendingDraft = ref<StoredWODDraft | null>(null)
 const showRecoveryPrompt = ref(false)
 const pendingArchive = ref(false)
 const pendingDelete = ref(false)
+const leaderboardSectionRef = ref<HTMLElement | null>(null)
 let autosaveTimer: ReturnType<typeof setTimeout> | null = null
+
+const { leaderboard, loadingLeaderboard, leaderboardError, fetchLeaderboard } = useWODResults()
 
 const {
   mode,
@@ -119,6 +126,11 @@ const canViewProgram = computed(() => {
 const isViewOnly = computed(() => canViewProgram.value && !canEditProgram.value)
 const isPublished = computed(() => loadedDetail.value?.status === 'PUBLISHED')
 const isArchived = computed(() => loadedDetail.value?.status === 'ARCHIVED')
+const metconStage = computed(() => loadedDetail.value?.stages.find((stage) => stage.kind === 'METCON'))
+const metconScoringKind = computed<ScoringKind>(() => metconStage.value?.scoringKind ?? 'NONE')
+const metconStageLabel = computed<string>(() =>
+  metconStage.value ? stageDisplayLabel(metconStage.value) : 'Metcon',
+)
 const canManageProgram = computed(() => canDeleteWOD(session.activeWorkspaceRole.value))
 const pageTitle = computed(() => {
   if (isViewOnly.value) {
@@ -269,6 +281,15 @@ async function handleDelete() {
   await router.push('/wods')
 }
 
+async function handleResultSubmitted() {
+  if (loadedDetail.value) {
+    await fetchLeaderboard(loadedDetail.value.id)
+  }
+  await nextTick()
+  leaderboardSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  leaderboardSectionRef.value?.focus()
+}
+
 watch([name, description, scheduledDate, stages], queueAutosave, { deep: true })
 
 watch(result, (value) => {
@@ -280,6 +301,9 @@ watch(result, (value) => {
 onMounted(async () => {
   if (initialWODId) {
     loadedDetail.value = await initEdit(initialWODId)
+    if (loadedDetail.value?.status === 'PUBLISHED') {
+      await fetchLeaderboard(loadedDetail.value.id)
+    }
   }
   maybeOfferRecovery()
 })
@@ -420,6 +444,27 @@ onMounted(async () => {
         />
       </div>
     </div>
+
+    <article v-if="isPublished && loadedDetail" class="card stack-lg">
+      <section class="card-section stack">
+        <ScoreSubmissionForm
+          :wod-id="loadedDetail.id"
+          :scoring-kind="metconScoringKind"
+          :stage-label="metconStageLabel"
+          @submitted="handleResultSubmitted"
+        />
+      </section>
+
+      <section ref="leaderboardSectionRef" class="card-section stack" tabindex="-1" aria-label="Leaderboard">
+        <Leaderboard
+          :entries="leaderboard"
+          :scoring-kind="metconScoringKind"
+          :stage-label="metconStageLabel"
+          :loading="loadingLeaderboard"
+          :error="leaderboardError"
+        />
+      </section>
+    </article>
 
     <article
       v-if="isEditMode && canManageProgram && loadedDetail"

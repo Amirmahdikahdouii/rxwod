@@ -2,6 +2,7 @@
 defineProps<{
   modelValue: number | undefined
   label: string
+  placeholder?: string
   min?: number
 }>()
 
@@ -18,6 +19,6 @@ function onInput(event: Event) {
 <template>
   <div class="field">
     <label>{{ label }}</label>
-    <input type="number" :value="modelValue" :min="min" @input="onInput" />
+    <input type="number" :value="modelValue" :placeholder="placeholder" :min="min" @input="onInput" />
   </div>
 </template>

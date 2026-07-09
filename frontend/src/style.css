@@ -1544,3 +1544,126 @@ button.stage-editor__summary:hover:not(:disabled) {
     flex: 1;
   }
 }
+
+.toast {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 200;
+  padding: 0.85rem 1.25rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-card-hover);
+}
+
+.toast--success {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success);
+}
+
+.toast--error {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error);
+}
+
+.badge-rx {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.badge-scaled {
+  background: var(--color-accent-muted);
+  color: var(--color-text-muted);
+}
+
+.leaderboard__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leaderboard__row {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+}
+
+.leaderboard__rank {
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+
+.leaderboard__info {
+  min-width: 0;
+}
+
+.leaderboard__name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.leaderboard__name {
+  font-weight: 700;
+}
+
+.leaderboard__notes {
+  margin: 0.25rem 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.leaderboard__score {
+  font-weight: 800;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.score-submission {
+  scroll-margin-top: 5.5rem;
+}
+
+.score-context__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.score-context__subtitle {
+  margin: 0 0 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 480px) {
+  .toast {
+    left: 1.25rem;
+    right: 1.25rem;
+  }
+
+  .leaderboard__row {
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+  }
+
+  .leaderboard__score {
+    grid-column: 2;
+  }
+}
