@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { createWOD, getWOD, publishWOD, updateWOD } from '@/features/wod/api/wodApi'
+import { archiveWOD, createWOD, deleteWOD, getWOD, publishWOD, updateWOD } from '@/features/wod/api/wodApi'
 import {
   defaultConfigForType,
   defaultMovement,
@@ -20,6 +20,7 @@ import { defaultTypeForKind } from '@/features/wod/model/wodTypes'
 
 type WODFormMode = 'create' | 'edit'
 type SaveAction = 'draft' | 'publish' | null
+type DestructiveAction = 'archive' | 'delete' | null
 
 export function useWODForm(initialMode: WODFormMode = 'create') {
   const mode = ref<WODFormMode>(initialMode)
@@ -30,6 +31,7 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
   const stages = ref<StageFormState[]>([defaultStage()])
   const loading = ref(false)
   const savingAction = ref<SaveAction>(null)
+  const destructiveAction = ref<DestructiveAction>(null)
   const initialLoading = ref(false)
   const error = ref<string | null>(null)
   const result = ref<CreateWODResponse | WODDetail | null>(null)
@@ -275,6 +277,47 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
     return true
   }
 
+  async function archiveProgram() {
+    if (!wodId.value) {
+      error.value = 'Program must be saved before archiving.'
+      return null
+    }
+
+    destructiveAction.value = 'archive'
+    error.value = null
+
+    const response = await archiveWOD(wodId.value)
+    destructiveAction.value = null
+
+    if (!response.ok) {
+      error.value = response.error
+      return null
+    }
+
+    result.value = response.value
+    return response.value
+  }
+
+  async function deleteProgram() {
+    if (!wodId.value) {
+      error.value = 'Program must be saved before deleting.'
+      return false
+    }
+
+    destructiveAction.value = 'delete'
+    error.value = null
+
+    const response = await deleteWOD(wodId.value)
+    destructiveAction.value = null
+
+    if (!response.ok) {
+      error.value = response.error
+      return false
+    }
+
+    return true
+  }
+
   return {
     mode,
     wodId,
@@ -284,6 +327,7 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
     stages,
     loading,
     savingAction,
+    destructiveAction,
     initialLoading,
     error,
     result,
@@ -307,5 +351,7 @@ export function useWODForm(initialMode: WODFormMode = 'create') {
     initEdit,
     saveDraft,
     publishProgram,
+    archiveProgram,
+    deleteProgram,
   }
 }
