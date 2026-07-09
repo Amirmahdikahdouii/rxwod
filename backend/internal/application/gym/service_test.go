@@ -35,6 +35,7 @@ type fakeGymRepo struct {
 	memberDTOs  map[user.UserID]MemberDTO
 	users       map[user.UserID]user.User
 	tokenHashes map[string]string
+	previews    map[string]InvitationPreviewDTO
 }
 
 func (f *fakeGymRepo) findMembership(gymID domaingym.GymID, userID user.UserID) (domaingym.Membership, error) {
@@ -136,6 +137,27 @@ func (f *fakeGymRepo) FindPendingInvitationsByEmail(_ context.Context, email use
 	return matches, nil
 }
 
+func (f *fakeGymRepo) FindInvitationPreviewByTokenHash(_ context.Context, tokenHash string) (InvitationPreviewDTO, error) {
+	if f.previews != nil {
+		if preview, ok := f.previews[tokenHash]; ok {
+			return preview, nil
+		}
+	}
+	for _, invitation := range f.invitations {
+		if f.tokenHashes[invitation.ID().String()] == tokenHash {
+			return InvitationPreviewDTO{
+				GymID:     invitation.GymID().String(),
+				GymName:   "Test Gym",
+				Email:     string(invitation.Email()),
+				Role:      invitation.Role(),
+				Status:    invitation.Status(),
+				ExpiresAt: invitation.ExpiresAt(),
+			}, nil
+		}
+	}
+	return InvitationPreviewDTO{}, ErrInvitationNotFound
+}
+
 func (f *fakeGymRepo) FindPendingInvitationByTokenHash(_ context.Context, gymID domaingym.GymID, tokenHash string) (domaingym.Invitation, error) {
 	for _, invitation := range f.invitations {
 		if invitation.GymID() != gymID || invitation.Status() != domaingym.InvitationStatusPending {
@@ -152,6 +174,69 @@ func (f *fakeGymRepo) AcceptInvitationWithMembership(_ context.Context, invitati
 	f.invitations = []domaingym.Invitation{invitation}
 	f.memberships = append(f.memberships, membership)
 	return nil
+}
+
+func TestGetInvitationPreviewPending(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	token := "secret-token"
+	repo := &fakeGymRepo{
+		previews: map[string]InvitationPreviewDTO{
+			hashInvitationToken(token): {
+				GymID:     "gym-1",
+				GymName:   "CrossFit Downtown",
+				Email:     "athlete@example.com",
+				Role:      domainauthz.RoleAthlete,
+				Status:    domaingym.InvitationStatusPending,
+				ExpiresAt: now.Add(time.Hour),
+			},
+		},
+	}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	preview, err := service.GetInvitationPreview(context.Background(), token)
+	if err != nil {
+		t.Fatalf("get invitation preview: %v", err)
+	}
+	if preview.GymName != "CrossFit Downtown" || preview.Status != domaingym.InvitationStatusPending {
+		t.Fatalf("unexpected preview: %+v", preview)
+	}
+}
+
+func TestGetInvitationPreviewExpiredByClock(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	token := "secret-token"
+	repo := &fakeGymRepo{
+		previews: map[string]InvitationPreviewDTO{
+			hashInvitationToken(token): {
+				GymID:     "gym-1",
+				GymName:   "CrossFit Downtown",
+				Email:     "athlete@example.com",
+				Role:      domainauthz.RoleAthlete,
+				Status:    domaingym.InvitationStatusPending,
+				ExpiresAt: now.Add(-time.Hour),
+			},
+		},
+	}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	preview, err := service.GetInvitationPreview(context.Background(), token)
+	if err != nil {
+		t.Fatalf("get invitation preview: %v", err)
+	}
+	if preview.Status != domaingym.InvitationStatusExpired {
+		t.Fatalf("expected expired status, got %s", preview.Status)
+	}
+}
+
+func TestGetInvitationPreviewNotFound(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	repo := &fakeGymRepo{}
+	service := NewService(repo, fixedClock{now: now}, &sequentialIDGen{}, time.Hour)
+
+	_, err := service.GetInvitationPreview(context.Background(), "unknown-token")
+	if !errors.Is(err, ErrInvitationNotFound) {
+		t.Fatalf("expected ErrInvitationNotFound, got %v", err)
+	}
 }
 
 func TestAcceptInvitesForEmailCreatesActiveMembership(t *testing.T) {

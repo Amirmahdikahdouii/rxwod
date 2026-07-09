@@ -18,30 +18,55 @@ const coachEmail = ref('')
 const athleteEmail = ref('')
 const invitingCoach = ref(false)
 const invitingAthlete = ref(false)
+const lastInviteLink = ref<string | null>(null)
+const copyFeedback = ref<string | null>(null)
+
+function buildInviteLink(token: string) {
+  return `${window.location.origin}/invite/${encodeURIComponent(token)}`
+}
+
+async function copyInviteLink() {
+  if (!lastInviteLink.value) {
+    return
+  }
+  await navigator.clipboard.writeText(lastInviteLink.value)
+  copyFeedback.value = 'Invite link copied'
+  setTimeout(() => {
+    copyFeedback.value = null
+  }, 2000)
+}
+
+async function inviteCoach() {
+  invitingCoach.value = true
+  lastInviteLink.value = null
+  const response = await workspaces.invite('coach', coachEmail.value)
+  invitingCoach.value = false
+  if (response.ok) {
+    coachEmail.value = ''
+    if (response.value.token) {
+      lastInviteLink.value = buildInviteLink(response.value.token)
+    }
+  }
+}
+
+async function inviteAthlete() {
+  invitingAthlete.value = true
+  lastInviteLink.value = null
+  const response = await workspaces.invite('athlete', athleteEmail.value)
+  invitingAthlete.value = false
+  if (response.ok) {
+    athleteEmail.value = ''
+    if (response.value.token) {
+      lastInviteLink.value = buildInviteLink(response.value.token)
+    }
+  }
+}
 
 const roleLabel = computed(() =>
   session.activeWorkspaceRole.value ? ROLE_LABELS[session.activeWorkspaceRole.value] : 'Member',
 )
 const canManage = computed(() => canManageMembers(session.activeWorkspaceRole.value))
 const canCreate = computed(() => canCreateWOD(session.activeWorkspaceRole.value))
-
-async function inviteCoach() {
-  invitingCoach.value = true
-  const response = await workspaces.invite('coach', coachEmail.value)
-  invitingCoach.value = false
-  if (response.ok) {
-    coachEmail.value = ''
-  }
-}
-
-async function inviteAthlete() {
-  invitingAthlete.value = true
-  const response = await workspaces.invite('athlete', athleteEmail.value)
-  invitingAthlete.value = false
-  if (response.ok) {
-    athleteEmail.value = ''
-  }
-}
 
 onMounted(async () => {
   if (canManage.value) {
@@ -129,6 +154,14 @@ watch(
         </div>
         <div v-if="workspaces.workspaceSuccess.value" class="alert alert--success" role="status">
           {{ workspaces.workspaceSuccess.value }}
+        </div>
+        <div v-if="lastInviteLink" class="stack">
+          <p class="helper-text">Share this invite link with the recipient:</p>
+          <div class="row row--align-center">
+            <input class="invite-link-input" type="text" readonly :value="lastInviteLink" />
+            <button type="button" class="secondary compact-button" @click="copyInviteLink">Copy link</button>
+          </div>
+          <p v-if="copyFeedback" class="helper-text">{{ copyFeedback }}</p>
         </div>
       </article>
 

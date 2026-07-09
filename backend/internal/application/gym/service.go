@@ -172,6 +172,17 @@ func (s *Service) AcceptInvitesForEmail(ctx context.Context, email user.Email, u
 	return nil
 }
 
+func (s *Service) GetInvitationPreview(ctx context.Context, token string) (InvitationPreviewDTO, error) {
+	preview, err := s.repo.FindInvitationPreviewByTokenHash(ctx, hashInvitationToken(token))
+	if err != nil {
+		return InvitationPreviewDTO{}, err
+	}
+	if preview.Status == domaingym.InvitationStatusPending && !preview.ExpiresAt.After(s.clock.Now()) {
+		preview.Status = domaingym.InvitationStatusExpired
+	}
+	return preview, nil
+}
+
 func (s *Service) AcceptInvitation(ctx context.Context, gymID string, token string) (MemberDTO, error) {
 	userID, err := appauthz.CurrentUserID(ctx)
 	if err != nil {

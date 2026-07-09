@@ -2,6 +2,7 @@ package gym
 
 import (
 	"context"
+	"time"
 
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 	domaingym "github.com/rxwod/backend/internal/domain/gym"
@@ -23,6 +24,7 @@ type Repository interface {
 	SaveInvitation(ctx context.Context, invitation domaingym.Invitation, tokenHash string) error
 	FindPendingInvitationsByEmail(ctx context.Context, email user.Email) ([]domaingym.Invitation, error)
 	FindPendingInvitationByTokenHash(ctx context.Context, gymID domaingym.GymID, tokenHash string) (domaingym.Invitation, error)
+	FindInvitationPreviewByTokenHash(ctx context.Context, tokenHash string) (InvitationPreviewDTO, error)
 	AcceptInvitationWithMembership(ctx context.Context, invitation domaingym.Invitation, membership domaingym.Membership) error
 }
 
@@ -61,4 +63,13 @@ type InvitationDTO struct {
 	Email string
 	Role  domainauthz.Role
 	Token string
+}
+
+type InvitationPreviewDTO struct {
+	GymID     string
+	GymName   string
+	Email     string
+	Role      domainauthz.Role
+	Status    domaingym.InvitationStatus
+	ExpiresAt time.Time
 }

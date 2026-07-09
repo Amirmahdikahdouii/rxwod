@@ -19,6 +19,15 @@ export interface InvitationResponse {
   gymId: string
   email: string
   role: WorkspaceRole
+  token?: string
+}
+
+export interface InvitationPreviewResponse {
+  gymId: string
+  gymName: string
+  email: string
+  role: WorkspaceRole
+  status: 'pending' | 'expired' | 'accepted' | 'revoked'
 }
 
 export interface CreateGymPayload {

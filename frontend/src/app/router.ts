@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useSession } from '@/features/auth/composables/useSession'
 import LoginPage from '@/pages/LoginPage.vue'
+import InviteAcceptPage from '@/pages/InviteAcceptPage.vue'
 import ProfilePage from '@/pages/ProfilePage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
 import WorkspaceCreatePage from '@/pages/WorkspaceCreatePage.vue'
@@ -14,6 +15,7 @@ export const router = createRouter({
   routes: [
     { path: '/login', component: LoginPage, meta: { guestOnly: true } },
     { path: '/register', component: RegisterPage, meta: { guestOnly: true } },
+    { path: '/invite/:token', component: InviteAcceptPage },
     { path: '/', component: WODCreatePage, meta: { requiresAuth: true, requiresWorkspace: true } },
     { path: '/wods', component: WODListPage, meta: { requiresAuth: true, requiresWorkspace: true } },
     {

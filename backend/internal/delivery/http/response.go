@@ -53,6 +53,14 @@ type InvitationResponse struct {
 	Token string `json:"token,omitempty"`
 }
 
+type InvitationPreviewResponse struct {
+	GymID   string `json:"gymId"`
+	GymName string `json:"gymName"`
+	Email   string `json:"email"`
+	Role    string `json:"role"`
+	Status  string `json:"status"`
+}
+
 type StageSummaryResponse struct {
 	Kind        string `json:"kind"`
 	Position    int    `json:"position"`
@@ -213,6 +221,16 @@ func toInvitationResponse(dto appgym.InvitationDTO) InvitationResponse {
 		Email: dto.Email,
 		Role:  string(dto.Role),
 		Token: dto.Token,
+	}
+}
+
+func toInvitationPreviewResponse(dto appgym.InvitationPreviewDTO) InvitationPreviewResponse {
+	return InvitationPreviewResponse{
+		GymID:   dto.GymID,
+		GymName: dto.GymName,
+		Email:   dto.Email,
+		Role:    string(dto.Role),
+		Status:  string(dto.Status),
 	}
 }
 

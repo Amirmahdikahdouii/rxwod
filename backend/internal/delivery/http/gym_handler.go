@@ -76,6 +76,14 @@ func (h *GymHandler) InviteAthlete(c echo.Context) error {
 	return c.JSON(http.StatusCreated, toInvitationResponse(result))
 }
 
+func (h *GymHandler) GetInvitationPreview(c echo.Context) error {
+	result, err := h.service.GetInvitationPreview(c.Request().Context(), c.Param("token"))
+	if err != nil {
+		return mapError(c, err)
+	}
+	return c.JSON(http.StatusOK, toInvitationPreviewResponse(result))
+}
+
 func (h *GymHandler) AcceptInvitation(c echo.Context) error {
 	var req AcceptInvitationRequest
 	if err := c.Bind(&req); err != nil {

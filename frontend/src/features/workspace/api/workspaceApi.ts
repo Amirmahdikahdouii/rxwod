@@ -3,6 +3,7 @@ import type { UserWorkspace } from '@/features/auth/model/authTypes'
 import type {
   CreateGymPayload,
   GymResponse,
+  InvitationPreviewResponse,
   InvitationResponse,
   InviteMemberPayload,
   MemberResponse,
@@ -65,4 +66,12 @@ export function removeMember(gymID: string, userID: string): Promise<Result<void
     auth: true,
     workspace: true,
   })
+}
+
+export function getInvitationPreview(token: string): Promise<Result<InvitationPreviewResponse>> {
+  return httpClient.get<InvitationPreviewResponse>(`/api/v1/invitations/${encodeURIComponent(token)}`)
+}
+
+export function acceptInvitation(gymId: string, token: string): Promise<Result<MemberResponse>> {
+  return httpClient.post<MemberResponse>(`/api/v1/gyms/${gymId}/members/accept`, { token }, { auth: true })
 }

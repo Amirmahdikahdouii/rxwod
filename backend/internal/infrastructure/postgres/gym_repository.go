@@ -266,6 +266,23 @@ func (r *GymRepository) FindPendingInvitationsByEmail(ctx context.Context, email
 	return invitations, nil
 }
 
+func (r *GymRepository) FindInvitationPreviewByTokenHash(ctx context.Context, tokenHash string) (appgym.InvitationPreviewDTO, error) {
+	row := r.db.pool.QueryRow(ctx, `
+		SELECT gi.gym_id, g.name, gi.email, gi.role, gi.status, gi.expires_at
+		FROM gym_invitations gi
+		JOIN gyms g ON g.id = gi.gym_id
+		WHERE gi.token_hash = $1
+	`, tokenHash)
+	var preview appgym.InvitationPreviewDTO
+	if err := row.Scan(&preview.GymID, &preview.GymName, &preview.Email, &preview.Role, &preview.Status, &preview.ExpiresAt); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return appgym.InvitationPreviewDTO{}, appgym.ErrInvitationNotFound
+		}
+		return appgym.InvitationPreviewDTO{}, fmt.Errorf("find invitation preview: %w", err)
+	}
+	return preview, nil
+}
+
 func (r *GymRepository) FindPendingInvitationByTokenHash(ctx context.Context, gymID domaingym.GymID, tokenHash string) (domaingym.Invitation, error) {
 	row := r.db.pool.QueryRow(ctx, `
 		SELECT id, gym_id, email, role, status, invited_by, expires_at, created_at, updated_at

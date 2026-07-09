@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { useSession } from '@/features/auth/composables/useSession'
 import BaseInput from '@/shared/components/BaseInput.vue'
 
 const router = useRouter()
+const route = useRoute()
 const session = useSession()
 
 const displayName = ref('')
@@ -12,6 +13,14 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
+
+function redirectTarget() {
+  const redirect = route.query.redirect
+  if (typeof redirect === 'string' && redirect.startsWith('/')) {
+    return redirect
+  }
+  return session.activeWorkspace.value ? '/' : '/workspace/new'
+}
 
 async function submit() {
   loading.value = true
@@ -28,7 +37,7 @@ async function submit() {
     return
   }
 
-  await router.push(session.activeWorkspace.value ? '/' : '/workspace/new')
+  await router.push(redirectTarget())
 }
 </script>
 
