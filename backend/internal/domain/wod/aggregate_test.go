@@ -312,3 +312,108 @@ func TestOpenConfigValidation(t *testing.T) {
 		t.Fatalf("expected ScoringNone")
 	}
 }
+
+func publishedWOD(t *testing.T) WOD {
+	t.Helper()
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	stages := []Stage{sampleStage(t, StageMetcon, 1, amrapConfig(t))}
+	wod, err := NewWOD(
+		WODID("wod-1"),
+		testGymID,
+		testUserID,
+		WODName("Published Program"),
+		WODDescription("test"),
+		stages,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("unexpected wod error: %v", err)
+	}
+	scheduledDate := time.Date(2026, 1, 15, 0, 0, 0, 0, time.UTC)
+	wod.SetScheduledDate(&scheduledDate, now)
+	if err := wod.Publish(now); err != nil {
+		t.Fatalf("unexpected publish error: %v", err)
+	}
+	return wod
+}
+
+func TestArchivePublishedWOD(t *testing.T) {
+	wod := publishedWOD(t)
+	now := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+
+	if err := wod.Archive(now); err != nil {
+		t.Fatalf("unexpected archive error: %v", err)
+	}
+	if wod.Status() != WODStatusArchived {
+		t.Fatalf("expected ARCHIVED status, got %s", wod.Status())
+	}
+	if !wod.UpdatedAt().Equal(now) {
+		t.Fatalf("expected updatedAt %v, got %v", now, wod.UpdatedAt())
+	}
+}
+
+func TestArchiveRejectsDraft(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	stages := []Stage{sampleStage(t, StageMetcon, 1, amrapConfig(t))}
+	wod, err := NewWOD(
+		WODID("wod-1"),
+		testGymID,
+		testUserID,
+		WODName("Draft Program"),
+		WODDescription("test"),
+		stages,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("unexpected wod error: %v", err)
+	}
+
+	if err := wod.Archive(now); err != ErrInvalidStatusTransition {
+		t.Fatalf("expected ErrInvalidStatusTransition, got %v", err)
+	}
+}
+
+func TestArchiveRejectsAlreadyArchived(t *testing.T) {
+	wod := publishedWOD(t)
+	now := time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC)
+	if err := wod.Archive(now); err != nil {
+		t.Fatalf("unexpected archive error: %v", err)
+	}
+
+	if err := wod.Archive(now); err != ErrInvalidStatusTransition {
+		t.Fatalf("expected ErrInvalidStatusTransition, got %v", err)
+	}
+}
+
+func TestCanDelete(t *testing.T) {
+	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	stages := []Stage{sampleStage(t, StageMetcon, 1, amrapConfig(t))}
+	draft, err := NewWOD(
+		WODID("wod-draft"),
+		testGymID,
+		testUserID,
+		WODName("Draft Program"),
+		WODDescription("test"),
+		stages,
+		now,
+	)
+	if err != nil {
+		t.Fatalf("unexpected wod error: %v", err)
+	}
+	if !draft.CanDelete() {
+		t.Fatalf("expected draft to be deletable")
+	}
+
+	published := publishedWOD(t)
+	if published.CanDelete() {
+		t.Fatalf("expected published wod to not be deletable")
+	}
+
+	archived := publishedWOD(t)
+	if err := archived.Archive(now); err != nil {
+		t.Fatalf("unexpected archive error: %v", err)
+	}
+	if !archived.CanDelete() {
+		t.Fatalf("expected archived wod to be deletable")
+	}
+}

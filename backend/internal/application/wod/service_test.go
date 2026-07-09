@@ -89,6 +89,15 @@ func (m *memoryRepo) ListCalendar(_ context.Context, gymID gym.GymID, from, to t
 	return items, nil
 }
 
+func (m *memoryRepo) Delete(_ context.Context, gymID gym.GymID, id domainwod.WODID) error {
+	aggregate, ok := m.items[id]
+	if !ok || aggregate.GymID() != gymID {
+		return errors.New("not found")
+	}
+	delete(m.items, id)
+	return nil
+}
+
 func testContext() context.Context {
 	return appauthz.WithPrincipal(context.Background(), appauthz.Principal{
 		UserID: user.UserID("user-1"),
@@ -692,5 +701,150 @@ func TestServiceCalendarGroupsMultiplePlansPerDate(t *testing.T) {
 	}
 	if len(days) != 1 || days[0].DraftCount != 2 {
 		t.Fatalf("expected one day with two drafts, got %+v", days)
+	}
+}
+
+func createPublishedWOD(t *testing.T, service *Service, ctx context.Context) CreateWODResultDTO {
+	t.Helper()
+	created, err := service.Create(ctx, CreateWODCommand{
+		Name:          "Published Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+	if _, err := service.Publish(ctx, created.ID); err != nil {
+		t.Fatalf("publish error: %v", err)
+	}
+	return created
+}
+
+func TestServiceOwnerArchivesPublishedWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+	created := createPublishedWOD(t, service, testContext())
+
+	archived, err := service.Archive(testContext(), created.ID)
+	if err != nil {
+		t.Fatalf("archive error: %v", err)
+	}
+	if archived.Status != domainwod.WODStatusArchived {
+		t.Fatalf("expected ARCHIVED status, got %s", archived.Status)
+	}
+}
+
+func TestServiceArchiveRejectsDraft(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContext(), CreateWODCommand{
+		Name:          "Draft Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	_, err = service.Archive(testContext(), created.ID)
+	if !errors.Is(err, domainwod.ErrInvalidStatusTransition) {
+		t.Fatalf("expected ErrInvalidStatusTransition, got %v", err)
+	}
+}
+
+func TestServiceCoachCannotArchiveWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+	ctx := testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1"))
+	created := createPublishedWOD(t, service, ctx)
+
+	_, err := service.Archive(ctx, created.ID)
+	if !errors.Is(err, appauthz.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestServiceOwnerDeletesDraftWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	created, err := service.Create(testContext(), CreateWODCommand{
+		Name:          "Draft Program",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	if err := service.Delete(testContext(), created.ID); err != nil {
+		t.Fatalf("delete error: %v", err)
+	}
+	if _, err := service.GetByID(testContext(), created.ID); err == nil {
+		t.Fatalf("expected deleted wod to be missing")
+	}
+}
+
+func TestServiceOwnerDeletesArchivedWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+	created := createPublishedWOD(t, service, testContext())
+
+	if _, err := service.Archive(testContext(), created.ID); err != nil {
+		t.Fatalf("archive error: %v", err)
+	}
+	if err := service.Delete(testContext(), created.ID); err != nil {
+		t.Fatalf("delete error: %v", err)
+	}
+	if _, err := service.GetByID(testContext(), created.ID); err == nil {
+		t.Fatalf("expected deleted wod to be missing")
+	}
+}
+
+func TestServiceDeleteRejectsPublishedWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+	created := createPublishedWOD(t, service, testContext())
+
+	err := service.Delete(testContext(), created.ID)
+	if !errors.Is(err, domainwod.ErrCannotDeletePublished) {
+		t.Fatalf("expected ErrCannotDeletePublished, got %v", err)
+	}
+}
+
+func TestServiceCoachCannotDeleteWOD(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+	ctx := testContextForRole(domainauthz.RoleCoach, user.UserID("coach-1"))
+
+	created, err := service.Create(ctx, CreateWODCommand{
+		Name:          "Coach Draft",
+		ScheduledDate: scheduledDate(2026, time.June, 20),
+		Stages: []StageInput{{
+			Kind:      domainwod.StageWarmup,
+			Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+			Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("create error: %v", err)
+	}
+
+	err = service.Delete(ctx, created.ID)
+	if !errors.Is(err, appauthz.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
 	}
 }

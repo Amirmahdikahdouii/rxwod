@@ -137,6 +137,49 @@ func (s *Service) Publish(ctx context.Context, id string) (WODDetailDTO, error) 
 	return toDetailDTO(aggregate), nil
 }
 
+func (s *Service) Archive(ctx context.Context, id string) (WODDetailDTO, error) {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODDelete)
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	existing, err := s.repo.FindByID(ctx, principal.GymID, wod.WODID(id))
+	if err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	aggregate := existing
+	if err := aggregate.Archive(s.clock.Now()); err != nil {
+		return WODDetailDTO{}, err
+	}
+
+	if err := s.repo.Save(ctx, aggregate); err != nil {
+		return WODDetailDTO{}, fmt.Errorf("save wod: %w", err)
+	}
+
+	return toDetailDTO(aggregate), nil
+}
+
+func (s *Service) Delete(ctx context.Context, id string) error {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODDelete)
+	if err != nil {
+		return err
+	}
+
+	existing, err := s.repo.FindByID(ctx, principal.GymID, wod.WODID(id))
+	if err != nil {
+		return err
+	}
+	if !existing.CanDelete() {
+		return wod.ErrCannotDeletePublished
+	}
+
+	if err := s.repo.Delete(ctx, principal.GymID, wod.WODID(id)); err != nil {
+		return fmt.Errorf("delete wod: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) List(ctx context.Context, statusFilter *wod.WODStatus) ([]WODSummaryDTO, error) {
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODRead)
 	if err != nil {

@@ -138,6 +138,20 @@ func (r *WODRepository) List(ctx context.Context, gymID gym.GymID) ([]domainwod.
 	return wods, nil
 }
 
+func (r *WODRepository) Delete(ctx context.Context, gymID gym.GymID, id domainwod.WODID) error {
+	tag, err := r.db.pool.Exec(ctx, `
+		DELETE FROM wods
+		WHERE id = $1 AND gym_id = $2
+	`, id.String(), gymID.String())
+	if err != nil {
+		return fmt.Errorf("delete wod: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (r *WODRepository) fetchRecord(ctx context.Context, gymID string, id string) (wodRecord, error) {
 	row := r.db.pool.QueryRow(ctx, `
 		SELECT id, gym_id, created_by, name, status, description, scheduled_date, published_at, created_at, updated_at

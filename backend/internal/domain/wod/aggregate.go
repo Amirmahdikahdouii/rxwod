@@ -156,3 +156,16 @@ func (w *WOD) Publish(now time.Time) error {
 	w.updatedAt = now
 	return nil
 }
+
+func (w *WOD) Archive(now time.Time) error {
+	if w.status != WODStatusPublished {
+		return ErrInvalidStatusTransition
+	}
+	w.status = WODStatusArchived
+	w.updatedAt = now
+	return nil
+}
+
+func (w WOD) CanDelete() bool {
+	return w.status == WODStatusDraft || w.status == WODStatusArchived
+}

@@ -20,6 +20,7 @@ var (
 	ErrInvalidPosition         = errors.New("movement position must be greater than zero")
 	ErrUnknownWODType          = errors.New("unknown wod type")
 	ErrInvalidStatusTransition = errors.New("invalid status transition")
+	ErrCannotDeletePublished   = errors.New("published wod must be archived before deletion")
 	ErrScheduledDateRequired = errors.New("scheduled date is required to publish")
 	ErrStageRequired         = errors.New("at least one stage is required")
 	ErrInvalidStageKind        = errors.New("stage kind is invalid")

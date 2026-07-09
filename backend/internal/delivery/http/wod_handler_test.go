@@ -78,6 +78,15 @@ func (m *handlerMemoryRepo) ListCalendar(_ context.Context, gymID gym.GymID, fro
 	return items, nil
 }
 
+func (m *handlerMemoryRepo) Delete(_ context.Context, gymID gym.GymID, id domainwod.WODID) error {
+	aggregate, ok := m.items[id]
+	if !ok || aggregate.GymID() != gymID {
+		return postgres.ErrNotFound
+	}
+	delete(m.items, id)
+	return nil
+}
+
 func newTestRouter() *echo.Echo {
 	repo := newHandlerMemoryRepo()
 	service := appwod.NewService(repo, clock.System{}, idgen.UUIDGenerator{})

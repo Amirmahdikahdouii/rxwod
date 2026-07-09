@@ -13,6 +13,7 @@ type Repository interface {
 	FindByID(ctx context.Context, gymID gym.GymID, id domainwod.WODID) (domainwod.WOD, error)
 	List(ctx context.Context, gymID gym.GymID) ([]domainwod.WOD, error)
 	ListCalendar(ctx context.Context, gymID gym.GymID, from, to time.Time, includeDrafts bool) ([]CalendarEntry, error)
+	Delete(ctx context.Context, gymID gym.GymID, id domainwod.WODID) error
 }
 
 type CalendarEntry struct {
