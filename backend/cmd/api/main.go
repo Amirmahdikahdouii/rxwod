@@ -14,6 +14,7 @@ import (
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
+	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
 	deliveryhttp "github.com/rxwod/backend/internal/delivery/http"
 	"github.com/rxwod/backend/internal/infrastructure/config"
 	infrajwt "github.com/rxwod/backend/internal/infrastructure/jwt"
@@ -56,6 +57,7 @@ func main() {
 	verificationTokenRepo := postgres.NewEmailVerificationTokenRepository(db)
 	gymRepo := postgres.NewGymRepository(db)
 	wodRepo := postgres.NewWODRepository(db)
+	wodResultRepo := postgres.NewWODResultRepository(db)
 
 	gymService := appgym.NewService(gymRepo, userRepo, systemClock, uuidGenerator, 7*24*time.Hour)
 	accessTokenIssuer := infrajwt.NewAccessTokenIssuer(cfg.JWTSecret(), cfg.AccessTokenTTL())
@@ -78,7 +80,8 @@ func main() {
 	)
 	authorizer := appauthz.NewAuthorizer(gymRepo)
 	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)
-	router := deliveryhttp.NewRouter(authService, gymService, wodService, authorizer, db, cfg.AllowedOrigins(), cfg)
+	wodResultService := appwodresult.NewService(wodResultRepo, wodRepo, gymRepo, systemClock, uuidGenerator)
+	router := deliveryhttp.NewRouter(authService, gymService, wodService, wodResultService, authorizer, db, cfg.AllowedOrigins(), cfg)
 
 	go func() {
 		address := fmt.Sprintf(":%d", cfg.HTTPPort())

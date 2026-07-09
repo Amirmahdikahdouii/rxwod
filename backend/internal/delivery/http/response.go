@@ -6,6 +6,7 @@ import (
 	appauth "github.com/rxwod/backend/internal/application/auth"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
+	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
 )
 
 type TokenResponse struct {
@@ -406,4 +407,62 @@ func toCalendarResponses(days []appwod.CalendarDayDTO) []CalendarDayResponse {
 		})
 	}
 	return responses
+}
+
+type ResultResponse struct {
+	ID              string    `json:"id"`
+	WODID           string    `json:"wodId"`
+	GymMembershipID string    `json:"gymMembershipId"`
+	ScoreValue      int       `json:"scoreValue"`
+	IsRx            bool      `json:"isRx"`
+	Notes           string    `json:"notes"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type LeaderboardEntryResponse struct {
+	Rank            int       `json:"rank"`
+	GymMembershipID string    `json:"gymMembershipId"`
+	DisplayName     string    `json:"displayName"`
+	ScoreValue      int       `json:"scoreValue"`
+	IsRx            bool      `json:"isRx"`
+	Notes           string    `json:"notes"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type LeaderboardResponse struct {
+	WODID   string                     `json:"wodId"`
+	Entries []LeaderboardEntryResponse `json:"entries"`
+}
+
+func toResultResponse(dto appwodresult.ResultDTO) ResultResponse {
+	return ResultResponse{
+		ID:              dto.ID,
+		WODID:           dto.WODID,
+		GymMembershipID: dto.GymMembershipID,
+		ScoreValue:      dto.ScoreValue,
+		IsRx:            dto.IsRx,
+		Notes:           dto.Notes,
+		CreatedAt:       dto.CreatedAt,
+		UpdatedAt:       dto.UpdatedAt,
+	}
+}
+
+func toLeaderboardResponse(dto appwodresult.LeaderboardDTO) LeaderboardResponse {
+	entries := make([]LeaderboardEntryResponse, 0, len(dto.Entries))
+	for _, entry := range dto.Entries {
+		entries = append(entries, LeaderboardEntryResponse{
+			Rank:            entry.Rank,
+			GymMembershipID: entry.GymMembershipID,
+			DisplayName:     entry.DisplayName,
+			ScoreValue:      entry.ScoreValue,
+			IsRx:            entry.IsRx,
+			Notes:           entry.Notes,
+			UpdatedAt:       entry.UpdatedAt,
+		})
+	}
+	return LeaderboardResponse{
+		WODID:   dto.WODID,
+		Entries: entries,
+	}
 }

@@ -79,3 +79,9 @@ type MovementRequest struct {
 	LoadUnit     *string  `json:"loadUnit,omitempty"`
 	Notes        string   `json:"notes,omitempty"`
 }
+
+type SubmitResultRequest struct {
+	ScoreValue int    `json:"scoreValue"`
+	IsRx       bool   `json:"isRx"`
+	Notes      string `json:"notes"`
+}

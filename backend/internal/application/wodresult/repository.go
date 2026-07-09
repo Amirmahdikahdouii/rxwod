@@ -12,4 +12,10 @@ type Repository interface {
 	Save(ctx context.Context, result domainwodresult.WODResult) error
 	FindByWODAndMembership(ctx context.Context, wodID domainwod.WODID, gymMembershipID gym.MembershipID) (domainwodresult.WODResult, error)
 	ListByWOD(ctx context.Context, wodID domainwod.WODID) ([]domainwodresult.WODResult, error)
+	ListLeaderboardByWOD(ctx context.Context, wodID domainwod.WODID) ([]LeaderboardRow, error)
+}
+
+type LeaderboardRow struct {
+	Result      domainwodresult.WODResult
+	DisplayName string
 }

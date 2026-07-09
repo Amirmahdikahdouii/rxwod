@@ -7,11 +7,12 @@ import (
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
+	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
 	"github.com/rxwod/backend/internal/infrastructure/config"
 )
 
-func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer, db dbPinger, allowedOrigins []string, cfg config.Config) *echo.Echo {
+func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, wodResultService *appwodresult.Service, authorizer *appauthz.Authorizer, db dbPinger, allowedOrigins []string, cfg config.Config) *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -23,6 +24,7 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	authHandler := NewAuthHandler(authService, gymService)
 	gymHandler := NewGymHandler(gymService)
 	wodHandler := NewWODHandler(wodService)
+	wodResultHandler := NewWODResultHandler(wodResultService)
 	healthHandler := NewHealthHandler(db)
 
 	e.GET("/healthz", healthHandler.Check)
@@ -61,6 +63,8 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymContext.POST("/wods/:id/publish", wodHandler.Publish, RequirePermission(domainauthz.PermissionWODPublish))
 	gymContext.DELETE("/wods/:id", wodHandler.Delete, RequirePermission(domainauthz.PermissionWODDelete))
 	gymContext.POST("/wods/:id/archive", wodHandler.Archive, RequirePermission(domainauthz.PermissionWODDelete))
+	gymContext.POST("/wods/:id/results", wodResultHandler.SubmitResult, RequirePermission(domainauthz.PermissionWODResultSubmit))
+	gymContext.GET("/wods/:id/leaderboard", wodResultHandler.GetLeaderboard, RequirePermission(domainauthz.PermissionWODResultRead))
 
 	return e
 }

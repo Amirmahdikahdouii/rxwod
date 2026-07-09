@@ -14,6 +14,7 @@ import (
 	domaingym "github.com/rxwod/backend/internal/domain/gym"
 	domainuser "github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
+	domainwodresult "github.com/rxwod/backend/internal/domain/wodresult"
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 )
 
@@ -281,9 +282,11 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrInvalidStatusTransition),
 		errors.Is(err, domainwod.ErrCannotDeletePublished),
 		errors.Is(err, domainwod.ErrScheduledDateRequired),
-		errors.Is(err, appwod.ErrMissingConfigField):
+		errors.Is(err, appwod.ErrMissingConfigField),
+		errors.Is(err, domainwodresult.ErrInvalidScore):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound),
+		errors.Is(err, postgres.ErrWODResultNotFound),
 		errors.Is(err, appgym.ErrMemberNotFound),
 		errors.Is(err, appgym.ErrInvitationNotFound):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})

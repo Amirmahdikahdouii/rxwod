@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
 	"github.com/rxwod/backend/internal/domain/gym"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
 	domainwodresult "github.com/rxwod/backend/internal/domain/wodresult"
@@ -88,6 +89,52 @@ func (r *WODResultRepository) ListByWOD(ctx context.Context, wodID domainwod.WOD
 		return nil, fmt.Errorf("iterate wod results: %w", err)
 	}
 	return results, nil
+}
+
+func (r *WODResultRepository) ListLeaderboardByWOD(ctx context.Context, wodID domainwod.WODID) ([]appwodresult.LeaderboardRow, error) {
+	rows, err := r.db.pool.Query(ctx, `
+		SELECT wr.id, wr.wod_id, wr.gym_membership_id, wr.score_value, wr.is_rx, wr.notes,
+		       wr.created_at, wr.updated_at, u.display_name
+		FROM wod_results wr
+		JOIN gym_memberships gm ON gm.id = wr.gym_membership_id
+		JOIN users u ON u.id = gm.user_id
+		WHERE wr.wod_id = $1
+	`, wodID.String())
+	if err != nil {
+		return nil, fmt.Errorf("list leaderboard: %w", err)
+	}
+	defer rows.Close()
+
+	var leaderboard []appwodresult.LeaderboardRow
+	for rows.Next() {
+		var record wodResultRecord
+		var displayName string
+		if err := rows.Scan(
+			&record.ID,
+			&record.WODID,
+			&record.GymMembershipID,
+			&record.ScoreValue,
+			&record.IsRx,
+			&record.Notes,
+			&record.CreatedAt,
+			&record.UpdatedAt,
+			&displayName,
+		); err != nil {
+			return nil, fmt.Errorf("scan leaderboard row: %w", err)
+		}
+		result, err := recordToWODResult(record)
+		if err != nil {
+			return nil, err
+		}
+		leaderboard = append(leaderboard, appwodresult.LeaderboardRow{
+			Result:      result,
+			DisplayName: displayName,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate leaderboard rows: %w", err)
+	}
+	return leaderboard, nil
 }
 
 func scanWODResult(scanner rowScanner) (wodResultRecord, error) {
