@@ -116,8 +116,31 @@ func (f *fakeGymRepo) DeleteMembership(_ context.Context, gymID domaingym.GymID,
 	return ErrMemberNotFound
 }
 
-func (f *fakeGymRepo) ListMembers(context.Context, domaingym.GymID) ([]MemberDTO, error) {
-	return nil, nil
+func (f *fakeGymRepo) ListMembers(_ context.Context, gymID domaingym.GymID, filter ListMembersFilter) (ListMembersResult, error) {
+	var members []MemberDTO
+	for _, membership := range f.memberships {
+		if membership.GymID() != gymID {
+			continue
+		}
+		dto, ok := f.memberDTOs[membership.UserID()]
+		if !ok {
+			continue
+		}
+		dto.Role = membership.Role()
+		dto.Status = membership.Status()
+		members = append(members, dto)
+	}
+
+	total := len(members)
+	start := (filter.Page - 1) * filter.Limit
+	if start > total {
+		start = total
+	}
+	end := start + filter.Limit
+	if end > total {
+		end = total
+	}
+	return ListMembersResult{Items: members[start:end], Total: total}, nil
 }
 
 func (f *fakeGymRepo) FindUserByEmail(context.Context, user.Email) (user.User, error) {
