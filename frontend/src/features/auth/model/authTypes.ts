@@ -31,3 +31,12 @@ export interface LoginPayload {
 export interface RegisterPayload extends LoginPayload {
   displayName: string
 }
+
+export interface ForgotPasswordPayload {
+  email: string
+}
+
+export interface ResetPasswordPayload {
+  token: string
+  password: string
+}

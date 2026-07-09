@@ -1,8 +1,10 @@
 import { httpClient } from '@/shared/api/httpClient'
 import type {
+  ForgotPasswordPayload,
   LoginPayload,
   MeResponse,
   RegisterPayload,
+  ResetPasswordPayload,
   TokenResponse,
 } from '@/features/auth/model/authTypes'
 import type { Result } from '@/shared/utils/result'
@@ -21,4 +23,12 @@ export function refreshToken(refreshToken: string): Promise<Result<TokenResponse
 
 export function getMe(): Promise<Result<MeResponse>> {
   return httpClient.get<MeResponse>('/api/v1/me', { auth: true })
+}
+
+export function forgotPassword(payload: ForgotPasswordPayload): Promise<Result<void>> {
+  return httpClient.post<void>('/api/v1/auth/forgot-password', payload)
+}
+
+export function resetPassword(payload: ResetPasswordPayload): Promise<Result<void>> {
+  return httpClient.post<void>('/api/v1/auth/reset-password', payload)
 }
