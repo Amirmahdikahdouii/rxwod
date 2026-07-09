@@ -15,9 +15,13 @@ import {
   canViewWOD,
   ROLE_LABELS,
 } from '@/features/workspace/model/workspaceTypes'
+import BasePagination from '@/shared/components/BasePagination.vue'
+import type { PaginationMeta } from '@/shared/model/paginationTypes'
 
 const session = useSession()
 const items = ref<WODSummary[]>([])
+const page = ref(1)
+const meta = ref<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 })
 const calendarDays = ref<CalendarDaySummary[]>([])
 const error = ref<string | null>(null)
 const calendarError = ref<string | null>(null)
@@ -100,15 +104,21 @@ function cancelDelete() {
   pendingDeleteId.value = null
 }
 
-async function loadPrograms() {
+async function loadPrograms(targetPage = page.value) {
   loading.value = true
-  const response = await listWODs()
+  const response = await listWODs({ page: targetPage, limit: meta.value.limit })
   loading.value = false
   if (!response.ok) {
     error.value = response.error
     return
   }
-  items.value = response.value
+  items.value = response.value.data
+  meta.value = response.value.meta
+  page.value = targetPage
+}
+
+function handlePageChange(newPage: number) {
+  void loadPrograms(newPage)
 }
 
 async function loadCalendar() {
@@ -314,5 +324,15 @@ onMounted(async () => {
         </div>
       </article>
     </div>
+
+    <BasePagination
+      v-if="!selectedDate"
+      :page="page"
+      :total-pages="meta.totalPages"
+      :total="meta.total"
+      :limit="meta.limit"
+      :disabled="loading"
+      @update:page="handlePageChange"
+    />
   </div>
 </template>
