@@ -26,6 +26,10 @@ func TestLoadUsesDefaultsWhenConfigFileIsMissing(t *testing.T) {
 	if got, want := cfg.DatabaseURL(), "postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable"; got != want {
 		t.Fatalf("DatabaseURL() = %q, want %q", got, want)
 	}
+
+	if got, want := cfg.LogLevel(), "info"; got != want {
+		t.Fatalf("LogLevel() = %q, want %q", got, want)
+	}
 }
 
 func TestLoadReadsYAMLConfigFile(t *testing.T) {
@@ -71,6 +75,7 @@ database:
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("HTTP_PORT", "7070")
 	t.Setenv("DATABASE_URL", "postgres://env:env@localhost:5432/env?sslmode=disable")
+	t.Setenv("LOG_LEVEL", "error")
 
 	cfg, err := load(dir)
 	if err != nil {
@@ -87,6 +92,10 @@ database:
 
 	if got, want := cfg.DatabaseURL(), "postgres://env:env@localhost:5432/env?sslmode=disable"; got != want {
 		t.Fatalf("DatabaseURL() = %q, want %q", got, want)
+	}
+
+	if got, want := cfg.LogLevel(), "error"; got != want {
+		t.Fatalf("LogLevel() = %q, want %q", got, want)
 	}
 }
 
@@ -134,6 +143,30 @@ database:
 	}
 }
 
+func TestLoadRejectsInvalidLogLevel(t *testing.T) {
+	clearConfigEnv(t)
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+app:
+  env: test
+http:
+  port: 9090
+database:
+  url: "postgres://yaml:yaml@localhost:5432/yaml?sslmode=disable"
+logging:
+  level: verbose
+`)
+
+	_, err := load(dir)
+	if err == nil {
+		t.Fatal("load config succeeded, want error")
+	}
+
+	if !strings.Contains(err.Error(), "logging.level") {
+		t.Fatalf("error = %q, want logging.level validation", err.Error())
+	}
+}
+
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("APP_ENV", "")
@@ -142,6 +175,7 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("AUTH_JWT_SECRET", "")
 	t.Setenv("AUTH_ACCESS_TOKEN_TTL", "")
 	t.Setenv("AUTH_REFRESH_TOKEN_TTL", "")
+	t.Setenv("LOG_LEVEL", "")
 }
 
 func writeConfig(t *testing.T, dir string, contents string) {

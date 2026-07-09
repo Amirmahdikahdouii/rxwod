@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rxwod/backend/internal/platform/logger"
 	"github.com/spf13/viper"
 )
 
@@ -33,6 +34,7 @@ func load(configPaths ...string) (Config, error) {
 	mustBindEnv(v, "auth.refreshTokenTTL", "AUTH_REFRESH_TOKEN_TTL")
 	mustBindEnv(v, "auth.passwordResetTTL", "AUTH_PASSWORD_RESET_TTL")
 	mustBindEnv(v, "auth.emailVerificationTTL", "AUTH_EMAIL_VERIFICATION_TTL")
+	mustBindEnv(v, "logging.level", "LOG_LEVEL")
 
 	v.SetDefault("app.env", "development")
 	v.SetDefault("app.frontendURL", "http://localhost:5173")
@@ -43,6 +45,7 @@ func load(configPaths ...string) (Config, error) {
 	v.SetDefault("auth.refreshTokenTTL", "168h")
 	v.SetDefault("auth.passwordResetTTL", "1h")
 	v.SetDefault("auth.emailVerificationTTL", "24h")
+	v.SetDefault("logging.level", "info")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -108,6 +111,10 @@ func (c Config) Validate() error {
 		return fmt.Errorf("auth.emailVerificationTTL must be a valid positive duration")
 	}
 
+	if _, err := logger.ParseLevel(c.Logging.Level); err != nil {
+		return fmt.Errorf("logging.level must be one of info, warn, error: %w", err)
+	}
+
 	return nil
 }
 
@@ -145,4 +152,8 @@ func (c Config) PasswordResetTTL() time.Duration {
 
 func (c Config) EmailVerificationTTL() time.Duration {
 	return parseDuration(c.Auth.EmailVerificationTTL)
+}
+
+func (c Config) LogLevel() string {
+	return c.Logging.Level
 }

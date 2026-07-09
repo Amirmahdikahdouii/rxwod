@@ -7,11 +7,16 @@ type Config struct {
 	HTTP     HTTPConfig     `mapstructure:"http"`
 	Database DatabaseConfig `mapstructure:"database"`
 	Auth     AuthConfig     `mapstructure:"auth"`
+	Logging  LoggingConfig  `mapstructure:"logging"`
 }
 
 type AppConfig struct {
 	Env         string `mapstructure:"env"`
 	FrontendURL string `mapstructure:"frontendURL"`
+}
+
+type LoggingConfig struct {
+	Level string `mapstructure:"level"`
 }
 
 type HTTPConfig struct {

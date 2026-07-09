@@ -14,3 +14,6 @@ auth:
   refreshTokenTTL: "168h"
   passwordResetTTL: "1h"
   emailVerificationTTL: "24h"
+
+logging:
+  level: info
