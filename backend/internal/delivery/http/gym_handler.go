@@ -45,11 +45,16 @@ func (h *GymHandler) Get(c echo.Context) error {
 }
 
 func (h *GymHandler) Members(c echo.Context) error {
-	result, err := h.service.ListMembers(c.Request().Context(), c.Param("gymId"))
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	result, err := h.service.ListMembers(c.Request().Context(), c.Param("gymId"), page, limit)
 	if err != nil {
 		return mapError(c, err)
 	}
-	return c.JSON(http.StatusOK, toMemberResponses(result))
+	return c.JSON(http.StatusOK, toPaginatedMemberResponse(result))
 }
 
 func (h *GymHandler) InviteCoach(c echo.Context) error {

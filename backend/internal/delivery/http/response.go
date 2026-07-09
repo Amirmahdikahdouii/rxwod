@@ -46,6 +46,11 @@ type MemberResponse struct {
 	Status      string `json:"status"`
 }
 
+type PaginatedMemberResponse struct {
+	Data []MemberResponse       `json:"data"`
+	Meta PaginationMetaResponse `json:"meta"`
+}
+
 type InvitationResponse struct {
 	ID    string `json:"id"`
 	GymID string `json:"gymId"`
@@ -225,6 +230,18 @@ func toMemberResponse(dto appgym.MemberDTO) MemberResponse {
 		DisplayName: dto.DisplayName,
 		Role:        string(dto.Role),
 		Status:      string(dto.Status),
+	}
+}
+
+func toPaginatedMemberResponse(dto appgym.PaginatedMembersDTO) PaginatedMemberResponse {
+	return PaginatedMemberResponse{
+		Data: toMemberResponses(dto.Data),
+		Meta: PaginationMetaResponse{
+			Page:       dto.Meta.Page,
+			Limit:      dto.Meta.Limit,
+			Total:      dto.Meta.Total,
+			TotalPages: dto.Meta.TotalPages,
+		},
 	}
 }
 
