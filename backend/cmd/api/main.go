@@ -16,6 +16,7 @@ import (
 	deliveryhttp "github.com/rxwod/backend/internal/delivery/http"
 	"github.com/rxwod/backend/internal/infrastructure/config"
 	infrajwt "github.com/rxwod/backend/internal/infrastructure/jwt"
+	"github.com/rxwod/backend/internal/infrastructure/email"
 	"github.com/rxwod/backend/internal/infrastructure/password"
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 	"github.com/rxwod/backend/internal/platform/clock"
@@ -42,20 +43,26 @@ func main() {
 
 	userRepo := postgres.NewUserRepository(db)
 	refreshTokenRepo := postgres.NewRefreshTokenRepository(db)
+	resetTokenRepo := postgres.NewPasswordResetTokenRepository(db)
 	gymRepo := postgres.NewGymRepository(db)
 	wodRepo := postgres.NewWODRepository(db)
 
 	gymService := appgym.NewService(gymRepo, systemClock, uuidGenerator, 7*24*time.Hour)
 	accessTokenIssuer := infrajwt.NewAccessTokenIssuer(cfg.JWTSecret(), cfg.AccessTokenTTL())
+	emailSender := email.NewLogSender()
 	authService := appauth.NewService(
 		userRepo,
 		refreshTokenRepo,
+		resetTokenRepo,
 		password.NewBcryptHasher(),
 		accessTokenIssuer,
 		gymService,
+		emailSender,
 		systemClock,
 		uuidGenerator,
 		cfg.RefreshTokenTTL(),
+		cfg.FrontendURL(),
+		cfg.PasswordResetTTL(),
 	)
 	authorizer := appauthz.NewAuthorizer(gymRepo)
 	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)

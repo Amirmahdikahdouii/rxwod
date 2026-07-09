@@ -242,6 +242,7 @@ func mapError(c echo.Context, err error) error {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, domainwod.ErrInvalidName),
 		errors.Is(err, appauth.ErrPasswordTooShort),
+		errors.Is(err, appauth.ErrResetTokenInvalid),
 		errors.Is(err, domainuser.ErrInvalidEmail),
 		errors.Is(err, domainuser.ErrInvalidDisplayName),
 		errors.Is(err, domainuser.ErrPasswordHashEmpty),

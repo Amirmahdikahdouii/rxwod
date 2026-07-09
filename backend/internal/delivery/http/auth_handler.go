@@ -60,6 +60,28 @@ func (h *AuthHandler) Refresh(c echo.Context) error {
 	return c.JSON(http.StatusOK, toAccessTokenResponse(result))
 }
 
+func (h *AuthHandler) ForgotPassword(c echo.Context) error {
+	var req ForgotPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	if err := h.auth.RequestPasswordReset(c.Request().Context(), req.Email); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *AuthHandler) ResetPassword(c echo.Context) error {
+	var req ResetPasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	if err := h.auth.ResetPassword(c.Request().Context(), req.Token, req.Password); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
+
 func (h *AuthHandler) Me(c echo.Context) error {
 	currentUser, err := h.auth.CurrentUser(c.Request().Context())
 	if err != nil {

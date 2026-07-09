@@ -24,6 +24,8 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	v1.POST("/auth/register", authHandler.Register)
 	v1.POST("/auth/login", authHandler.Login)
 	v1.POST("/auth/refresh", authHandler.Refresh)
+	v1.POST("/auth/forgot-password", authHandler.ForgotPassword)
+	v1.POST("/auth/reset-password", authHandler.ResetPassword)
 	v1.GET("/invitations/:token", gymHandler.GetInvitationPreview)
 
 	authenticated := v1.Group("", AuthMiddleware(authService))
