@@ -9,6 +9,7 @@ import type {
   MemberResponse,
   UpdateMemberRolePayload,
 } from '@/features/workspace/model/workspaceTypes'
+import type { PaginatedResponse } from '@/shared/model/paginationTypes'
 import type { Result } from '@/shared/utils/result'
 
 export function createGym(payload: CreateGymPayload): Promise<Result<GymResponse>> {
@@ -23,11 +24,25 @@ export function getGym(gymID: string): Promise<Result<GymResponse>> {
   return httpClient.get<GymResponse>(`/api/v1/gyms/${gymID}`, { auth: true, workspace: true })
 }
 
-export function listMembers(gymID: string): Promise<Result<MemberResponse[]>> {
-  return httpClient.get<MemberResponse[]>(`/api/v1/gyms/${gymID}/members`, {
-    auth: true,
-    workspace: true,
-  })
+export function listMembers(
+  gymID: string,
+  options?: { page?: number; limit?: number },
+): Promise<Result<PaginatedResponse<MemberResponse>>> {
+  const params = new URLSearchParams()
+  if (options?.page !== undefined) {
+    params.set('page', String(options.page))
+  }
+  if (options?.limit !== undefined) {
+    params.set('limit', String(options.limit))
+  }
+  const query = params.toString()
+  return httpClient.get<PaginatedResponse<MemberResponse>>(
+    `/api/v1/gyms/${gymID}/members${query ? `?${query}` : ''}`,
+    {
+      auth: true,
+      workspace: true,
+    },
+  )
 }
 
 export function inviteCoach(

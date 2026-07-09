@@ -7,15 +7,31 @@ import type {
   WODStatus,
   WODSummary,
 } from '@/features/wod/model/wodTypes'
+import type { PaginatedResponse } from '@/shared/model/paginationTypes'
 import type { Result } from '@/shared/utils/result'
 
 export function createWOD(payload: CreateWODPayload): Promise<Result<CreateWODResponse>> {
   return httpClient.post<CreateWODResponse>('/api/v1/wods', payload, { auth: true, workspace: true })
 }
 
-export function listWODs(options?: { status?: WODStatus }): Promise<Result<WODSummary[]>> {
-  const query = options?.status ? `?status=${encodeURIComponent(options.status)}` : ''
-  return httpClient.get<WODSummary[]>(`/api/v1/wods${query}`, { auth: true, workspace: true })
+export function listWODs(
+  options?: { status?: WODStatus; page?: number; limit?: number },
+): Promise<Result<PaginatedResponse<WODSummary>>> {
+  const params = new URLSearchParams()
+  if (options?.status) {
+    params.set('status', options.status)
+  }
+  if (options?.page !== undefined) {
+    params.set('page', String(options.page))
+  }
+  if (options?.limit !== undefined) {
+    params.set('limit', String(options.limit))
+  }
+  const query = params.toString()
+  return httpClient.get<PaginatedResponse<WODSummary>>(
+    `/api/v1/wods${query ? `?${query}` : ''}`,
+    { auth: true, workspace: true },
+  )
 }
 
 export function getWODCalendar(from: string, to: string): Promise<Result<CalendarDaySummary[]>> {
