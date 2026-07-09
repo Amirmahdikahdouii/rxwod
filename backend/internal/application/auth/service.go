@@ -17,24 +17,27 @@ import (
 )
 
 type Service struct {
-	users          UserRepository
-	refreshTokens  RefreshTokenRepository
-	passwordResets PasswordResetTokenRepository
-	hasher         PasswordHasher
-	issuer         AccessTokenIssuer
-	invites        InviteAccepter
-	email          EmailSender
-	clock          clock.Clock
-	idgen          idgen.Generator
-	refreshTTL     time.Duration
-	frontendURL    string
-	resetTTL       time.Duration
+	users              UserRepository
+	refreshTokens      RefreshTokenRepository
+	passwordResets     PasswordResetTokenRepository
+	emailVerifications EmailVerificationTokenRepository
+	hasher             PasswordHasher
+	issuer             AccessTokenIssuer
+	invites            InviteAccepter
+	email              EmailSender
+	clock              clock.Clock
+	idgen              idgen.Generator
+	refreshTTL         time.Duration
+	frontendURL        string
+	resetTTL           time.Duration
+	verificationTTL    time.Duration
 }
 
 func NewService(
 	users UserRepository,
 	refreshTokens RefreshTokenRepository,
 	passwordResets PasswordResetTokenRepository,
+	emailVerifications EmailVerificationTokenRepository,
 	hasher PasswordHasher,
 	issuer AccessTokenIssuer,
 	invites InviteAccepter,
@@ -44,20 +47,23 @@ func NewService(
 	refreshTTL time.Duration,
 	frontendURL string,
 	resetTTL time.Duration,
+	verificationTTL time.Duration,
 ) *Service {
 	return &Service{
-		users:          users,
-		refreshTokens:  refreshTokens,
-		passwordResets: passwordResets,
-		hasher:         hasher,
-		issuer:         issuer,
-		invites:        invites,
-		email:          email,
-		clock:          clock,
-		idgen:          idgen,
-		refreshTTL:     refreshTTL,
-		frontendURL:    strings.TrimRight(frontendURL, "/"),
-		resetTTL:       resetTTL,
+		users:              users,
+		refreshTokens:      refreshTokens,
+		passwordResets:     passwordResets,
+		emailVerifications: emailVerifications,
+		hasher:             hasher,
+		issuer:             issuer,
+		invites:            invites,
+		email:              email,
+		clock:              clock,
+		idgen:              idgen,
+		refreshTTL:         refreshTTL,
+		frontendURL:        strings.TrimRight(frontendURL, "/"),
+		resetTTL:           resetTTL,
+		verificationTTL:    verificationTTL,
 	}
 }
 
@@ -89,6 +95,9 @@ func (s *Service) Register(ctx context.Context, cmd RegisterCommand) (TokenDTO, 
 		if err := s.invites.AcceptInvitesForEmail(ctx, email, aggregate.ID()); err != nil {
 			return TokenDTO{}, fmt.Errorf("accept invitations: %w", err)
 		}
+	}
+	if err := s.sendVerificationEmail(ctx, aggregate); err != nil {
+		return TokenDTO{}, err
 	}
 	return s.issueTokens(ctx, aggregate.ID(), now)
 }
@@ -134,9 +143,10 @@ func (s *Service) CurrentUser(ctx context.Context) (UserDTO, error) {
 		return UserDTO{}, err
 	}
 	return UserDTO{
-		ID:          aggregate.ID().String(),
-		Email:       string(aggregate.Email()),
-		DisplayName: string(aggregate.DisplayName()),
+		ID:            aggregate.ID().String(),
+		Email:         string(aggregate.Email()),
+		DisplayName:   string(aggregate.DisplayName()),
+		EmailVerified: aggregate.IsEmailVerified(),
 	}, nil
 }
 
@@ -211,6 +221,7 @@ func (s *Service) ResetPassword(ctx context.Context, token, password string) err
 		aggregate.Email(),
 		user.PasswordHash(passwordHash),
 		aggregate.DisplayName(),
+		aggregate.EmailVerifiedAt(),
 		aggregate.CreatedAt(),
 		now,
 	)
@@ -225,6 +236,77 @@ func (s *Service) ResetPassword(ctx context.Context, token, password string) err
 	}
 	if err := s.refreshTokens.RevokeAllForUser(ctx, stored.UserID, now); err != nil {
 		return fmt.Errorf("revoke refresh tokens: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) VerifyEmail(ctx context.Context, token string) error {
+	now := s.clock.Now()
+	stored, err := s.emailVerifications.FindByHash(ctx, hashToken(token))
+	if err != nil {
+		return ErrVerificationTokenInvalid
+	}
+	if stored.UsedAt != nil || !stored.ExpiresAt.After(now) {
+		return ErrVerificationTokenInvalid
+	}
+
+	aggregate, err := s.users.FindByID(ctx, stored.UserID)
+	if err != nil {
+		return ErrVerificationTokenInvalid
+	}
+	if aggregate.IsEmailVerified() {
+		if err := s.emailVerifications.MarkUsed(ctx, stored.ID, now); err != nil {
+			return fmt.Errorf("mark verification token used: %w", err)
+		}
+		return nil
+	}
+
+	updated := aggregate.MarkEmailVerified(now)
+	if err := s.users.Save(ctx, updated); err != nil {
+		return fmt.Errorf("save user: %w", err)
+	}
+	if err := s.emailVerifications.MarkUsed(ctx, stored.ID, now); err != nil {
+		return fmt.Errorf("mark verification token used: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) ResendVerificationEmail(ctx context.Context) error {
+	userID, err := authz.CurrentUserID(ctx)
+	if err != nil {
+		return err
+	}
+	aggregate, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if aggregate.IsEmailVerified() {
+		return nil
+	}
+	return s.sendVerificationEmail(ctx, aggregate)
+}
+
+func (s *Service) sendVerificationEmail(ctx context.Context, aggregate user.User) error {
+	now := s.clock.Now()
+	if err := s.emailVerifications.InvalidateUnusedForUser(ctx, aggregate.ID(), now); err != nil {
+		return fmt.Errorf("invalidate verification tokens: %w", err)
+	}
+
+	rawToken := s.idgen.NewID()
+	record := EmailVerificationToken{
+		ID:        s.idgen.NewID(),
+		UserID:    aggregate.ID(),
+		TokenHash: hashToken(rawToken),
+		ExpiresAt: now.Add(s.verificationTTL),
+		CreatedAt: now,
+	}
+	if err := s.emailVerifications.Save(ctx, record); err != nil {
+		return fmt.Errorf("save verification token: %w", err)
+	}
+
+	verifyURL := s.frontendURL + "/verify-email/" + url.PathEscape(rawToken)
+	if err := s.email.SendEmailVerification(ctx, string(aggregate.Email()), verifyURL); err != nil {
+		return fmt.Errorf("send verification email: %w", err)
 	}
 	return nil
 }
@@ -263,5 +345,7 @@ func IsAuthError(err error) bool {
 	return errors.Is(err, ErrInvalidCredentials) ||
 		errors.Is(err, ErrPasswordTooShort) ||
 		errors.Is(err, ErrRefreshTokenInvalid) ||
-		errors.Is(err, ErrResetTokenInvalid)
+		errors.Is(err, ErrResetTokenInvalid) ||
+		errors.Is(err, ErrVerificationTokenInvalid) ||
+		errors.Is(err, ErrEmailNotVerified)
 }

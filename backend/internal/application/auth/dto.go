@@ -23,7 +23,8 @@ type AccessTokenDTO struct {
 }
 
 type UserDTO struct {
-	ID          string
-	Email       string
-	DisplayName string
+	ID            string
+	Email         string
+	DisplayName   string
+	EmailVerified bool
 }

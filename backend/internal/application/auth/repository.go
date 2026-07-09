@@ -60,3 +60,19 @@ type PasswordResetTokenRepository interface {
 	InvalidateUnusedForUser(ctx context.Context, userID user.UserID, now time.Time) error
 	MarkUsed(ctx context.Context, id string, now time.Time) error
 }
+
+type EmailVerificationToken struct {
+	ID        string
+	UserID    user.UserID
+	TokenHash string
+	ExpiresAt time.Time
+	UsedAt    *time.Time
+	CreatedAt time.Time
+}
+
+type EmailVerificationTokenRepository interface {
+	Save(ctx context.Context, token EmailVerificationToken) error
+	FindByHash(ctx context.Context, tokenHash string) (EmailVerificationToken, error)
+	InvalidateUnusedForUser(ctx context.Context, userID user.UserID, now time.Time) error
+	MarkUsed(ctx context.Context, id string, now time.Time) error
+}
