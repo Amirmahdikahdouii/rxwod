@@ -10,15 +10,18 @@ import (
 	"syscall"
 	"time"
 
+	appathletedefaultsession "github.com/rxwod/backend/internal/application/athletedefaultsession"
 	appauth "github.com/rxwod/backend/internal/application/auth"
 	appauthz "github.com/rxwod/backend/internal/application/authz"
+	appclassbooking "github.com/rxwod/backend/internal/application/classbooking"
+	appclasssession "github.com/rxwod/backend/internal/application/classsession"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
 	deliveryhttp "github.com/rxwod/backend/internal/delivery/http"
 	"github.com/rxwod/backend/internal/infrastructure/config"
-	infrajwt "github.com/rxwod/backend/internal/infrastructure/jwt"
 	"github.com/rxwod/backend/internal/infrastructure/email"
+	infrajwt "github.com/rxwod/backend/internal/infrastructure/jwt"
 	"github.com/rxwod/backend/internal/infrastructure/password"
 	"github.com/rxwod/backend/internal/infrastructure/postgres"
 	"github.com/rxwod/backend/internal/platform/clock"
@@ -58,6 +61,9 @@ func main() {
 	gymRepo := postgres.NewGymRepository(db)
 	wodRepo := postgres.NewWODRepository(db)
 	wodResultRepo := postgres.NewWODResultRepository(db)
+	classSessionRepo := postgres.NewClassSessionRepository(db)
+	classBookingRepo := postgres.NewClassBookingRepository(db)
+	athleteDefaultSessionRepo := postgres.NewAthleteDefaultSessionRepository(db)
 
 	gymService := appgym.NewService(gymRepo, userRepo, systemClock, uuidGenerator, 7*24*time.Hour)
 	accessTokenIssuer := infrajwt.NewAccessTokenIssuer(cfg.JWTSecret(), cfg.AccessTokenTTL())
@@ -81,7 +87,22 @@ func main() {
 	authorizer := appauthz.NewAuthorizer(gymRepo)
 	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)
 	wodResultService := appwodresult.NewService(wodResultRepo, wodRepo, gymRepo, systemClock, uuidGenerator)
-	router := deliveryhttp.NewRouter(authService, gymService, wodService, wodResultService, authorizer, db, cfg.AllowedOrigins(), cfg)
+	classSessionService := appclasssession.NewService(classSessionRepo, athleteDefaultSessionRepo, gymRepo, systemClock, uuidGenerator)
+	classBookingService := appclassbooking.NewService(classBookingRepo, classSessionRepo, gymRepo, systemClock, uuidGenerator)
+	athleteDefaultSessionService := appathletedefaultsession.NewService(athleteDefaultSessionRepo, gymRepo, systemClock, uuidGenerator)
+	router := deliveryhttp.NewRouter(
+		authService,
+		gymService,
+		wodService,
+		wodResultService,
+		classSessionService,
+		classBookingService,
+		athleteDefaultSessionService,
+		authorizer,
+		db,
+		cfg.AllowedOrigins(),
+		cfg,
+	)
 
 	go func() {
 		address := fmt.Sprintf(":%d", cfg.HTTPPort())

@@ -11,6 +11,9 @@ import (
 	appauthz "github.com/rxwod/backend/internal/application/authz"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
+	domainathletedefaultsession "github.com/rxwod/backend/internal/domain/athletedefaultsession"
+	domainclassbooking "github.com/rxwod/backend/internal/domain/classbooking"
+	domainclasssession "github.com/rxwod/backend/internal/domain/classsession"
 	domaingym "github.com/rxwod/backend/internal/domain/gym"
 	domainuser "github.com/rxwod/backend/internal/domain/user"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
@@ -283,12 +286,26 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, domainwod.ErrCannotDeletePublished),
 		errors.Is(err, domainwod.ErrScheduledDateRequired),
 		errors.Is(err, appwod.ErrMissingConfigField),
-		errors.Is(err, domainwodresult.ErrInvalidScore):
+		errors.Is(err, domainwodresult.ErrInvalidScore),
+		errors.Is(err, domainclasssession.ErrInvalidTimeRange),
+		errors.Is(err, domainclasssession.ErrInvalidCapacity),
+		errors.Is(err, domainclasssession.ErrCoachRequired),
+		errors.Is(err, domainathletedefaultsession.ErrInvalidDayOfWeek),
+		errors.Is(err, domainathletedefaultsession.ErrInvalidTimeSlot),
+		errors.Is(err, domainathletedefaultsession.ErrMembershipRequired):
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	case errors.Is(err, domainclassbooking.ErrClassFull),
+		errors.Is(err, domainclassbooking.ErrAlreadyBooked),
+		errors.Is(err, domainclassbooking.ErrInvalidStatusTransition),
+		errors.Is(err, domainclassbooking.ErrInvalidStatus):
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, postgres.ErrNotFound),
 		errors.Is(err, postgres.ErrWODResultNotFound),
 		errors.Is(err, appgym.ErrMemberNotFound),
-		errors.Is(err, appgym.ErrInvitationNotFound):
+		errors.Is(err, appgym.ErrInvitationNotFound),
+		errors.Is(err, domainclasssession.ErrNotFound),
+		errors.Is(err, domainclassbooking.ErrNotFound),
+		errors.Is(err, domainathletedefaultsession.ErrNotFound):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
 	default:
 		slog.Error("unhandled request error",

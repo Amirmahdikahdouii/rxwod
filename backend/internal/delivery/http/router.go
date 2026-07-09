@@ -3,8 +3,11 @@ package http
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	appathletedefaultsession "github.com/rxwod/backend/internal/application/athletedefaultsession"
 	appauth "github.com/rxwod/backend/internal/application/auth"
 	appauthz "github.com/rxwod/backend/internal/application/authz"
+	appclassbooking "github.com/rxwod/backend/internal/application/classbooking"
+	appclasssession "github.com/rxwod/backend/internal/application/classsession"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
@@ -12,7 +15,19 @@ import (
 	"github.com/rxwod/backend/internal/infrastructure/config"
 )
 
-func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, wodResultService *appwodresult.Service, authorizer *appauthz.Authorizer, db dbPinger, allowedOrigins []string, cfg config.Config) *echo.Echo {
+func NewRouter(
+	authService *appauth.Service,
+	gymService *appgym.Service,
+	wodService *appwod.Service,
+	wodResultService *appwodresult.Service,
+	classSessionService *appclasssession.Service,
+	classBookingService *appclassbooking.Service,
+	athleteDefaultSessionService *appathletedefaultsession.Service,
+	authorizer *appauthz.Authorizer,
+	db dbPinger,
+	allowedOrigins []string,
+	cfg config.Config,
+) *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -25,6 +40,9 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymHandler := NewGymHandler(gymService)
 	wodHandler := NewWODHandler(wodService)
 	wodResultHandler := NewWODResultHandler(wodResultService)
+	classSessionHandler := NewClassSessionHandler(classSessionService)
+	classBookingHandler := NewClassBookingHandler(classBookingService)
+	athleteDefaultSessionHandler := NewAthleteDefaultSessionHandler(athleteDefaultSessionService)
 	healthHandler := NewHealthHandler(db)
 
 	e.GET("/healthz", healthHandler.Check)
@@ -65,6 +83,12 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymContext.POST("/wods/:id/archive", wodHandler.Archive, RequirePermission(domainauthz.PermissionWODDelete))
 	gymContext.POST("/wods/:id/results", wodResultHandler.SubmitResult, RequirePermission(domainauthz.PermissionWODResultSubmit))
 	gymContext.GET("/wods/:id/leaderboard", wodResultHandler.GetLeaderboard, RequirePermission(domainauthz.PermissionWODResultRead))
+	gymContext.POST("/sessions", classSessionHandler.Create, RequirePermission(domainauthz.PermissionClassSessionCreate))
+	gymContext.GET("/sessions", classSessionHandler.List, RequirePermission(domainauthz.PermissionClassSessionRead))
+	gymContext.POST("/sessions/:id/book", classBookingHandler.Book, RequirePermission(domainauthz.PermissionClassBookingBook))
+	gymContext.POST("/sessions/:id/overbook", classBookingHandler.Overbook, RequirePermission(domainauthz.PermissionClassBookingOverbook))
+	gymContext.POST("/sessions/:id/cancel", classBookingHandler.Cancel, RequirePermission(domainauthz.PermissionClassBookingCancel))
+	gymContext.POST("/athletes/preferences/default-session", athleteDefaultSessionHandler.SetDefaultSession, RequirePermission(domainauthz.PermissionAthleteDefaultSessionManage))
 
 	return e
 }

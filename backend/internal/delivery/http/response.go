@@ -3,7 +3,10 @@ package http
 import (
 	"time"
 
+	appathletedefaultsession "github.com/rxwod/backend/internal/application/athletedefaultsession"
 	appauth "github.com/rxwod/backend/internal/application/auth"
+	appclassbooking "github.com/rxwod/backend/internal/application/classbooking"
+	appclasssession "github.com/rxwod/backend/internal/application/classsession"
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 	appwodresult "github.com/rxwod/backend/internal/application/wodresult"
@@ -464,5 +467,85 @@ func toLeaderboardResponse(dto appwodresult.LeaderboardDTO) LeaderboardResponse 
 	return LeaderboardResponse{
 		WODID:   dto.WODID,
 		Entries: entries,
+	}
+}
+
+type ClassSessionResponse struct {
+	ID        string    `json:"id"`
+	GymID     string    `json:"gymId"`
+	WodID     *string   `json:"wodId,omitempty"`
+	StartTime time.Time `json:"startTime"`
+	EndTime   time.Time `json:"endTime"`
+	Capacity  int       `json:"capacity"`
+	CoachID   string    `json:"coachId"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type CreateClassSessionResponse struct {
+	Session                 ClassSessionResponse `json:"session"`
+	AutoBookedCount         int                  `json:"autoBookedCount"`
+	AutoBookedMembershipIDs []string             `json:"autoBookedMembershipIds"`
+}
+
+type ClassBookingResponse struct {
+	ID              string    `json:"id"`
+	SessionID       string    `json:"sessionId"`
+	GymMembershipID string    `json:"gymMembershipId"`
+	Status          string    `json:"status"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+type DefaultSessionResponse struct {
+	ID              string    `json:"id"`
+	GymMembershipID string    `json:"gymMembershipId"`
+	DayOfWeek       int       `json:"dayOfWeek"`
+	TimeSlot        string    `json:"timeSlot"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
+}
+
+func toClassSessionResponse(dto appclasssession.ClassSessionDTO) ClassSessionResponse {
+	return ClassSessionResponse{
+		ID:        dto.ID,
+		GymID:     dto.GymID,
+		WodID:     dto.WodID,
+		StartTime: dto.StartTime,
+		EndTime:   dto.EndTime,
+		Capacity:  dto.Capacity,
+		CoachID:   dto.CoachID,
+		CreatedAt: dto.CreatedAt,
+		UpdatedAt: dto.UpdatedAt,
+	}
+}
+
+func toCreateClassSessionResponse(dto appclasssession.CreateClassSessionResultDTO) CreateClassSessionResponse {
+	return CreateClassSessionResponse{
+		Session:                 toClassSessionResponse(dto.Session),
+		AutoBookedCount:         dto.AutoBookedCount,
+		AutoBookedMembershipIDs: dto.AutoBookedMembershipIDs,
+	}
+}
+
+func toClassBookingResponse(dto appclassbooking.BookingDTO) ClassBookingResponse {
+	return ClassBookingResponse{
+		ID:              dto.ID,
+		SessionID:       dto.SessionID,
+		GymMembershipID: dto.GymMembershipID,
+		Status:          dto.Status,
+		CreatedAt:       dto.CreatedAt,
+		UpdatedAt:       dto.UpdatedAt,
+	}
+}
+
+func toDefaultSessionResponse(dto appathletedefaultsession.DefaultSessionDTO) DefaultSessionResponse {
+	return DefaultSessionResponse{
+		ID:              dto.ID,
+		GymMembershipID: dto.GymMembershipID,
+		DayOfWeek:       dto.DayOfWeek,
+		TimeSlot:        dto.TimeSlot,
+		CreatedAt:       dto.CreatedAt,
+		UpdatedAt:       dto.UpdatedAt,
 	}
 }

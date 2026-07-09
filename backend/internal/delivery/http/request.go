@@ -85,3 +85,23 @@ type SubmitResultRequest struct {
 	IsRx       bool   `json:"isRx"`
 	Notes      string `json:"notes"`
 }
+
+type CreateClassSessionRequest struct {
+	WodID     *string `json:"wodId,omitempty"`
+	StartTime string  `json:"startTime"`
+	EndTime   string  `json:"endTime"`
+	Capacity  int     `json:"capacity"`
+}
+
+type OverbookRequest struct {
+	AthleteUserID string `json:"athleteUserId"`
+}
+
+type CancelBookingRequest struct {
+	AthleteUserID *string `json:"athleteUserId,omitempty"`
+}
+
+type SetDefaultSessionRequest struct {
+	DayOfWeek int    `json:"dayOfWeek"`
+	TimeSlot  string `json:"timeSlot"`
+}
