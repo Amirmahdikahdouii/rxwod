@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -16,35 +17,47 @@ import (
 )
 
 type Service struct {
-	users         UserRepository
-	refreshTokens RefreshTokenRepository
-	hasher        PasswordHasher
-	issuer        AccessTokenIssuer
-	invites       InviteAccepter
-	clock         clock.Clock
-	idgen         idgen.Generator
-	refreshTTL    time.Duration
+	users          UserRepository
+	refreshTokens  RefreshTokenRepository
+	passwordResets PasswordResetTokenRepository
+	hasher         PasswordHasher
+	issuer         AccessTokenIssuer
+	invites        InviteAccepter
+	email          EmailSender
+	clock          clock.Clock
+	idgen          idgen.Generator
+	refreshTTL     time.Duration
+	frontendURL    string
+	resetTTL       time.Duration
 }
 
 func NewService(
 	users UserRepository,
 	refreshTokens RefreshTokenRepository,
+	passwordResets PasswordResetTokenRepository,
 	hasher PasswordHasher,
 	issuer AccessTokenIssuer,
 	invites InviteAccepter,
+	email EmailSender,
 	clock clock.Clock,
 	idgen idgen.Generator,
 	refreshTTL time.Duration,
+	frontendURL string,
+	resetTTL time.Duration,
 ) *Service {
 	return &Service{
-		users:         users,
-		refreshTokens: refreshTokens,
-		hasher:        hasher,
-		issuer:        issuer,
-		invites:       invites,
-		clock:         clock,
-		idgen:         idgen,
-		refreshTTL:    refreshTTL,
+		users:          users,
+		refreshTokens:  refreshTokens,
+		passwordResets: passwordResets,
+		hasher:         hasher,
+		issuer:         issuer,
+		invites:        invites,
+		email:          email,
+		clock:          clock,
+		idgen:          idgen,
+		refreshTTL:     refreshTTL,
+		frontendURL:    strings.TrimRight(frontendURL, "/"),
+		resetTTL:       resetTTL,
 	}
 }
 
@@ -135,6 +148,87 @@ func (s *Service) AuthenticateAccessToken(token string) (user.UserID, error) {
 	return userID, nil
 }
 
+func (s *Service) RequestPasswordReset(ctx context.Context, email string) error {
+	normalized := user.NormalizeEmail(email)
+	aggregate, err := s.users.FindByEmail(ctx, normalized)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			return nil
+		}
+		return fmt.Errorf("find user: %w", err)
+	}
+
+	now := s.clock.Now()
+	if err := s.passwordResets.InvalidateUnusedForUser(ctx, aggregate.ID(), now); err != nil {
+		return fmt.Errorf("invalidate reset tokens: %w", err)
+	}
+
+	rawToken := s.idgen.NewID()
+	record := PasswordResetToken{
+		ID:        s.idgen.NewID(),
+		UserID:    aggregate.ID(),
+		TokenHash: hashToken(rawToken),
+		ExpiresAt: now.Add(s.resetTTL),
+		CreatedAt: now,
+	}
+	if err := s.passwordResets.Save(ctx, record); err != nil {
+		return fmt.Errorf("save reset token: %w", err)
+	}
+
+	resetURL := s.frontendURL + "/reset-password/" + url.PathEscape(rawToken)
+	if err := s.email.SendPasswordReset(ctx, string(aggregate.Email()), resetURL); err != nil {
+		return fmt.Errorf("send password reset email: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) ResetPassword(ctx context.Context, token, password string) error {
+	if len(password) < 8 {
+		return ErrPasswordTooShort
+	}
+
+	now := s.clock.Now()
+	stored, err := s.passwordResets.FindByHash(ctx, hashToken(token))
+	if err != nil {
+		return ErrResetTokenInvalid
+	}
+	if stored.UsedAt != nil || !stored.ExpiresAt.After(now) {
+		return ErrResetTokenInvalid
+	}
+
+	aggregate, err := s.users.FindByID(ctx, stored.UserID)
+	if err != nil {
+		return ErrResetTokenInvalid
+	}
+
+	passwordHash, err := s.hasher.Hash(password)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	updated, err := user.ReconstructUser(
+		aggregate.ID(),
+		aggregate.Email(),
+		user.PasswordHash(passwordHash),
+		aggregate.DisplayName(),
+		aggregate.CreatedAt(),
+		now,
+	)
+	if err != nil {
+		return err
+	}
+	if err := s.users.Save(ctx, updated); err != nil {
+		return fmt.Errorf("save user: %w", err)
+	}
+	if err := s.passwordResets.MarkUsed(ctx, stored.ID, now); err != nil {
+		return fmt.Errorf("mark reset token used: %w", err)
+	}
+	if err := s.refreshTokens.RevokeAllForUser(ctx, stored.UserID, now); err != nil {
+		return fmt.Errorf("revoke refresh tokens: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) issueTokens(ctx context.Context, userID user.UserID, now time.Time) (TokenDTO, error) {
 	accessToken, accessExpiresAt, err := s.issuer.Issue(userID, now)
 	if err != nil {
@@ -168,5 +262,6 @@ func hashToken(token string) string {
 func IsAuthError(err error) bool {
 	return errors.Is(err, ErrInvalidCredentials) ||
 		errors.Is(err, ErrPasswordTooShort) ||
-		errors.Is(err, ErrRefreshTokenInvalid)
+		errors.Is(err, ErrRefreshTokenInvalid) ||
+		errors.Is(err, ErrResetTokenInvalid)
 }
