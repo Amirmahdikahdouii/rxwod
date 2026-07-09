@@ -147,16 +147,27 @@ func (r *GymRepository) DeleteMembership(ctx context.Context, gymID domaingym.Gy
 	return nil
 }
 
-func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID) ([]appgym.MemberDTO, error) {
+func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID, filter appgym.ListMembersFilter) (appgym.ListMembersResult, error) {
+	var total int
+	if err := r.db.pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM gym_memberships gm
+		WHERE gm.gym_id = $1
+	`, gymID.String()).Scan(&total); err != nil {
+		return appgym.ListMembersResult{}, fmt.Errorf("count gym members: %w", err)
+	}
+
+	offset := (filter.Page - 1) * filter.Limit
 	rows, err := r.db.pool.Query(ctx, `
 		SELECT u.id, u.email, u.display_name, gm.role, gm.status
 		FROM gym_memberships gm
 		JOIN users u ON u.id = gm.user_id
 		WHERE gm.gym_id = $1
 		ORDER BY gm.created_at ASC
-	`, gymID.String())
+		LIMIT $2 OFFSET $3
+	`, gymID.String(), filter.Limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list gym members: %w", err)
+		return appgym.ListMembersResult{}, fmt.Errorf("list gym members: %w", err)
 	}
 	defer rows.Close()
 
@@ -164,14 +175,14 @@ func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID) 
 	for rows.Next() {
 		var member appgym.MemberDTO
 		if err := rows.Scan(&member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.Status); err != nil {
-			return nil, fmt.Errorf("scan gym member: %w", err)
+			return appgym.ListMembersResult{}, fmt.Errorf("scan gym member: %w", err)
 		}
 		members = append(members, member)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate gym members: %w", err)
+		return appgym.ListMembersResult{}, fmt.Errorf("iterate gym members: %w", err)
 	}
-	return members, nil
+	return appgym.ListMembersResult{Items: members, Total: total}, nil
 }
 
 func (r *GymRepository) FindUserByEmail(ctx context.Context, email user.Email) (user.User, error) {
