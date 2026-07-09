@@ -3,12 +3,13 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSession } from '@/features/auth/composables/useSession'
 import ProgramCalendar from '@/features/wod/components/ProgramCalendar.vue'
-import { getWODCalendar, listWODs, publishWOD } from '@/features/wod/api/wodApi'
+import { archiveWOD, deleteWOD, getWODCalendar, listWODs, publishWOD } from '@/features/wod/api/wodApi'
 import { buildCalendarRange } from '@/features/wod/utils/calendarUtils'
 import { STAGE_KIND_BADGE_CLASS, WOD_TYPE_BADGE_CLASS } from '@/features/wod/model/wodTheme'
 import type { CalendarDaySummary, WODSummary } from '@/features/wod/model/wodTypes'
 import {
   canCreateWOD,
+  canDeleteWOD,
   canEditWOD,
   canPublishWOD,
   canViewWOD,
@@ -24,10 +25,16 @@ const loading = ref(true)
 const calendarLoading = ref(true)
 const selectedDate = ref<string | null>(null)
 const publishingId = ref<string | null>(null)
+const pendingArchiveId = ref<string | null>(null)
+const pendingDeleteId = ref<string | null>(null)
+const archivingId = ref<string | null>(null)
+const deletingId = ref<string | null>(null)
 
 const showDrafts = computed(
   () => session.activeWorkspaceRole.value === 'owner' || session.activeWorkspaceRole.value === 'coach',
 )
+
+const canManagePrograms = computed(() => canDeleteWOD(session.activeWorkspaceRole.value))
 
 const filteredItems = computed(() => {
   if (!selectedDate.value) {
@@ -50,7 +57,13 @@ function formatScheduledDate(value?: string) {
 }
 
 function statusClass(status: WODSummary['status']) {
-  return status === 'PUBLISHED' ? 'status-pill status-pill--published' : 'status-pill status-pill--draft'
+  if (status === 'PUBLISHED') {
+    return 'status-pill status-pill--published'
+  }
+  if (status === 'ARCHIVED') {
+    return 'status-pill status-pill--archived'
+  }
+  return 'status-pill status-pill--draft'
 }
 
 function canEditItem(item: WODSummary) {
@@ -59,6 +72,32 @@ function canEditItem(item: WODSummary) {
 
 function canViewItem(item: WODSummary) {
   return canViewWOD(session.activeWorkspaceRole.value, item)
+}
+
+function canArchiveItem(item: WODSummary) {
+  return canManagePrograms.value && item.status === 'PUBLISHED'
+}
+
+function canDeleteItem(item: WODSummary) {
+  return canManagePrograms.value && (item.status === 'DRAFT' || item.status === 'ARCHIVED')
+}
+
+function requestArchive(id: string) {
+  pendingDeleteId.value = null
+  pendingArchiveId.value = id
+}
+
+function requestDelete(id: string) {
+  pendingArchiveId.value = null
+  pendingDeleteId.value = id
+}
+
+function cancelArchive() {
+  pendingArchiveId.value = null
+}
+
+function cancelDelete() {
+  pendingDeleteId.value = null
 }
 
 async function loadPrograms() {
@@ -88,6 +127,30 @@ async function handlePublish(item: WODSummary) {
   publishingId.value = item.id
   const response = await publishWOD(item.id)
   publishingId.value = null
+  if (!response.ok) {
+    error.value = response.error
+    return
+  }
+  await Promise.all([loadPrograms(), loadCalendar()])
+}
+
+async function handleArchive(item: WODSummary) {
+  archivingId.value = item.id
+  const response = await archiveWOD(item.id)
+  archivingId.value = null
+  pendingArchiveId.value = null
+  if (!response.ok) {
+    error.value = response.error
+    return
+  }
+  await Promise.all([loadPrograms(), loadCalendar()])
+}
+
+async function handleDelete(item: WODSummary) {
+  deletingId.value = item.id
+  const response = await deleteWOD(item.id)
+  deletingId.value = null
+  pendingDeleteId.value = null
   if (!response.ok) {
     error.value = response.error
     return
@@ -171,6 +234,75 @@ onMounted(async () => {
             >
               {{ publishingId === item.id ? 'Publishing...' : 'Publish' }}
             </button>
+            <template v-if="canArchiveItem(item)">
+              <button
+                v-if="pendingArchiveId !== item.id"
+                type="button"
+                class="wod-card__link btn secondary danger-button compact-button"
+                :disabled="archivingId === item.id"
+                @click="requestArchive(item.id)"
+              >
+                Archive
+              </button>
+              <div
+                v-else
+                class="confirmation-panel confirmation-panel--danger"
+                role="alertdialog"
+                aria-live="polite"
+              >
+                <p class="confirmation-panel__text">
+                  Archive {{ item.name }}? Athletes will no longer see this program.
+                </p>
+                <div class="confirmation-panel__actions">
+                  <button type="button" class="secondary" @click="cancelArchive">Cancel</button>
+                  <button
+                    type="button"
+                    class="danger-button"
+                    :disabled="archivingId === item.id"
+                    @click="handleArchive(item)"
+                  >
+                    {{ archivingId === item.id ? 'Archiving...' : 'Confirm archive' }}
+                  </button>
+                </div>
+              </div>
+            </template>
+            <template v-if="canDeleteItem(item)">
+              <button
+                v-if="pendingDeleteId !== item.id"
+                type="button"
+                class="wod-card__link btn secondary danger-button compact-button"
+                :disabled="deletingId === item.id"
+                @click="requestDelete(item.id)"
+              >
+                Delete
+              </button>
+              <div
+                v-else
+                class="confirmation-panel confirmation-panel--danger"
+                role="alertdialog"
+                aria-live="polite"
+              >
+                <p class="confirmation-panel__text">
+                  <template v-if="item.status === 'DRAFT'">
+                    Delete {{ item.name }}? This draft cannot be recovered.
+                  </template>
+                  <template v-else>
+                    Delete {{ item.name }}? This archived program will be permanently removed.
+                  </template>
+                </p>
+                <div class="confirmation-panel__actions">
+                  <button type="button" class="secondary" @click="cancelDelete">Cancel</button>
+                  <button
+                    type="button"
+                    class="danger-button"
+                    :disabled="deletingId === item.id"
+                    @click="handleDelete(item)"
+                  >
+                    {{ deletingId === item.id ? 'Deleting...' : 'Confirm delete' }}
+                  </button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
         <p class="wod-card__meta">{{ item.stageCount }} stage(s)</p>

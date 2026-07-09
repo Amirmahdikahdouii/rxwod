@@ -1404,6 +1404,12 @@ button.stage-editor__summary:hover:not(:disabled) {
   background: var(--color-success-bg);
 }
 
+.status-pill--archived {
+  border: 1px solid var(--color-text-muted);
+  color: var(--color-text-muted);
+  background: rgba(100, 116, 139, 0.08);
+}
+
 .wod-card__date {
   color: var(--color-text-muted);
   font-size: 0.875rem;
