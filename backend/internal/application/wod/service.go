@@ -180,28 +180,43 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *Service) List(ctx context.Context, statusFilter *wod.WODStatus) ([]WODSummaryDTO, error) {
+func (s *Service) List(ctx context.Context, statusFilter *wod.WODStatus, page, limit int) (PaginatedWODSummariesDTO, error) {
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionWODRead)
 	if err != nil {
-		return nil, err
+		return PaginatedWODSummariesDTO{}, err
 	}
 
-	aggregates, err := s.repo.List(ctx, principal.GymID)
+	filter := ListFilter{
+		Page:          page,
+		Limit:         limit,
+		Status:        statusFilter,
+		PublishedOnly: principal.Role == domainauthz.RoleAthlete,
+	}
+
+	result, err := s.repo.List(ctx, principal.GymID, filter)
 	if err != nil {
-		return nil, err
+		return PaginatedWODSummariesDTO{}, err
 	}
 
-	summaries := make([]WODSummaryDTO, 0, len(aggregates))
-	for _, aggregate := range aggregates {
-		if !canViewWOD(principal, aggregate) {
-			continue
-		}
-		if statusFilter != nil && aggregate.Status() != *statusFilter {
-			continue
-		}
+	summaries := make([]WODSummaryDTO, 0, len(result.Items))
+	for _, aggregate := range result.Items {
 		summaries = append(summaries, toSummaryDTO(aggregate))
 	}
-	return summaries, nil
+
+	totalPages := 0
+	if result.Total > 0 && limit > 0 {
+		totalPages = (result.Total + limit - 1) / limit
+	}
+
+	return PaginatedWODSummariesDTO{
+		Data: summaries,
+		Meta: PaginationMetaDTO{
+			Page:       page,
+			Limit:      limit,
+			Total:      result.Total,
+			TotalPages: totalPages,
+		},
+	}, nil
 }
 
 func (s *Service) Calendar(ctx context.Context, from, to time.Time) ([]CalendarDayDTO, error) {

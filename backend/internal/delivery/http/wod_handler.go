@@ -2,8 +2,10 @@ package http
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -51,16 +53,43 @@ func (h *WODHandler) List(c echo.Context) error {
 		statusFilter = &value
 	}
 
-	items, err := h.service.List(c.Request().Context(), statusFilter)
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	result, err := h.service.List(c.Request().Context(), statusFilter, page, limit)
 	if err != nil {
 		return mapError(c, err)
 	}
 
-	responses := make([]WODSummaryResponse, 0, len(items))
-	for _, item := range items {
-		responses = append(responses, toSummaryResponse(item))
+	return c.JSON(http.StatusOK, toPaginatedSummaryResponse(result))
+}
+
+const (
+	defaultPage  = 1
+	defaultLimit = 20
+	maxLimit     = 100
+)
+
+func parsePagination(c echo.Context) (page int, limit int, err error) {
+	page = defaultPage
+	if raw := c.QueryParam("page"); raw != "" {
+		page, err = strconv.Atoi(raw)
+		if err != nil || page < 1 {
+			return 0, 0, errors.New("page must be a positive integer")
+		}
 	}
-	return c.JSON(http.StatusOK, responses)
+
+	limit = defaultLimit
+	if raw := c.QueryParam("limit"); raw != "" {
+		limit, err = strconv.Atoi(raw)
+		if err != nil || limit < 1 || limit > maxLimit {
+			return 0, 0, fmt.Errorf("limit must be an integer between 1 and %d", maxLimit)
+		}
+	}
+
+	return page, limit, nil
 }
 
 func (h *WODHandler) Calendar(c echo.Context) error {

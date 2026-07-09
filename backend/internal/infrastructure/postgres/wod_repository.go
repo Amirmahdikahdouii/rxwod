@@ -95,15 +95,37 @@ func (r *WODRepository) FindByID(ctx context.Context, gymID gym.GymID, id domain
 	return recordsToWOD(record, stages, movementsByStage)
 }
 
-func (r *WODRepository) List(ctx context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
-	rows, err := r.db.pool.Query(ctx, `
+func (r *WODRepository) List(ctx context.Context, gymID gym.GymID, filter appwod.ListFilter) (appwod.ListResult, error) {
+	where := `WHERE gym_id = $1`
+	args := []any{gymID.String()}
+
+	if filter.Status != nil {
+		args = append(args, string(*filter.Status))
+		where += fmt.Sprintf(" AND status = $%d", len(args))
+	} else if filter.PublishedOnly {
+		where += ` AND status = 'PUBLISHED'`
+	}
+
+	var total int
+	if err := r.db.pool.QueryRow(ctx, `SELECT COUNT(*) FROM wods `+where, args...).Scan(&total); err != nil {
+		return appwod.ListResult{}, fmt.Errorf("count wods: %w", err)
+	}
+
+	limit := filter.Limit
+	offset := (filter.Page - 1) * limit
+	limitPlaceholder := len(args) + 1
+	offsetPlaceholder := len(args) + 2
+	pageArgs := append(append([]any{}, args...), limit, offset)
+
+	rows, err := r.db.pool.Query(ctx, fmt.Sprintf(`
 		SELECT id, gym_id, created_by, name, status, description, scheduled_date, published_at, created_at, updated_at
 		FROM wods
-		WHERE gym_id = $1
+		%s
 		ORDER BY created_at DESC
-	`, gymID.String())
+		LIMIT $%d OFFSET $%d
+	`, where, limitPlaceholder, offsetPlaceholder), pageArgs...)
 	if err != nil {
-		return nil, fmt.Errorf("list wods: %w", err)
+		return appwod.ListResult{}, fmt.Errorf("list wods: %w", err)
 	}
 	defer rows.Close()
 
@@ -111,31 +133,31 @@ func (r *WODRepository) List(ctx context.Context, gymID gym.GymID) ([]domainwod.
 	for rows.Next() {
 		record, err := scanRecord(rows)
 		if err != nil {
-			return nil, err
+			return appwod.ListResult{}, err
 		}
 		records = append(records, record)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate wods: %w", err)
+		return appwod.ListResult{}, fmt.Errorf("iterate wods: %w", err)
 	}
 
 	wods := make([]domainwod.WOD, 0, len(records))
 	for _, record := range records {
 		stages, err := r.fetchStages(ctx, record.ID)
 		if err != nil {
-			return nil, err
+			return appwod.ListResult{}, err
 		}
 		movementsByStage, err := r.fetchMovements(ctx, stageIDs(stages))
 		if err != nil {
-			return nil, err
+			return appwod.ListResult{}, err
 		}
 		w, err := recordsToWOD(record, stages, movementsByStage)
 		if err != nil {
-			return nil, err
+			return appwod.ListResult{}, err
 		}
 		wods = append(wods, w)
 	}
-	return wods, nil
+	return appwod.ListResult{Items: wods, Total: total}, nil
 }
 
 func (r *WODRepository) Delete(ctx context.Context, gymID gym.GymID, id domainwod.WODID) error {

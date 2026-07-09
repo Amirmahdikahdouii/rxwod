@@ -117,6 +117,18 @@ type CalendarDayResponse struct {
 	Plans          []CalendarPlanResponse `json:"plans"`
 }
 
+type PaginationMetaResponse struct {
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	Total      int `json:"total"`
+	TotalPages int `json:"totalPages"`
+}
+
+type PaginatedWODSummaryResponse struct {
+	Data []WODSummaryResponse   `json:"data"`
+	Meta PaginationMetaResponse `json:"meta"`
+}
+
 type StageResponse struct {
 	ID           string             `json:"id"`
 	Kind         string             `json:"kind"`
@@ -279,6 +291,22 @@ func toSummaryResponse(dto appwod.WODSummaryDTO) WODSummaryResponse {
 		PublishedAt:   dto.PublishedAt,
 		CreatedAt:     dto.CreatedAt,
 		UpdatedAt:     dto.UpdatedAt,
+	}
+}
+
+func toPaginatedSummaryResponse(dto appwod.PaginatedWODSummariesDTO) PaginatedWODSummaryResponse {
+	items := make([]WODSummaryResponse, 0, len(dto.Data))
+	for _, item := range dto.Data {
+		items = append(items, toSummaryResponse(item))
+	}
+	return PaginatedWODSummaryResponse{
+		Data: items,
+		Meta: PaginationMetaResponse{
+			Page:       dto.Meta.Page,
+			Limit:      dto.Meta.Limit,
+			Total:      dto.Meta.Total,
+			TotalPages: dto.Meta.TotalPages,
+		},
 	}
 }
 

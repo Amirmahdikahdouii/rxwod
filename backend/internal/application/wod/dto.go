@@ -93,3 +93,15 @@ type CalendarDayDTO struct {
 	DraftCount     int
 	Plans          []CalendarPlanDTO
 }
+
+type PaginationMetaDTO struct {
+	Page       int
+	Limit      int
+	Total      int
+	TotalPages int
+}
+
+type PaginatedWODSummariesDTO struct {
+	Data []WODSummaryDTO
+	Meta PaginationMetaDTO
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -53,14 +54,34 @@ func (m *memoryRepo) FindByID(_ context.Context, gymID gym.GymID, id domainwod.W
 	return aggregate, nil
 }
 
-func (m *memoryRepo) List(_ context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
+func (m *memoryRepo) List(_ context.Context, gymID gym.GymID, filter ListFilter) (ListResult, error) {
 	items := make([]domainwod.WOD, 0, len(m.items))
 	for _, aggregate := range m.items {
-		if aggregate.GymID() == gymID {
-			items = append(items, aggregate)
+		if aggregate.GymID() != gymID {
+			continue
 		}
+		if filter.Status != nil && aggregate.Status() != *filter.Status {
+			continue
+		}
+		if filter.PublishedOnly && aggregate.Status() != domainwod.WODStatusPublished {
+			continue
+		}
+		items = append(items, aggregate)
 	}
-	return items, nil
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt().After(items[j].CreatedAt())
+	})
+
+	total := len(items)
+	start := (filter.Page - 1) * filter.Limit
+	if start > total {
+		start = total
+	}
+	end := start + filter.Limit
+	if end > total {
+		end = total
+	}
+	return ListResult{Items: items[start:end], Total: total}, nil
 }
 
 func (m *memoryRepo) ListCalendar(_ context.Context, gymID gym.GymID, from, to time.Time, includeDrafts bool) ([]CalendarEntry, error) {
@@ -509,12 +530,55 @@ func TestServiceAthleteListExcludesDrafts(t *testing.T) {
 		t.Fatalf("create draft error: %v", err)
 	}
 
-	items, err := service.List(testContextForRole(domainauthz.RoleAthlete, user.UserID("athlete-1")), nil)
+	result, err := service.List(testContextForRole(domainauthz.RoleAthlete, user.UserID("athlete-1")), nil, 1, 20)
 	if err != nil {
 		t.Fatalf("list error: %v", err)
 	}
-	if len(items) != 1 {
-		t.Fatalf("expected 1 published item for athlete, got %d", len(items))
+	if len(result.Data) != 1 {
+		t.Fatalf("expected 1 published item for athlete, got %d", len(result.Data))
+	}
+	if result.Meta.Total != 1 {
+		t.Fatalf("expected total 1 for athlete, got %d", result.Meta.Total)
+	}
+}
+
+func TestServiceListPagination(t *testing.T) {
+	repo := newMemoryRepo()
+	service := NewService(repo, fixedClock{now: time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)}, &sequentialIDGen{})
+
+	for i := 0; i < 5; i++ {
+		if _, err := service.Create(testContext(), CreateWODCommand{
+			Name: fmt.Sprintf("Program %d", i),
+			Stages: []StageInput{{
+				Kind:      domainwod.StageWarmup,
+				Config:    StageConfigInput{Type: domainwod.WODTypeOpen},
+				Movements: []MovementInput{{Position: 1, Name: "Jumping Jacks"}},
+			}},
+		}); err != nil {
+			t.Fatalf("create error: %v", err)
+		}
+	}
+
+	firstPage, err := service.List(testContext(), nil, 1, 2)
+	if err != nil {
+		t.Fatalf("list error: %v", err)
+	}
+	if len(firstPage.Data) != 2 {
+		t.Fatalf("expected 2 items on first page, got %d", len(firstPage.Data))
+	}
+	if firstPage.Meta.Total != 5 {
+		t.Fatalf("expected total 5, got %d", firstPage.Meta.Total)
+	}
+	if firstPage.Meta.TotalPages != 3 {
+		t.Fatalf("expected 3 total pages, got %d", firstPage.Meta.TotalPages)
+	}
+
+	lastPage, err := service.List(testContext(), nil, 3, 2)
+	if err != nil {
+		t.Fatalf("list error: %v", err)
+	}
+	if len(lastPage.Data) != 1 {
+		t.Fatalf("expected 1 item on last page, got %d", len(lastPage.Data))
 	}
 }
 

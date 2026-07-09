@@ -3,8 +3,10 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -42,14 +44,34 @@ func (m *handlerMemoryRepo) FindByID(_ context.Context, gymID gym.GymID, id doma
 	return aggregate, nil
 }
 
-func (m *handlerMemoryRepo) List(_ context.Context, gymID gym.GymID) ([]domainwod.WOD, error) {
+func (m *handlerMemoryRepo) List(_ context.Context, gymID gym.GymID, filter appwod.ListFilter) (appwod.ListResult, error) {
 	items := make([]domainwod.WOD, 0, len(m.items))
 	for _, aggregate := range m.items {
-		if aggregate.GymID() == gymID {
-			items = append(items, aggregate)
+		if aggregate.GymID() != gymID {
+			continue
 		}
+		if filter.Status != nil && aggregate.Status() != *filter.Status {
+			continue
+		}
+		if filter.PublishedOnly && aggregate.Status() != domainwod.WODStatusPublished {
+			continue
+		}
+		items = append(items, aggregate)
 	}
-	return items, nil
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt().After(items[j].CreatedAt())
+	})
+
+	total := len(items)
+	start := (filter.Page - 1) * filter.Limit
+	if start > total {
+		start = total
+	}
+	end := start + filter.Limit
+	if end > total {
+		end = total
+	}
+	return appwod.ListResult{Items: items[start:end], Total: total}, nil
 }
 
 func (m *handlerMemoryRepo) ListCalendar(_ context.Context, gymID gym.GymID, from, to time.Time, includeDrafts bool) ([]appwod.CalendarEntry, error) {
@@ -105,6 +127,7 @@ func newTestRouter() *echo.Echo {
 	})
 	e.POST("/api/v1/wods", handler.Create)
 	e.PUT("/api/v1/wods/:id", handler.Update)
+	e.GET("/api/v1/wods", handler.List)
 	return e
 }
 
@@ -121,6 +144,14 @@ func putWOD(t *testing.T, router *echo.Echo, id string, body string) *httptest.R
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/wods/"+id, strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	return rec
+}
+
+func getWODs(t *testing.T, router *echo.Echo, query string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/wods"+query, nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 	return rec
@@ -340,5 +371,66 @@ func TestCreateWODZeroLoadValue(t *testing.T) {
 	rec := postWOD(t, router, body)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestListWODsPagination(t *testing.T) {
+	router := newTestRouter()
+
+	for i := 0; i < 3; i++ {
+		body := fmt.Sprintf(`{
+			"name": "Program %d",
+			"description": "",
+			"stages": [
+				{ "kind": "WARMUP", "type": "OPEN", "config": {}, "movements": [{ "position": 1, "name": "Jumping Jacks" }] }
+			]
+		}`, i)
+		rec := postWOD(t, router, body)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("expected 201, got %d body=%s", rec.Code, rec.Body.String())
+		}
+	}
+
+	rec := getWODs(t, router, "?page=1&limit=2")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var page PaginatedWODSummaryResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(page.Data) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(page.Data))
+	}
+	if page.Meta.Page != 1 || page.Meta.Limit != 2 || page.Meta.Total != 3 || page.Meta.TotalPages != 2 {
+		t.Fatalf("unexpected meta: %+v", page.Meta)
+	}
+}
+
+func TestListWODsDefaultsWithoutParams(t *testing.T) {
+	router := newTestRouter()
+
+	rec := getWODs(t, router, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var page PaginatedWODSummaryResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &page); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if page.Meta.Page != 1 || page.Meta.Limit != 20 {
+		t.Fatalf("unexpected default meta: %+v", page.Meta)
+	}
+}
+
+func TestListWODsInvalidPagination(t *testing.T) {
+	router := newTestRouter()
+
+	cases := []string{"?page=0", "?page=abc", "?limit=0", "?limit=101", "?limit=abc"}
+	for _, query := range cases {
+		rec := getWODs(t, router, query)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("query %q: expected 400, got %d body=%s", query, rec.Code, rec.Body.String())
+		}
 	}
 }
