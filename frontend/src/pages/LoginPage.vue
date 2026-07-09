@@ -53,6 +53,9 @@ async function submit() {
       <form class="stack" @submit.prevent="submit">
         <BaseInput v-model="email" label="Email" placeholder="owner@gym.com" />
         <BaseInput v-model="password" label="Password" type="password" placeholder="Your password" />
+        <RouterLink to="/forgot-password" class="empty-state__link empty-state__link--secondary">
+          Forgot password?
+        </RouterLink>
         <div v-if="error" class="alert alert--error" role="alert">{{ error }}</div>
         <button type="submit" class="btn-full" :disabled="loading">
           {{ loading ? 'Logging in...' : 'Login' }}
