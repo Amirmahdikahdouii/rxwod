@@ -85,10 +85,13 @@ func NewRouter(
 	gymContext.GET("/wods/:id/leaderboard", wodResultHandler.GetLeaderboard, RequirePermission(domainauthz.PermissionWODResultRead))
 	gymContext.POST("/sessions", classSessionHandler.Create, RequirePermission(domainauthz.PermissionClassSessionCreate))
 	gymContext.GET("/sessions", classSessionHandler.List, RequirePermission(domainauthz.PermissionClassSessionRead))
+	gymContext.GET("/sessions/:id/bookings", classBookingHandler.Roster, RequirePermission(domainauthz.PermissionClassBookingRoster))
 	gymContext.POST("/sessions/:id/book", classBookingHandler.Book, RequirePermission(domainauthz.PermissionClassBookingBook))
 	gymContext.POST("/sessions/:id/overbook", classBookingHandler.Overbook, RequirePermission(domainauthz.PermissionClassBookingOverbook))
 	gymContext.POST("/sessions/:id/cancel", classBookingHandler.Cancel, RequirePermission(domainauthz.PermissionClassBookingCancel))
 	gymContext.POST("/athletes/preferences/default-session", athleteDefaultSessionHandler.SetDefaultSession, RequirePermission(domainauthz.PermissionAthleteDefaultSessionManage))
+	gymContext.GET("/athletes/preferences/default-session", athleteDefaultSessionHandler.ListMine, RequirePermission(domainauthz.PermissionAthleteDefaultSessionManage))
+	gymContext.DELETE("/athletes/preferences/default-session/:id", athleteDefaultSessionHandler.Delete, RequirePermission(domainauthz.PermissionAthleteDefaultSessionManage))
 
 	return e
 }

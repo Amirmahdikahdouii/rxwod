@@ -44,11 +44,12 @@ type WorkspaceDTO struct {
 }
 
 type MemberDTO struct {
-	UserID      string
-	Email       string
-	DisplayName string
-	Role        domainauthz.Role
-	Status      domaingym.MembershipStatus
+	MembershipID string
+	UserID       string
+	Email        string
+	DisplayName  string
+	Role         domainauthz.Role
+	Status       domaingym.MembershipStatus
 }
 
 type ListMembersFilter struct {

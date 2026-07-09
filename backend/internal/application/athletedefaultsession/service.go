@@ -63,6 +63,55 @@ func (s *Service) SetDefaultSession(ctx context.Context, cmd SetDefaultSessionCo
 	return toDefaultSessionDTO(pref), nil
 }
 
+func (s *Service) ListMyDefaultSessions(ctx context.Context) ([]DefaultSessionDTO, error) {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionAthleteDefaultSessionManage)
+	if err != nil {
+		return nil, err
+	}
+
+	membership, err := s.gymRepo.FindActiveMembership(ctx, principal.GymID, principal.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	prefs, err := s.repo.FindByGymMembership(ctx, membership.ID())
+	if err != nil {
+		return nil, fmt.Errorf("list athlete default sessions: %w", err)
+	}
+
+	result := make([]DefaultSessionDTO, 0, len(prefs))
+	for _, pref := range prefs {
+		result = append(result, toDefaultSessionDTO(pref))
+	}
+	return result, nil
+}
+
+func (s *Service) RemoveDefaultSession(ctx context.Context, id string) error {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionAthleteDefaultSessionManage)
+	if err != nil {
+		return err
+	}
+
+	membership, err := s.gymRepo.FindActiveMembership(ctx, principal.GymID, principal.UserID)
+	if err != nil {
+		return err
+	}
+
+	pref, err := s.repo.FindByID(ctx, domainathletedefaultsession.AthleteDefaultSessionID(id))
+	if err != nil {
+		return err
+	}
+
+	if pref.GymMembershipID() != membership.ID() {
+		return appauthz.ErrForbidden
+	}
+
+	if err := s.repo.Delete(ctx, pref.ID()); err != nil {
+		return fmt.Errorf("delete athlete default session: %w", err)
+	}
+	return nil
+}
+
 func toDefaultSessionDTO(pref domainathletedefaultsession.AthleteDefaultSession) DefaultSessionDTO {
 	return DefaultSessionDTO{
 		ID:              pref.ID().String(),

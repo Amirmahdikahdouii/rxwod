@@ -30,6 +30,7 @@ const (
 	PermissionClassBookingBook            Permission = "class_booking:book"
 	PermissionClassBookingOverbook        Permission = "class_booking:overbook"
 	PermissionClassBookingCancel          Permission = "class_booking:cancel"
+	PermissionClassBookingRoster          Permission = "class_booking:roster"
 	PermissionAthleteDefaultSessionManage Permission = "athlete_default_session:manage"
 )
 
@@ -54,6 +55,7 @@ var rolePermissions = map[Role]map[Permission]struct{}{
 		PermissionClassBookingBook:            {},
 		PermissionClassBookingOverbook:        {},
 		PermissionClassBookingCancel:          {},
+		PermissionClassBookingRoster:          {},
 		PermissionAthleteDefaultSessionManage: {},
 	},
 	RoleCoach: {
@@ -68,6 +70,7 @@ var rolePermissions = map[Role]map[Permission]struct{}{
 		PermissionClassBookingBook:     {},
 		PermissionClassBookingOverbook: {},
 		PermissionClassBookingCancel:   {},
+		PermissionClassBookingRoster:   {},
 	},
 	RoleAthlete: {
 		PermissionWODRead:                     {},

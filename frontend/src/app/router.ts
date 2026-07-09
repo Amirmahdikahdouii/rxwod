@@ -12,6 +12,8 @@ import WorkspaceMemberPage from '@/pages/WorkspaceMemberPage.vue'
 import WorkspacePage from '@/pages/WorkspacePage.vue'
 import WODCreatePage from '@/pages/WODCreatePage.vue'
 import WODListPage from '@/pages/WODListPage.vue'
+import ClassSchedulePage from '@/pages/ClassSchedulePage.vue'
+import SessionManagerPage from '@/pages/SessionManagerPage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +26,12 @@ export const router = createRouter({
     { path: '/invite/:token', component: InviteAcceptPage },
     { path: '/', component: WODCreatePage, meta: { requiresAuth: true, requiresWorkspace: true } },
     { path: '/wods', component: WODListPage, meta: { requiresAuth: true, requiresWorkspace: true } },
+    { path: '/schedule', component: ClassSchedulePage, meta: { requiresAuth: true, requiresWorkspace: true } },
+    {
+      path: '/schedule/manage',
+      component: SessionManagerPage,
+      meta: { requiresAuth: true, requiresWorkspace: true },
+    },
     {
       path: '/wods/:id/edit',
       component: WODCreatePage,

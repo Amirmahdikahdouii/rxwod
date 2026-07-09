@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { RouterLink, useRouter } from 'vue-router'
 import { useSession } from '@/features/auth/composables/useSession'
-import { ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
+import { ROLE_LABELS, canManageClassSessions } from '@/features/workspace/model/workspaceTypes'
 import ThemeToggle from '@/shared/components/ThemeToggle.vue'
 
 const router = useRouter()
@@ -27,6 +27,14 @@ async function updateWorkspace(value: string) {
         <template v-if="session.isAuthenticated.value">
           <RouterLink to="/" class="app-header__link">Create</RouterLink>
           <RouterLink to="/wods" class="app-header__link">Saved</RouterLink>
+          <RouterLink to="/schedule" class="app-header__link">Schedule</RouterLink>
+          <RouterLink
+            v-if="canManageClassSessions(session.activeWorkspaceRole.value)"
+            to="/schedule/manage"
+            class="app-header__link"
+          >
+            Manage
+          </RouterLink>
           <RouterLink to="/workspace" class="app-header__link">Workspace</RouterLink>
           <RouterLink to="/profile" class="app-header__link">Profile</RouterLink>
         </template>

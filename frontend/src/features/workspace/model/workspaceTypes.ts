@@ -7,6 +7,7 @@ export interface GymResponse {
 }
 
 export interface MemberResponse {
+  membershipId: string
   userId: string
   email: string
   displayName: string
@@ -92,6 +93,10 @@ export function canDeleteWOD(role: WorkspaceRole | null): boolean {
 
 export function canManageMembers(role: WorkspaceRole | null): boolean {
   return role === 'owner'
+}
+
+export function canManageClassSessions(role: WorkspaceRole | null): boolean {
+  return role === 'owner' || role === 'coach'
 }
 
 export function canManageMemberTarget(role: WorkspaceRole): boolean {

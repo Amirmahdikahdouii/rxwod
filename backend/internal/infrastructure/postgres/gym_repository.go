@@ -118,13 +118,13 @@ func (r *GymRepository) FindMembership(ctx context.Context, gymID domaingym.GymI
 
 func (r *GymRepository) FindMember(ctx context.Context, gymID domaingym.GymID, userID user.UserID) (appgym.MemberDTO, error) {
 	row := r.db.pool.QueryRow(ctx, `
-		SELECT u.id, u.email, u.display_name, gm.role, gm.status
+		SELECT gm.id, u.id, u.email, u.display_name, gm.role, gm.status
 		FROM gym_memberships gm
 		JOIN users u ON u.id = gm.user_id
 		WHERE gm.gym_id = $1 AND gm.user_id = $2
 	`, gymID.String(), userID.String())
 	var member appgym.MemberDTO
-	if err := row.Scan(&member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.Status); err != nil {
+	if err := row.Scan(&member.MembershipID, &member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.Status); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return appgym.MemberDTO{}, appgym.ErrMemberNotFound
 		}
@@ -159,7 +159,7 @@ func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID, 
 
 	offset := (filter.Page - 1) * filter.Limit
 	rows, err := r.db.pool.Query(ctx, `
-		SELECT u.id, u.email, u.display_name, gm.role, gm.status
+		SELECT gm.id, u.id, u.email, u.display_name, gm.role, gm.status
 		FROM gym_memberships gm
 		JOIN users u ON u.id = gm.user_id
 		WHERE gm.gym_id = $1
@@ -174,7 +174,7 @@ func (r *GymRepository) ListMembers(ctx context.Context, gymID domaingym.GymID, 
 	var members []appgym.MemberDTO
 	for rows.Next() {
 		var member appgym.MemberDTO
-		if err := rows.Scan(&member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.Status); err != nil {
+		if err := rows.Scan(&member.MembershipID, &member.UserID, &member.Email, &member.DisplayName, &member.Role, &member.Status); err != nil {
 			return appgym.ListMembersResult{}, fmt.Errorf("scan gym member: %w", err)
 		}
 		members = append(members, member)

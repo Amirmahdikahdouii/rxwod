@@ -2,9 +2,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	domainathletedefaultsession "github.com/rxwod/backend/internal/domain/athletedefaultsession"
 	"github.com/rxwod/backend/internal/domain/gym"
 )
@@ -30,6 +32,43 @@ func (r *AthleteDefaultSessionRepository) Save(
 	`, record.ID, record.GymMembershipID, record.DayOfWeek, record.TimeSlot, record.CreatedAt, record.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("upsert athlete default session: %w", err)
+	}
+	return nil
+}
+
+func (r *AthleteDefaultSessionRepository) FindByID(
+	ctx context.Context,
+	id domainathletedefaultsession.AthleteDefaultSessionID,
+) (domainathletedefaultsession.AthleteDefaultSession, error) {
+	row := r.db.pool.QueryRow(ctx, `
+		SELECT id, gym_membership_id, day_of_week, to_char(time_slot, 'HH24:MI') AS time_slot, created_at, updated_at
+		FROM athlete_default_sessions
+		WHERE id = $1
+	`, id.String())
+
+	record, err := scanAthleteDefaultSession(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domainathletedefaultsession.AthleteDefaultSession{}, domainathletedefaultsession.ErrNotFound
+		}
+		return domainathletedefaultsession.AthleteDefaultSession{}, err
+	}
+	return recordToAthleteDefaultSession(record)
+}
+
+func (r *AthleteDefaultSessionRepository) Delete(
+	ctx context.Context,
+	id domainathletedefaultsession.AthleteDefaultSessionID,
+) error {
+	tag, err := r.db.pool.Exec(ctx, `
+		DELETE FROM athlete_default_sessions
+		WHERE id = $1
+	`, id.String())
+	if err != nil {
+		return fmt.Errorf("delete athlete default session: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domainathletedefaultsession.ErrNotFound
 	}
 	return nil
 }

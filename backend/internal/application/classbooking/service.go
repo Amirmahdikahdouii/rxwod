@@ -79,6 +79,28 @@ func (s *Service) Overbook(ctx context.Context, cmd OverbookCommand) (BookingDTO
 	return s.bookForMembership(ctx, session, targetMembership.ID(), true)
 }
 
+func (s *Service) ListBookings(ctx context.Context, sessionID string) ([]BookingDTO, error) {
+	principal, err := appauthz.Require(ctx, domainauthz.PermissionClassBookingRoster)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.sessionRepo.FindByID(ctx, principal.GymID, domainclasssession.ClassSessionID(sessionID)); err != nil {
+		return nil, err
+	}
+
+	bookings, err := s.repo.ListBookingsBySession(ctx, domainclasssession.ClassSessionID(sessionID))
+	if err != nil {
+		return nil, fmt.Errorf("list bookings by session: %w", err)
+	}
+
+	result := make([]BookingDTO, 0, len(bookings))
+	for _, booking := range bookings {
+		result = append(result, toBookingDTO(booking))
+	}
+	return result, nil
+}
+
 func (s *Service) Cancel(ctx context.Context, cmd CancelCommand) (BookingDTO, error) {
 	principal, err := appauthz.Require(ctx, domainauthz.PermissionClassBookingCancel)
 	if err != nil {

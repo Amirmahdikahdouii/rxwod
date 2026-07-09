@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useSession } from '@/features/auth/composables/useSession'
+import DefaultSessionForm from '@/features/classbooking/components/DefaultSessionForm.vue'
 import { ROLE_LABELS } from '@/features/workspace/model/workspaceTypes'
 import BaseSelect from '@/shared/components/BaseSelect.vue'
 
@@ -75,5 +76,9 @@ async function logout() {
         </div>
       </article>
     </section>
+
+    <DefaultSessionForm
+      v-if="session.activeWorkspaceRole.value === 'athlete' && session.activeWorkspaceId.value"
+    />
   </div>
 </template>

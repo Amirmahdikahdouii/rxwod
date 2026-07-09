@@ -2,6 +2,7 @@ package classsession
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,12 +13,14 @@ import (
 	domainclassbooking "github.com/rxwod/backend/internal/domain/classbooking"
 	domainclasssession "github.com/rxwod/backend/internal/domain/classsession"
 	domainwod "github.com/rxwod/backend/internal/domain/wod"
+	"github.com/rxwod/backend/internal/domain/gym"
 	"github.com/rxwod/backend/internal/platform/clock"
 	"github.com/rxwod/backend/internal/platform/idgen"
 )
 
 type Service struct {
 	repo        Repository
+	bookingRepo SessionBookingReader
 	defaultRepo appathletedefaultsession.Repository
 	gymRepo     appgym.Repository
 	clock       clock.Clock
@@ -26,6 +29,7 @@ type Service struct {
 
 func NewService(
 	repo Repository,
+	bookingRepo SessionBookingReader,
 	defaultRepo appathletedefaultsession.Repository,
 	gymRepo appgym.Repository,
 	clock clock.Clock,
@@ -33,6 +37,7 @@ func NewService(
 ) *Service {
 	return &Service{
 		repo:        repo,
+		bookingRepo: bookingRepo,
 		defaultRepo: defaultRepo,
 		gymRepo:     gymRepo,
 		clock:       clock,
@@ -116,9 +121,34 @@ func (s *Service) List(ctx context.Context, cmd ListClassSessionsCommand) ([]Cla
 		return nil, fmt.Errorf("list class sessions: %w", err)
 	}
 
+	var membershipID *gym.MembershipID
+	if membership, err := s.gymRepo.FindActiveMembership(ctx, principal.GymID, principal.UserID); err == nil {
+		id := membership.ID()
+		membershipID = &id
+	}
+
 	result := make([]ClassSessionDTO, 0, len(sessions))
 	for _, session := range sessions {
-		result = append(result, toClassSessionDTO(session))
+		dto := toClassSessionDTO(session)
+
+		bookedCount, err := s.bookingRepo.CountBookedBySession(ctx, session.ID())
+		if err != nil {
+			return nil, fmt.Errorf("count bookings for session %s: %w", session.ID(), err)
+		}
+		dto.BookedCount = bookedCount
+
+		if membershipID != nil {
+			booking, err := s.bookingRepo.FindBySessionAndMembership(ctx, session.ID(), *membershipID)
+			if err != nil && !errors.Is(err, domainclassbooking.ErrNotFound) {
+				return nil, fmt.Errorf("find booking for session %s: %w", session.ID(), err)
+			}
+			if err == nil {
+				status := string(booking.Status())
+				dto.MyBookingStatus = &status
+			}
+		}
+
+		result = append(result, dto)
 	}
 	return result, nil
 }

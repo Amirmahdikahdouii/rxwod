@@ -87,7 +87,7 @@ func main() {
 	authorizer := appauthz.NewAuthorizer(gymRepo)
 	wodService := appwod.NewService(wodRepo, systemClock, uuidGenerator)
 	wodResultService := appwodresult.NewService(wodResultRepo, wodRepo, gymRepo, systemClock, uuidGenerator)
-	classSessionService := appclasssession.NewService(classSessionRepo, athleteDefaultSessionRepo, gymRepo, systemClock, uuidGenerator)
+	classSessionService := appclasssession.NewService(classSessionRepo, classBookingRepo, athleteDefaultSessionRepo, gymRepo, systemClock, uuidGenerator)
 	classBookingService := appclassbooking.NewService(classBookingRepo, classSessionRepo, gymRepo, systemClock, uuidGenerator)
 	athleteDefaultSessionService := appathletedefaultsession.NewService(athleteDefaultSessionRepo, gymRepo, systemClock, uuidGenerator)
 	router := deliveryhttp.NewRouter(

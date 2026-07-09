@@ -43,11 +43,12 @@ type WorkspaceResponse struct {
 }
 
 type MemberResponse struct {
-	UserID      string `json:"userId"`
-	Email       string `json:"email"`
-	DisplayName string `json:"displayName"`
-	Role        string `json:"role"`
-	Status      string `json:"status"`
+	MembershipID string `json:"membershipId"`
+	UserID       string `json:"userId"`
+	Email        string `json:"email"`
+	DisplayName  string `json:"displayName"`
+	Role         string `json:"role"`
+	Status       string `json:"status"`
 }
 
 type PaginatedMemberResponse struct {
@@ -233,11 +234,12 @@ func toMemberResponses(dtos []appgym.MemberDTO) []MemberResponse {
 
 func toMemberResponse(dto appgym.MemberDTO) MemberResponse {
 	return MemberResponse{
-		UserID:      dto.UserID,
-		Email:       dto.Email,
-		DisplayName: dto.DisplayName,
-		Role:        string(dto.Role),
-		Status:      string(dto.Status),
+		MembershipID: dto.MembershipID,
+		UserID:       dto.UserID,
+		Email:        dto.Email,
+		DisplayName:  dto.DisplayName,
+		Role:         string(dto.Role),
+		Status:       string(dto.Status),
 	}
 }
 
@@ -471,15 +473,17 @@ func toLeaderboardResponse(dto appwodresult.LeaderboardDTO) LeaderboardResponse 
 }
 
 type ClassSessionResponse struct {
-	ID        string    `json:"id"`
-	GymID     string    `json:"gymId"`
-	WodID     *string   `json:"wodId,omitempty"`
-	StartTime time.Time `json:"startTime"`
-	EndTime   time.Time `json:"endTime"`
-	Capacity  int       `json:"capacity"`
-	CoachID   string    `json:"coachId"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID              string    `json:"id"`
+	GymID           string    `json:"gymId"`
+	WodID           *string   `json:"wodId,omitempty"`
+	StartTime       time.Time `json:"startTime"`
+	EndTime         time.Time `json:"endTime"`
+	Capacity        int       `json:"capacity"`
+	CoachID         string    `json:"coachId"`
+	BookedCount     int       `json:"bookedCount"`
+	MyBookingStatus *string   `json:"myBookingStatus,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
+	UpdatedAt       time.Time `json:"updatedAt"`
 }
 
 type CreateClassSessionResponse struct {
@@ -508,15 +512,17 @@ type DefaultSessionResponse struct {
 
 func toClassSessionResponse(dto appclasssession.ClassSessionDTO) ClassSessionResponse {
 	return ClassSessionResponse{
-		ID:        dto.ID,
-		GymID:     dto.GymID,
-		WodID:     dto.WodID,
-		StartTime: dto.StartTime,
-		EndTime:   dto.EndTime,
-		Capacity:  dto.Capacity,
-		CoachID:   dto.CoachID,
-		CreatedAt: dto.CreatedAt,
-		UpdatedAt: dto.UpdatedAt,
+		ID:              dto.ID,
+		GymID:           dto.GymID,
+		WodID:           dto.WodID,
+		StartTime:       dto.StartTime,
+		EndTime:         dto.EndTime,
+		Capacity:        dto.Capacity,
+		CoachID:         dto.CoachID,
+		BookedCount:     dto.BookedCount,
+		MyBookingStatus: dto.MyBookingStatus,
+		CreatedAt:       dto.CreatedAt,
+		UpdatedAt:       dto.UpdatedAt,
 	}
 }
 

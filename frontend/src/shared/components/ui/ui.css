@@ -1,0 +1,195 @@
+/*
+ * Spotify-inspired UI primitives (Phase 0 foundation).
+ * Uses existing color tokens; geometry and typography follow DESIGN.md.
+ * Adopted incrementally in later phases — does not replace global classes yet.
+ */
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: var(--radius-ui-pill);
+  padding: 0.5rem 1rem;
+  font-family: var(--font-family-ui);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-button);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.ui-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.ui-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ui-btn--sm {
+  padding: 0.375rem 0.75rem;
+  font-size: var(--font-size-small);
+}
+
+.ui-btn--md {
+  padding: 0.5rem 1rem;
+}
+
+.ui-btn--lg {
+  padding: 0.625rem 1.5rem;
+  font-size: var(--font-size-body);
+  border-radius: var(--radius-ui-pill-lg);
+  letter-spacing: var(--letter-spacing-button-wide);
+}
+
+.ui-btn--full {
+  width: 100%;
+}
+
+.ui-btn--primary {
+  background: var(--color-accent);
+  color: #000000;
+}
+
+.ui-btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.ui-btn--secondary {
+  background: var(--color-surface-elevated, var(--color-surface));
+  color: var(--color-text);
+}
+
+.ui-btn--secondary:hover:not(:disabled) {
+  background: var(--color-border);
+}
+
+.ui-btn--outlined {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+}
+
+.ui-btn--outlined:hover:not(:disabled) {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+.ui-btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.ui-btn--ghost:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-accent-muted);
+}
+
+.ui-btn--danger {
+  background: var(--color-error);
+  color: #ffffff;
+}
+
+.ui-btn--danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.ui-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition: background-color 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.ui-card--padding-sm {
+  padding: 1rem;
+}
+
+.ui-card--padding-md {
+  padding: 1.5rem;
+}
+
+.ui-card--padding-lg {
+  padding: 2rem;
+}
+
+.ui-card--elevated {
+  background: var(--color-surface-elevated);
+}
+
+.ui-card--hoverable {
+  cursor: pointer;
+}
+
+.ui-card--hoverable:hover:not(:disabled) {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--color-border-strong);
+}
+
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: var(--radius-ui-pill);
+  font-family: var(--font-family-ui);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.ui-pill--sm {
+  padding: 0.125rem 0.5rem;
+  font-size: var(--font-size-badge);
+}
+
+.ui-pill--md {
+  padding: 0.25rem 0.625rem;
+  font-size: var(--font-size-small);
+}
+
+.ui-pill--default {
+  background: var(--color-surface-elevated, var(--color-surface));
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.ui-pill--success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  border: 1px solid transparent;
+}
+
+.ui-pill--warning {
+  background: rgba(255, 164, 43, 0.12);
+  color: #ffa42b;
+  border: 1px solid transparent;
+}
+
+.ui-pill--error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border: 1px solid transparent;
+}
+
+.ui-pill--info {
+  background: rgba(83, 157, 245, 0.12);
+  color: #539df5;
+  border: 1px solid transparent;
+}
+
+.ui-pill--muted {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}

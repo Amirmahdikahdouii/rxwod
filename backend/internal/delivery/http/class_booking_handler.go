@@ -15,6 +15,24 @@ func NewClassBookingHandler(service *appclassbooking.Service) *ClassBookingHandl
 	return &ClassBookingHandler{service: service}
 }
 
+func (h *ClassBookingHandler) Roster(c echo.Context) error {
+	sessionID := c.Param("id")
+	if sessionID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id is required"})
+	}
+
+	result, err := h.service.ListBookings(c.Request().Context(), sessionID)
+	if err != nil {
+		return mapError(c, err)
+	}
+
+	responses := make([]ClassBookingResponse, 0, len(result))
+	for _, booking := range result {
+		responses = append(responses, toClassBookingResponse(booking))
+	}
+	return c.JSON(http.StatusOK, responses)
+}
+
 func (h *ClassBookingHandler) Book(c echo.Context) error {
 	sessionID := c.Param("id")
 	if sessionID == "" {

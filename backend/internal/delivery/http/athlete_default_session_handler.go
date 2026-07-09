@@ -31,3 +31,28 @@ func (h *AthleteDefaultSessionHandler) SetDefaultSession(c echo.Context) error {
 
 	return c.JSON(http.StatusCreated, toDefaultSessionResponse(result))
 }
+
+func (h *AthleteDefaultSessionHandler) ListMine(c echo.Context) error {
+	sessions, err := h.service.ListMyDefaultSessions(c.Request().Context())
+	if err != nil {
+		return mapError(c, err)
+	}
+
+	responses := make([]DefaultSessionResponse, 0, len(sessions))
+	for _, session := range sessions {
+		responses = append(responses, toDefaultSessionResponse(session))
+	}
+	return c.JSON(http.StatusOK, responses)
+}
+
+func (h *AthleteDefaultSessionHandler) Delete(c echo.Context) error {
+	id := c.Param("id")
+	if id == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id is required"})
+	}
+
+	if err := h.service.RemoveDefaultSession(c.Request().Context(), id); err != nil {
+		return mapError(c, err)
+	}
+	return c.NoContent(http.StatusNoContent)
+}
