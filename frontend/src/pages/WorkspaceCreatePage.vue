@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useSession } from '@/features/auth/composables/useSession'
 import { useWorkspaces } from '@/features/workspace/composables/useWorkspaces'
 import BaseInput from '@/shared/components/BaseInput.vue'
 
 const router = useRouter()
+const session = useSession()
 const workspaces = useWorkspaces()
 
 const name = ref('')
@@ -23,7 +25,22 @@ async function submit() {
 
 <template>
   <div class="container stack-lg">
-    <section class="workspace-hero card">
+    <section v-if="!session.isEmailVerified.value" class="workspace-hero card">
+      <div class="workspace-hero__content">
+        <p class="eyebrow">Create workspace</p>
+        <h1 class="page-title">Confirm your email first</h1>
+        <p class="page-subtitle">
+          We sent a confirmation link to
+          <strong>{{ session.currentUser.value?.email }}</strong>.
+          Verify your email before creating a gym workspace.
+        </p>
+      </div>
+      <div class="empty-state empty-state--compact">
+        <p class="empty-state__text">Use the banner above to resend the confirmation email.</p>
+      </div>
+    </section>
+
+    <section v-else class="workspace-hero card">
       <div class="workspace-hero__content">
         <p class="eyebrow">Create workspace</p>
         <h1 class="page-title">Set up your gym</h1>

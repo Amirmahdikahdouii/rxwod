@@ -39,7 +39,7 @@ const roleChanged = computed(
 )
 
 async function loadMember() {
-  if (!canManage.value) {
+  if (!session.isEmailVerified.value || !canManage.value) {
     await router.replace('/workspace')
     return
   }

@@ -22,6 +22,7 @@ const loadingSession = ref(false)
 const sessionReady = ref(false)
 
 const isAuthenticated = computed(() => Boolean(accessToken.value))
+const isEmailVerified = computed(() => currentUser.value?.emailVerified ?? false)
 const activeWorkspace = computed(
   () => workspaces.value.find((workspace) => workspace.id === activeWorkspaceId.value) ?? null,
 )
@@ -133,6 +134,7 @@ export function useSession() {
     loadingSession,
     sessionReady,
     isAuthenticated,
+    isEmailVerified,
     loadMe,
     login,
     register,

@@ -64,7 +64,14 @@ async function logout() {
         <div v-else class="empty-state empty-state--compact">
           <h3 class="empty-state__title">No gym yet</h3>
           <p class="empty-state__text">Create a workspace to start saving programs.</p>
-          <RouterLink to="/workspace/new" class="empty-state__link">Create Gym</RouterLink>
+          <RouterLink
+            v-if="session.isEmailVerified.value"
+            to="/workspace/new"
+            class="empty-state__link"
+          >
+            Create Gym
+          </RouterLink>
+          <p v-else class="helper-text">Confirm your email to create a gym workspace.</p>
         </div>
       </article>
     </section>

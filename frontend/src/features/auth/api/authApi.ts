@@ -6,6 +6,7 @@ import type {
   RegisterPayload,
   ResetPasswordPayload,
   TokenResponse,
+  VerifyEmailPayload,
 } from '@/features/auth/model/authTypes'
 import type { Result } from '@/shared/utils/result'
 
@@ -31,4 +32,12 @@ export function forgotPassword(payload: ForgotPasswordPayload): Promise<Result<v
 
 export function resetPassword(payload: ResetPasswordPayload): Promise<Result<void>> {
   return httpClient.post<void>('/api/v1/auth/reset-password', payload)
+}
+
+export function verifyEmail(payload: VerifyEmailPayload): Promise<Result<void>> {
+  return httpClient.post<void>('/api/v1/auth/verify-email', payload)
+}
+
+export function resendVerificationEmail(): Promise<Result<void>> {
+  return httpClient.post<void>('/api/v1/auth/resend-verification', undefined, { auth: true })
 }

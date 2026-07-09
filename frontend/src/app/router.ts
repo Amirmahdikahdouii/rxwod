@@ -3,6 +3,7 @@ import { useSession } from '@/features/auth/composables/useSession'
 import LoginPage from '@/pages/LoginPage.vue'
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage.vue'
 import ResetPasswordPage from '@/pages/ResetPasswordPage.vue'
+import VerifyEmailPage from '@/pages/VerifyEmailPage.vue'
 import InviteAcceptPage from '@/pages/InviteAcceptPage.vue'
 import ProfilePage from '@/pages/ProfilePage.vue'
 import RegisterPage from '@/pages/RegisterPage.vue'
@@ -19,6 +20,7 @@ export const router = createRouter({
     { path: '/register', component: RegisterPage, meta: { guestOnly: true } },
     { path: '/forgot-password', component: ForgotPasswordPage, meta: { guestOnly: true } },
     { path: '/reset-password/:token', component: ResetPasswordPage },
+    { path: '/verify-email/:token', component: VerifyEmailPage },
     { path: '/invite/:token', component: InviteAcceptPage },
     { path: '/', component: WODCreatePage, meta: { requiresAuth: true, requiresWorkspace: true } },
     { path: '/wods', component: WODListPage, meta: { requiresAuth: true, requiresWorkspace: true } },

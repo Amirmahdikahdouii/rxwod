@@ -10,6 +10,7 @@ export interface UserProfile {
   id: string
   email: string
   displayName: string
+  emailVerified: boolean
 }
 
 export interface UserWorkspace {
@@ -39,4 +40,8 @@ export interface ForgotPasswordPayload {
 export interface ResetPasswordPayload {
   token: string
   password: string
+}
+
+export interface VerifyEmailPayload {
+  token: string
 }

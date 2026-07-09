@@ -66,6 +66,11 @@ export function useWorkspaces() {
   }
 
   async function createGym(name: string): Promise<Result<void>> {
+    if (!session.isEmailVerified.value) {
+      const message = 'Confirm your email before creating a workspace.'
+      workspaceError.value = message
+      return err(message)
+    }
     workspaceError.value = null
     clearWorkspaceSuccess()
     const response = await createGymRequest({ name: name.trim() })
@@ -84,6 +89,11 @@ export function useWorkspaces() {
     role: 'coach' | 'athlete',
     email: string,
   ): Promise<Result<InvitationResponse>> {
+    if (!session.isEmailVerified.value) {
+      const message = 'Confirm your email before inviting members.'
+      workspaceError.value = message
+      return err(message)
+    }
     const workspaceID = session.activeWorkspaceId.value
     if (!workspaceID) {
       return err('Choose a workspace first')
@@ -110,6 +120,11 @@ export function useWorkspaces() {
     userID: string,
     role: 'coach' | 'athlete',
   ): Promise<Result<MemberResponse>> {
+    if (!session.isEmailVerified.value) {
+      const message = 'Confirm your email before updating members.'
+      workspaceError.value = message
+      return err(message)
+    }
     const workspaceID = session.activeWorkspaceId.value
     if (!workspaceID) {
       return err('Choose a workspace first')
@@ -132,6 +147,11 @@ export function useWorkspaces() {
   }
 
   async function removeMember(userID: string): Promise<Result<void>> {
+    if (!session.isEmailVerified.value) {
+      const message = 'Confirm your email before removing members.'
+      workspaceError.value = message
+      return err(message)
+    }
     const workspaceID = session.activeWorkspaceId.value
     if (!workspaceID) {
       return err('Choose a workspace first')

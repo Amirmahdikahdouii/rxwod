@@ -66,6 +66,7 @@ const roleLabel = computed(() =>
   session.activeWorkspaceRole.value ? ROLE_LABELS[session.activeWorkspaceRole.value] : 'Member',
 )
 const canManage = computed(() => canManageMembers(session.activeWorkspaceRole.value))
+const canManageVerified = computed(() => canManage.value && session.isEmailVerified.value)
 const canCreate = computed(() => canCreateWOD(session.activeWorkspaceRole.value))
 
 onMounted(async () => {
@@ -130,11 +131,21 @@ watch(
             <span class="role-pill">{{ ROLE_LABELS[workspace.role] }}</span>
           </button>
         </div>
-        <RouterLink to="/workspace/new" class="empty-state__link">Create another gym</RouterLink>
+        <RouterLink v-if="session.isEmailVerified.value" to="/workspace/new" class="empty-state__link">
+          Create another gym
+        </RouterLink>
       </article>
     </section>
 
-    <section v-if="canManage" class="dashboard-grid">
+    <div
+      v-if="canManage && !session.isEmailVerified.value"
+      class="alert alert--warning"
+      role="status"
+    >
+      Confirm your email before inviting members or changing workspace settings.
+    </div>
+
+    <section v-if="canManageVerified" class="dashboard-grid">
       <article class="card stack">
         <h2 class="section-title">Invite Team</h2>
         <form class="invite-form" @submit.prevent="inviteCoach">
@@ -183,7 +194,7 @@ watch(
               <span class="member-card__email">{{ member.email }}</span>
               <span class="role-pill">{{ ROLE_LABELS[member.role] }}</span>
               <RouterLink
-                v-if="canManage && canManageMemberTarget(member.role)"
+                v-if="canManageVerified && canManageMemberTarget(member.role)"
                 :to="`/workspace/members/${member.userId}`"
                 class="member-card__manage"
               >
