@@ -37,3 +37,11 @@ export function updateWOD(id: string, payload: CreateWODPayload): Promise<Result
 export function publishWOD(id: string): Promise<Result<WODDetail>> {
   return httpClient.post<WODDetail>(`/api/v1/wods/${id}/publish`, {}, { auth: true, workspace: true })
 }
+
+export function archiveWOD(id: string): Promise<Result<WODDetail>> {
+  return httpClient.post<WODDetail>(`/api/v1/wods/${id}/archive`, {}, { auth: true, workspace: true })
+}
+
+export function deleteWOD(id: string): Promise<Result<void>> {
+  return httpClient.delete<void>(`/api/v1/wods/${id}`, { auth: true, workspace: true })
+}
