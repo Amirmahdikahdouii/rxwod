@@ -18,3 +18,9 @@ auth:
 
 logging:
   level: info
+
+ratelimit:
+  authPerIPRequestsPerMinute: 20
+  authPerIPBurst: 10
+  authPerIdentifierRequestsPerMinute: 5
+  authPerIdentifierBurst: 3

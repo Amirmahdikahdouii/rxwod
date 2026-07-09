@@ -36,6 +36,10 @@ func load(configPaths ...string) (Config, error) {
 	mustBindEnv(v, "auth.passwordResetTTL", "AUTH_PASSWORD_RESET_TTL")
 	mustBindEnv(v, "auth.emailVerificationTTL", "AUTH_EMAIL_VERIFICATION_TTL")
 	mustBindEnv(v, "logging.level", "LOG_LEVEL")
+	mustBindEnv(v, "ratelimit.authPerIPRequestsPerMinute", "RATELIMIT_AUTH_PER_IP_RPM")
+	mustBindEnv(v, "ratelimit.authPerIPBurst", "RATELIMIT_AUTH_PER_IP_BURST")
+	mustBindEnv(v, "ratelimit.authPerIdentifierRequestsPerMinute", "RATELIMIT_AUTH_PER_IDENTIFIER_RPM")
+	mustBindEnv(v, "ratelimit.authPerIdentifierBurst", "RATELIMIT_AUTH_PER_IDENTIFIER_BURST")
 
 	v.SetDefault("app.env", "development")
 	v.SetDefault("app.frontendURL", "http://localhost:5173")
@@ -48,6 +52,10 @@ func load(configPaths ...string) (Config, error) {
 	v.SetDefault("auth.passwordResetTTL", "1h")
 	v.SetDefault("auth.emailVerificationTTL", "24h")
 	v.SetDefault("logging.level", "info")
+	v.SetDefault("ratelimit.authPerIPRequestsPerMinute", 20.0)
+	v.SetDefault("ratelimit.authPerIPBurst", 10)
+	v.SetDefault("ratelimit.authPerIdentifierRequestsPerMinute", 5.0)
+	v.SetDefault("ratelimit.authPerIdentifierBurst", 3)
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -119,6 +127,22 @@ func (c Config) Validate() error {
 
 	if len(c.AllowedOrigins()) == 0 {
 		return fmt.Errorf("app.allowedOrigins is required")
+	}
+
+	if c.RateLimit.AuthPerIPRequestsPerMinute <= 0 {
+		return fmt.Errorf("ratelimit.authPerIPRequestsPerMinute must be positive")
+	}
+
+	if c.RateLimit.AuthPerIPBurst <= 0 {
+		return fmt.Errorf("ratelimit.authPerIPBurst must be positive")
+	}
+
+	if c.RateLimit.AuthPerIdentifierRequestsPerMinute <= 0 {
+		return fmt.Errorf("ratelimit.authPerIdentifierRequestsPerMinute must be positive")
+	}
+
+	if c.RateLimit.AuthPerIdentifierBurst <= 0 {
+		return fmt.Errorf("ratelimit.authPerIdentifierBurst must be positive")
 	}
 
 	env := strings.ToLower(strings.TrimSpace(c.App.Env))

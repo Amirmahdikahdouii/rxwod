@@ -1,13 +1,25 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"golang.org/x/time/rate"
+)
 
 type Config struct {
-	App      AppConfig      `mapstructure:"app"`
-	HTTP     HTTPConfig     `mapstructure:"http"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Auth     AuthConfig     `mapstructure:"auth"`
-	Logging  LoggingConfig  `mapstructure:"logging"`
+	App       AppConfig       `mapstructure:"app"`
+	HTTP      HTTPConfig      `mapstructure:"http"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Auth      AuthConfig      `mapstructure:"auth"`
+	Logging   LoggingConfig   `mapstructure:"logging"`
+	RateLimit RateLimitConfig `mapstructure:"ratelimit"`
+}
+
+type RateLimitConfig struct {
+	AuthPerIPRequestsPerMinute         float64 `mapstructure:"authPerIPRequestsPerMinute"`
+	AuthPerIPBurst                     int     `mapstructure:"authPerIPBurst"`
+	AuthPerIdentifierRequestsPerMinute float64 `mapstructure:"authPerIdentifierRequestsPerMinute"`
+	AuthPerIdentifierBurst             int     `mapstructure:"authPerIdentifierBurst"`
 }
 
 type AppConfig struct {
@@ -42,4 +54,24 @@ func parseDuration(value string) time.Duration {
 		return 0
 	}
 	return duration
+}
+
+func requestsPerMinuteToLimit(requestsPerMinute float64) rate.Limit {
+	return rate.Limit(requestsPerMinute / 60.0)
+}
+
+func (c Config) AuthPerIPRateLimit() rate.Limit {
+	return requestsPerMinuteToLimit(c.RateLimit.AuthPerIPRequestsPerMinute)
+}
+
+func (c Config) AuthPerIPBurst() int {
+	return c.RateLimit.AuthPerIPBurst
+}
+
+func (c Config) AuthPerIdentifierRateLimit() rate.Limit {
+	return requestsPerMinuteToLimit(c.RateLimit.AuthPerIdentifierRequestsPerMinute)
+}
+
+func (c Config) AuthPerIdentifierBurst() int {
+	return c.RateLimit.AuthPerIdentifierBurst
 }

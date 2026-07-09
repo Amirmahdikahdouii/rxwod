@@ -34,6 +34,14 @@ func TestLoadUsesDefaultsWhenConfigFileIsMissing(t *testing.T) {
 	if got, want := cfg.AllowedOrigins(), []string{"http://localhost:5173"}; len(got) != len(want) || got[0] != want[0] {
 		t.Fatalf("AllowedOrigins() = %v, want %v", got, want)
 	}
+
+	if got, want := cfg.AuthPerIPBurst(), 10; got != want {
+		t.Fatalf("AuthPerIPBurst() = %d, want %d", got, want)
+	}
+
+	if got, want := cfg.AuthPerIdentifierBurst(), 3; got != want {
+		t.Fatalf("AuthPerIdentifierBurst() = %d, want %d", got, want)
+	}
 }
 
 func TestLoadReadsYAMLConfigFile(t *testing.T) {
@@ -171,6 +179,76 @@ logging:
 	}
 }
 
+func TestLoadLetsEnvironmentOverrideRateLimitConfig(t *testing.T) {
+	clearConfigEnv(t)
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+app:
+  env: test
+http:
+  port: 9090
+database:
+  url: "postgres://yaml:yaml@localhost:5432/yaml?sslmode=disable"
+ratelimit:
+  authPerIPRequestsPerMinute: 20
+  authPerIPBurst: 10
+  authPerIdentifierRequestsPerMinute: 5
+  authPerIdentifierBurst: 3
+`)
+	t.Setenv("RATELIMIT_AUTH_PER_IP_RPM", "30")
+	t.Setenv("RATELIMIT_AUTH_PER_IP_BURST", "15")
+	t.Setenv("RATELIMIT_AUTH_PER_IDENTIFIER_RPM", "8")
+	t.Setenv("RATELIMIT_AUTH_PER_IDENTIFIER_BURST", "4")
+
+	cfg, err := load(dir)
+	if err != nil {
+		t.Fatalf("load config: %v", err)
+	}
+
+	if got, want := cfg.RateLimit.AuthPerIPRequestsPerMinute, 30.0; got != want {
+		t.Fatalf("AuthPerIPRequestsPerMinute = %v, want %v", got, want)
+	}
+
+	if got, want := cfg.AuthPerIPBurst(), 15; got != want {
+		t.Fatalf("AuthPerIPBurst() = %d, want %d", got, want)
+	}
+
+	if got, want := cfg.RateLimit.AuthPerIdentifierRequestsPerMinute, 8.0; got != want {
+		t.Fatalf("AuthPerIdentifierRequestsPerMinute = %v, want %v", got, want)
+	}
+
+	if got, want := cfg.AuthPerIdentifierBurst(), 4; got != want {
+		t.Fatalf("AuthPerIdentifierBurst() = %d, want %d", got, want)
+	}
+}
+
+func TestLoadRejectsInvalidRateLimitConfig(t *testing.T) {
+	clearConfigEnv(t)
+	dir := t.TempDir()
+	writeConfig(t, dir, `
+app:
+  env: test
+http:
+  port: 9090
+database:
+  url: "postgres://yaml:yaml@localhost:5432/yaml?sslmode=disable"
+ratelimit:
+  authPerIPRequestsPerMinute: 0
+  authPerIPBurst: 10
+  authPerIdentifierRequestsPerMinute: 5
+  authPerIdentifierBurst: 3
+`)
+
+	_, err := load(dir)
+	if err == nil {
+		t.Fatal("load config succeeded, want error")
+	}
+
+	if !strings.Contains(err.Error(), "ratelimit.authPerIPRequestsPerMinute") {
+		t.Fatalf("error = %q, want ratelimit.authPerIPRequestsPerMinute validation", err.Error())
+	}
+}
+
 func clearConfigEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("APP_ENV", "")
@@ -181,6 +259,10 @@ func clearConfigEnv(t *testing.T) {
 	t.Setenv("AUTH_ACCESS_TOKEN_TTL", "")
 	t.Setenv("AUTH_REFRESH_TOKEN_TTL", "")
 	t.Setenv("LOG_LEVEL", "")
+	t.Setenv("RATELIMIT_AUTH_PER_IP_RPM", "")
+	t.Setenv("RATELIMIT_AUTH_PER_IP_BURST", "")
+	t.Setenv("RATELIMIT_AUTH_PER_IDENTIFIER_RPM", "")
+	t.Setenv("RATELIMIT_AUTH_PER_IDENTIFIER_BURST", "")
 }
 
 func writeConfig(t *testing.T, dir string, contents string) {

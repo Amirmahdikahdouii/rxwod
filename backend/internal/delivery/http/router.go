@@ -8,9 +8,10 @@ import (
 	appgym "github.com/rxwod/backend/internal/application/gym"
 	appwod "github.com/rxwod/backend/internal/application/wod"
 	domainauthz "github.com/rxwod/backend/internal/domain/authz"
+	"github.com/rxwod/backend/internal/infrastructure/config"
 )
 
-func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer, allowedOrigins []string) *echo.Echo {
+func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodService *appwod.Service, authorizer *appauthz.Authorizer, allowedOrigins []string, cfg config.Config) *echo.Echo {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
@@ -23,10 +24,13 @@ func NewRouter(authService *appauth.Service, gymService *appgym.Service, wodServ
 	gymHandler := NewGymHandler(gymService)
 	wodHandler := NewWODHandler(wodService)
 
+	ipLimit := authIPRateLimiter(cfg)
+	identifierLimit := authIdentifierRateLimiter(cfg)
+
 	v1 := e.Group("/api/v1")
-	v1.POST("/auth/register", authHandler.Register)
-	v1.POST("/auth/login", authHandler.Login)
-	v1.POST("/auth/refresh", authHandler.Refresh)
+	v1.POST("/auth/register", authHandler.Register, ipLimit, identifierLimit)
+	v1.POST("/auth/login", authHandler.Login, ipLimit, identifierLimit)
+	v1.POST("/auth/refresh", authHandler.Refresh, ipLimit)
 	v1.POST("/auth/forgot-password", authHandler.ForgotPassword)
 	v1.POST("/auth/reset-password", authHandler.ResetPassword)
 	v1.POST("/auth/verify-email", authHandler.VerifyEmail)
