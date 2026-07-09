@@ -57,3 +57,15 @@ func (r *RefreshTokenRepository) FindByHash(ctx context.Context, tokenHash strin
 	token.CreatedAt = createdAt
 	return token, nil
 }
+
+func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID user.UserID, now time.Time) error {
+	_, err := r.db.pool.Exec(ctx, `
+		UPDATE refresh_tokens
+		SET revoked_at = $2
+		WHERE user_id = $1 AND revoked_at IS NULL
+	`, userID.String(), now)
+	if err != nil {
+		return fmt.Errorf("revoke refresh tokens: %w", err)
+	}
+	return nil
+}

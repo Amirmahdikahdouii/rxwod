@@ -10,7 +10,8 @@ type Config struct {
 }
 
 type AppConfig struct {
-	Env string `mapstructure:"env"`
+	Env         string `mapstructure:"env"`
+	FrontendURL string `mapstructure:"frontendURL"`
 }
 
 type HTTPConfig struct {
@@ -22,9 +23,10 @@ type DatabaseConfig struct {
 }
 
 type AuthConfig struct {
-	JWTSecret       string `mapstructure:"jwtSecret"`
-	AccessTokenTTL  string `mapstructure:"accessTokenTTL"`
-	RefreshTokenTTL string `mapstructure:"refreshTokenTTL"`
+	JWTSecret        string `mapstructure:"jwtSecret"`
+	AccessTokenTTL   string `mapstructure:"accessTokenTTL"`
+	RefreshTokenTTL  string `mapstructure:"refreshTokenTTL"`
+	PasswordResetTTL string `mapstructure:"passwordResetTTL"`
 }
 
 func parseDuration(value string) time.Duration {

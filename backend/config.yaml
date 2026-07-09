@@ -1,5 +1,6 @@
 app:
   env: development
+  frontendURL: "http://localhost:5173"
 
 http:
   port: 1324
@@ -11,3 +12,4 @@ auth:
   jwtSecret: "dev-secret-change-me"
   accessTokenTTL: "15m"
   refreshTokenTTL: "168h"
+  passwordResetTTL: "1h"

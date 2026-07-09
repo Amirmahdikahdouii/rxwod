@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	appauth "github.com/rxwod/backend/internal/application/auth"
 	"github.com/rxwod/backend/internal/domain/user"
 )
 
@@ -63,7 +64,7 @@ func scanUser(scanner rowScanner) (user.User, error) {
 	)
 	if err := scanner.Scan(&id, &email, &passwordHash, &displayName, &createdAt, &updatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return user.User{}, ErrNotFound
+			return user.User{}, appauth.ErrUserNotFound
 		}
 		return user.User{}, fmt.Errorf("scan user: %w", err)
 	}
