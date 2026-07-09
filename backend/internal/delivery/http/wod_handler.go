@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -286,6 +287,12 @@ func mapError(c echo.Context, err error) error {
 		errors.Is(err, appgym.ErrInvitationNotFound):
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "resource not found"})
 	default:
+		slog.Error("unhandled request error",
+			"event", "http.unhandled_error",
+			"method", c.Request().Method,
+			"path", c.Path(),
+			"error", err,
+		)
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "internal server error"})
 	}
 }
