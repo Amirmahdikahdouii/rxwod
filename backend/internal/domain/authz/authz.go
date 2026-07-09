@@ -11,51 +11,72 @@ const (
 type Permission string
 
 const (
-	PermissionGymRead             Permission = "gym:read"
-	PermissionGymManage           Permission = "gym:manage"
-	PermissionMemberInviteCoach   Permission = "member:invite_coach"
-	PermissionMemberInviteAthlete Permission = "member:invite_athlete"
-	PermissionMemberList          Permission = "member:list"
-	PermissionMemberUpdateRole    Permission = "member:update_role"
-	PermissionMemberRemove        Permission = "member:remove"
-	PermissionWODCreate           Permission = "wod:create"
-	PermissionWODRead             Permission = "wod:read"
-	PermissionWODUpdate           Permission = "wod:update"
-	PermissionWODPublish          Permission = "wod:publish"
-	PermissionWODDelete           Permission = "wod:delete"
-	PermissionWODResultSubmit     Permission = "wod_result:submit"
-	PermissionWODResultRead       Permission = "wod_result:read"
+	PermissionGymRead                     Permission = "gym:read"
+	PermissionGymManage                   Permission = "gym:manage"
+	PermissionMemberInviteCoach           Permission = "member:invite_coach"
+	PermissionMemberInviteAthlete         Permission = "member:invite_athlete"
+	PermissionMemberList                  Permission = "member:list"
+	PermissionMemberUpdateRole            Permission = "member:update_role"
+	PermissionMemberRemove                Permission = "member:remove"
+	PermissionWODCreate                   Permission = "wod:create"
+	PermissionWODRead                     Permission = "wod:read"
+	PermissionWODUpdate                   Permission = "wod:update"
+	PermissionWODPublish                  Permission = "wod:publish"
+	PermissionWODDelete                   Permission = "wod:delete"
+	PermissionWODResultSubmit             Permission = "wod_result:submit"
+	PermissionWODResultRead               Permission = "wod_result:read"
+	PermissionClassSessionCreate          Permission = "class_session:create"
+	PermissionClassSessionRead            Permission = "class_session:read"
+	PermissionClassBookingBook            Permission = "class_booking:book"
+	PermissionClassBookingOverbook        Permission = "class_booking:overbook"
+	PermissionClassBookingCancel          Permission = "class_booking:cancel"
+	PermissionAthleteDefaultSessionManage Permission = "athlete_default_session:manage"
 )
 
 var rolePermissions = map[Role]map[Permission]struct{}{
 	RoleOwner: {
-		PermissionGymRead:             {},
-		PermissionGymManage:           {},
-		PermissionMemberInviteCoach:   {},
-		PermissionMemberInviteAthlete: {},
-		PermissionMemberList:          {},
-		PermissionMemberUpdateRole:    {},
-		PermissionMemberRemove:        {},
-		PermissionWODCreate:           {},
-		PermissionWODRead:             {},
-		PermissionWODUpdate:           {},
-		PermissionWODPublish:          {},
-		PermissionWODDelete:           {},
-		PermissionWODResultSubmit:     {},
-		PermissionWODResultRead:       {},
+		PermissionGymRead:                     {},
+		PermissionGymManage:                   {},
+		PermissionMemberInviteCoach:           {},
+		PermissionMemberInviteAthlete:         {},
+		PermissionMemberList:                  {},
+		PermissionMemberUpdateRole:            {},
+		PermissionMemberRemove:                {},
+		PermissionWODCreate:                   {},
+		PermissionWODRead:                     {},
+		PermissionWODUpdate:                   {},
+		PermissionWODPublish:                  {},
+		PermissionWODDelete:                   {},
+		PermissionWODResultSubmit:             {},
+		PermissionWODResultRead:               {},
+		PermissionClassSessionCreate:          {},
+		PermissionClassSessionRead:            {},
+		PermissionClassBookingBook:            {},
+		PermissionClassBookingOverbook:        {},
+		PermissionClassBookingCancel:          {},
+		PermissionAthleteDefaultSessionManage: {},
 	},
 	RoleCoach: {
-		PermissionWODCreate:       {},
-		PermissionWODRead:         {},
-		PermissionWODUpdate:       {},
-		PermissionWODPublish:      {},
-		PermissionWODResultSubmit: {},
-		PermissionWODResultRead:   {},
+		PermissionWODCreate:            {},
+		PermissionWODRead:              {},
+		PermissionWODUpdate:            {},
+		PermissionWODPublish:           {},
+		PermissionWODResultSubmit:      {},
+		PermissionWODResultRead:        {},
+		PermissionClassSessionCreate:   {},
+		PermissionClassSessionRead:     {},
+		PermissionClassBookingBook:     {},
+		PermissionClassBookingOverbook: {},
+		PermissionClassBookingCancel:   {},
 	},
 	RoleAthlete: {
-		PermissionWODRead:         {},
-		PermissionWODResultSubmit: {},
-		PermissionWODResultRead:   {},
+		PermissionWODRead:                     {},
+		PermissionWODResultSubmit:             {},
+		PermissionWODResultRead:               {},
+		PermissionClassSessionRead:            {},
+		PermissionClassBookingBook:            {},
+		PermissionClassBookingCancel:          {},
+		PermissionAthleteDefaultSessionManage: {},
 	},
 }
 
