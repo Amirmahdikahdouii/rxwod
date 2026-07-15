@@ -1,11 +1,13 @@
-# RXWOD — Phase 1 WOD Creator
+# RXWOD — Phase 1 WOD Creator (Backend)
 
-Full-stack CrossFit WOD creator built with Go (Echo, PostgreSQL, Viper) and Vue 3 (Composition API, Vite).
+CrossFit WOD creator API built with Go (Echo, PostgreSQL, Viper).
+
+The Vue 3 frontend lives in a separate repository:
+[rxwod-frontend](https://github.com/Amirmahdikahdouii/rxwod-frontend).
 
 ## Architecture
 
 ```text
-frontend/   Vue 3 UI
 backend/    Go API (Clean Architecture + DDD)
 db/         PostgreSQL migrations
 ```
@@ -13,7 +15,6 @@ db/         PostgreSQL migrations
 ## Prerequisites
 
 - Go 1.22+
-- Node.js 20+
 - Docker (for local PostgreSQL)
 
 ## Quick Start
@@ -37,15 +38,8 @@ export AUTH_JWT_SECRET=your-local-dev-secret
 cd backend && go run ./cmd/api
 ```
 
-1. Run the frontend:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-1. Open `http://localhost:5173`
+To run the UI, start the [rxwod-frontend](https://github.com/Amirmahdikahdouii/rxwod-frontend)
+app and point its `VITE_API_BASE_URL` at this API.
 
 Backend defaults live in [`backend/config.yaml`](backend/config.yaml). Environment
 variables from [`.env.example`](.env.example) can override matching YAML values
@@ -103,7 +97,6 @@ Example create payload:
 ```bash
 make test
 cd backend && go test ./...
-cd frontend && npm run typecheck && npm run test:unit && npm run build
 ```
 
 ## Extending WOD Types

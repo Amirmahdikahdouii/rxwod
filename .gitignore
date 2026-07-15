@@ -1,9 +1,3 @@
-# Dependencies
-frontend/node_modules/
-
-# Build output
-frontend/dist/
-
 # Environment
 .env
 .env.local
@@ -20,5 +14,4 @@ frontend/dist/
 Thumbs.db
 
 # Test / cache
-frontend/node_modules/.vite/
 *.log

@@ -1,4 +1,4 @@
-.PHONY: migrate-up migrate-down migrate-up-docker migrate-down-docker backend-test frontend-test test
+.PHONY: migrate-up migrate-down migrate-up-docker migrate-down-docker test run
 
 DATABASE_URL ?= postgres://rxwod:rxwod@localhost:5432/rxwod?sslmode=disable
 
@@ -26,15 +26,9 @@ migrate-down-docker:
 		docker compose exec -T postgres psql -U rxwod -d rxwod -f /dev/stdin < $$f || exit 1; \
 	done
 
-backend-test:
+test:
 	cd backend && go test ./...
-
-frontend-test:
-	cd frontend && npm run test:unit
-
-test: backend-test frontend-test
 
 run:
 	docker compose up -d postgres
 	cd backend && go run ./cmd/api
-	cd frontend && export VITE_API_BASE_URL=http://localhost:1324 && npm run dev

@@ -68,13 +68,14 @@ Add handler tests in [`backend/internal/delivery/http/wod_handler_test.go`](../b
 
 ## 5. Frontend
 
-Update:
+The frontend lives in a separate repository:
+[rxwod-frontend](https://github.com/Amirmahdikahdouii/rxwod-frontend). Update:
 
-- [`frontend/src/features/wod/model/wodTypes.ts`](../frontend/src/features/wod/model/wodTypes.ts)
-- [`frontend/src/features/wod/model/wodSchemas.ts`](../frontend/src/features/wod/model/wodSchemas.ts)
-- [`frontend/src/features/wod/components/ScorePreview.vue`](../frontend/src/features/wod/components/ScorePreview.vue)
+- `src/features/wod/model/wodTypes.ts`
+- `src/features/wod/model/wodSchemas.ts`
+- `src/features/wod/components/ScorePreview.vue`
 
-Add schema tests in [`frontend/src/features/wod/model/wodSchemas.test.ts`](../frontend/src/features/wod/model/wodSchemas.test.ts).
+Add schema tests in `src/features/wod/model/wodSchemas.test.ts`.
 
 ## Design Rules
 
